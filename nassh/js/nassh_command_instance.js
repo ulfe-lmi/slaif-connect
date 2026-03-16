@@ -983,8 +983,9 @@ CommandInstance.prototype.connectTo = async function(params, finalize) {
     return;
   }
 
-  // If no username was specified, prompt the user for one.
-  if (params.username === undefined) {
+  // If no username was specified, or it was explicitly left blank, prompt the
+  // user for one.
+  if (params.username === undefined || params.username === '') {
     const io = this.io.push();
 
     const container = document.createElement('div');
