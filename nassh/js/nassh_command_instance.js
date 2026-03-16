@@ -261,8 +261,11 @@ CommandInstance.prototype.run = async function() {
       const assets = await slaifAssetsPromise;
       const response = await fetch(lib.f.getURL(assets.logoAnsiPath));
       if (response.ok) {
-        this.io.print(await response.text());
-        this.io.print('\n\n\r');
+        const logo = await response.text();
+        // hterm needs a carriage return with each newline to avoid
+        // staircase rendering of preformatted ANSI art.
+        this.io.print(logo.replace(/\r?\n/g, '\n\r'));
+        this.io.print('\n\r');
       }
     } catch (e) {
       // Ignore missing optional logo assets.
