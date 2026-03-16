@@ -264,8 +264,8 @@ CommandInstance.prototype.run = async function() {
         const logo = await response.text();
         // hterm needs a carriage return with each newline to avoid
         // staircase rendering of preformatted ANSI art.
-        this.io.print(logo.replace(/\r?\n/g, '\n\r'));
-        this.io.print('\n\r');
+        this.io.print(logo.replace(/\r?\n/g, '\r\n'));
+        this.io.print('\r\n');
       }
     } catch (e) {
       // Ignore missing optional logo assets.
