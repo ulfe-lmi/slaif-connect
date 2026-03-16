@@ -107,11 +107,11 @@
 	},
 	"CWS_DESCRIPTION": {
 		"description": "Description shown in the Chrome Web Store for the stable extension.",
-		"message": "Secure Shell is an xterm-compatible terminal emulator and stand-alone ssh client for Chrome.  It uses WebAssembly to connect directly to ssh servers without the need for external proxies.\n\nA SFTP command line client is included.  On ChromeOS, you can create SFTP mounts and access them from the Files app!\n\nAn alpha build of Mosh is included now too.\n\nIt has been well tested for a couple of years.\n\nPlease read the FAQ, available here: https://hterm.org/x/ssh/faq.\n\nYou can also exchange feedback in the chromium-hterm mailing list, available here: https://hterm.org/x/ssh/contact.\n\nThe changelog is available here: https://hterm.org/x/ssh/changelog"
+		"message": "SLAIF-connect is a browser-based SSH terminal for approved SLAIF HPC workflows. It connects directly from your browser to approved SSH hosts and keeps credentials local."
 	},
 	"CWS_DESCRIPTION_DEV": {
 		"description": "Description shown in the Chrome Web Store for the developer extension",
-		"message": "This is the development version of the Secure Shell extension.\n\nIt contains fixes & features that may not yet be available in the stable version.  Use it at your own risk.  If you're not comfortable running lightly tested code then install the stable version instead: https://chrome.google.com/webstore/detail/iodihamcpbpeioajjeobimgagajmlibd\n\nPlease read the FAQ, available here: https://hterm.org/x/ssh/faq.\n\nYou can also exchange feedback in the chromium-hterm mailing list, available here: https://hterm.org/x/ssh/contact.\n\nThe changelog is available here: https://hterm.org/x/ssh/changelog"
+		"message": "This is the development version of SLAIF-connect. It may contain unfinished changes and should be used for testing only."
 	},
 	"DELETE_BUTTON_LABEL": {
 		"description": "The label for the delete button. Used to delete a specific SSH connection profile. It should be translated as a general term and not as a keyboard key reference.",
@@ -1875,7 +1875,7 @@
 	},
 	"NASSH_PRODUCT_NAME": {
 		"description": "The name of the product. It may be localized if there is a common localization for the SSH program (which is short for 'Secure Shell').",
-		"message": "Secure Shell"
+		"message": "SLAIF-connect"
 	},
 	"NEW_WINDOW_MENU_LABEL": {
 		"description": "The menu label to open a new window for a new Secure Shell session.",
@@ -1891,7 +1891,7 @@
 	},
 	"OPEN_AS_WINDOW_TIP": {
 		"description": "Message displayed to users who are running Secure Shell in a tab. The [Pro Tip] should be localized (it is slang in the computing world), but can be localized as just 'tip' if easier. The quote style may be changed as needed.",
-		"message": "[Pro Tip] Use 'Open as Window' or 'Fullscreen' to prevent Ctrl+W from closing your terminal!\n[Pro Tip] See $URL$ for more information.",
+		"message": "Tip: Use 'Open as Window' or 'Fullscreen' to prevent Ctrl+W from closing your terminal.\nSee $URL$ for more information.",
 		"placeholders": {
 			"URL": {
 				"content": "$1",
@@ -1947,7 +1947,7 @@
 	},
 	"PREF_BACKUP_FILENAME": {
 		"description": "Default filename for the preferences backup file. The filename should be translated if possible, but the '.json' extension must be retained.",
-		"message": "Secure Shell Preferences Backup.json"
+		"message": "SLAIF-connect Preferences Backup.json"
 	},
 	"PROTOCOL_REGISTER_BUTTON": {
 		"description": "Label for the button that triggers dialogs that try to register ourselves to handle ssh:// URIs. Please see the chrome://settings/handlers page for more details.",
@@ -1971,7 +1971,7 @@
 	},
 	"PROTOCOL_REGISTER_TITLE": {
 		"description": "Title page for the settings page that allows users to register the application to handle ssh:// URIs.",
-		"message": "Secure Shell protocol handler registration helper"
+		"message": "SLAIF-connect protocol handler registration helper"
 	},
 	"READ_SIZE_LABEL": {
 		"description": "Label for the read size (in kibibytes) field. When reading large files, this is the smaller block size used when reading the file in pieces.",
@@ -2563,11 +2563,11 @@
 	},
 	"TIP_8": {
 		"description": "Helpful tip shown to user advertising features",
-		"message": "Chat with fellow hterm/Secure Shell users via chromium-hterm@chromium.org: https://hterm.org/x/contact"
+		"message": "SLAIF-connect support: contact your SLAIF administrator."
 	},
 	"TIP_9": {
 		"description": "Helpful tip shown to user advertising features",
-		"message": "Found a bug?  Request a new feature?  Let us know: https://hterm.org/x/ssh/newbug"
+		"message": "Found a bug? Request a new feature? Contact your SLAIF administrator."
 	},
 	"UNEXPECTED_ERROR": {
 		"description": "Generic message displayed when we encounter an unexpected error.",
@@ -2603,7 +2603,7 @@
 	},
 	"WELCOME_FAQ": {
 		"description": "A link to the frequently asked questions documentation displayed at startup. 'Ctrl+Click' refers to holding the keyboard Control button while clicking with the mouse. 'links' refer to website URL links and is meant as general advice that also applies to this text (which is why it is plural even though there's only one link in this message). Everything may be translated.",
-		"message": "Answers to Frequently Asked Questions: $URL$ (Ctrl+Click on links to open)",
+		"message": "Help: $URL$ (Ctrl+Click on links to open)",
 		"placeholders": {
 			"URL": {
 				"content": "$1",
@@ -2623,7 +2623,7 @@
 	},
 	"WELCOME_TIP_OF_DAY": {
 		"description": "Random useful tip displayed to the user at startup",
-		"message": "Random Pro Tip #$NUM$: $TIP$",
+		"message": "Tip #$NUM$: $TIP$",
 		"placeholders": {
 			"NUM": {
 				"content": "$1",
@@ -2655,6 +2655,6 @@
 	},
 	"ZOOM_WARNING": {
 		"description": "Shown in the top/right corner if the web browser zoom setting is not set to 100%. It's a tip to navigate the Chrome browser's menu.",
-		"message": "Please set Chrome Menu->Zoom to 100%"
+		"message": "Please set browser zoom to 100%"
 	}
 }

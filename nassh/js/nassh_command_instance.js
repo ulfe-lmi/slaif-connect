@@ -41,6 +41,7 @@ import {Client as sftpClient} from './nassh_sftp_client.js';
 import {SftpFsp} from './nassh_sftp_fsp.js';
 import {Cli as nasftpCli} from './nasftp_cli.js';
 import {SshPolicy} from './ssh_policy.js';
+import {loadSlaifBranding, loadSlaifSection} from './nassh_slaif_config.js';
 
 /**
  * @typedef {{
@@ -162,11 +163,11 @@ export function CommandInstance(argv) {
  */
 const EXIT_INTERNAL_ERROR = -1;
 
-/** @const {string} */
-const SLAIF_CONFIG_PATH = '/config/SLAIF.conf';
-
 /** @type {?Promise<!Map<string, string>>} */
 let slaifAllowlistPromise = null;
+
+/** @type {?Promise<!import('./nassh_slaif_config.js').SlaifBranding>} */
+let slaifBrandingPromise = null;
 
 /**
  * Start the nassh command.
@@ -194,11 +195,7 @@ CommandInstance.prototype.run = async function() {
   });
 
   this.prefs_.readStorage().then(async () => {
-    // Set default window title.
-    this.io.print('\x1b]0;' + this.manifest_.name + ' ' +
-                    this.manifest_.version + '\x07');
-
-    showWelcome();
+    await showWelcome();
 
     // Wait for the probing results before we connect to a remote.
     await probePromise;
@@ -220,17 +217,38 @@ CommandInstance.prototype.run = async function() {
     });
   });
 
-  const showWelcome = () => {
+  const showWelcome = async () => {
     const style = {bold: true};
+
+    if (!slaifBrandingPromise) {
+      slaifBrandingPromise = loadSlaifBranding();
+    }
+
+    let branding;
+    try {
+      branding = await slaifBrandingPromise;
+    } catch (e) {
+      branding = {
+        productName: this.manifest_.name,
+        faqUrl: 'https://hterm.org/x/ssh/faq',
+        changelogUrl: '/html/changelog.html',
+        popupTitle: 'SLAIF-connect Extension Popup',
+        showReleaseHighlights: true,
+        showTipOfDay: true,
+      };
+    }
+
+    this.io.print('\x1b]0;' + branding.productName + ' ' +
+                  this.manifest_.version + '\x07');
 
     this.io.println(localize(
         'WELCOME_VERSION',
-        [sgrText(this.manifest_.name, style),
+        [sgrText(branding.productName, style),
          sgrText(this.manifest_.version, style)]));
 
     this.io.println(localize(
         'WELCOME_FAQ',
-        [sgrText(osc8Link('https://hterm.org/x/ssh/faq'), style)]));
+        [sgrText(osc8Link(branding.faqUrl), style)]));
 
     if (hterm.windowType !== 'app' &&
         hterm.windowType !== 'popup' &&
@@ -238,38 +256,38 @@ CommandInstance.prototype.run = async function() {
       this.io.println('');
       this.io.println(localize(
           'OPEN_AS_WINDOW_TIP',
-          [sgrText(osc8Link('https://hterm.org/x/ssh/faq'), style)]));
+          [sgrText(osc8Link(branding.faqUrl), style)]));
     }
 
-    // Show some release highlights the first couple of runs with a new version.
-    // We'll reset the counter when the release notes change.
-    const notes = RELEASE_NOTES.map((n) => ` \u00A4 ${n}`);
-    if (this.prefs_.getNumber('welcome/notes-version') != notes.length) {
-      // They upgraded, so reset the counters.
-      this.prefs_.set('welcome/show-count', 0);
-      this.prefs_.set('welcome/notes-version', notes.length);
+    if (branding.showReleaseHighlights) {
+      // Show release highlights the first couple of runs with a new version.
+      // We'll reset the counter when the release notes change.
+      const notes = RELEASE_NOTES.map((n) => ` \u00A4 ${n}`);
+      if (this.prefs_.getNumber('welcome/notes-version') != notes.length) {
+        // They upgraded, so reset the counters.
+        this.prefs_.set('welcome/show-count', 0);
+        this.prefs_.set('welcome/notes-version', notes.length);
+      }
+      // Figure out how many times we've shown this.
+      const notesShowCount = this.prefs_.getNumber('welcome/show-count');
+      if (notesShowCount < 10) {
+        this.io.println('');
+        this.io.println(localize('WELCOME_RELEASE_HIGHLIGHTS',
+                                 [RELEASE_LAST_VERSION]));
+        notes.map((x) => this.io.println(x));
+        this.prefs_.set('welcome/show-count', notesShowCount + 1);
+        this.io.println(localize(
+            'WELCOME_CHANGELOG',
+            [sgrText(osc8Link(branding.changelogUrl), style)]));
+      }
     }
-    // Figure out how many times we've shown this.
-    const notesShowCount = this.prefs_.getNumber('welcome/show-count');
-    if (notesShowCount < 10) {
-      // For new runs, show the highlights directly.
+
+    if (branding.showTipOfDay) {
+      const num = lib.f.randomInt(1, 14);
       this.io.println('');
-
-      this.io.println(localize('WELCOME_RELEASE_HIGHLIGHTS',
-                               [RELEASE_LAST_VERSION]));
-      notes.map((x) => this.io.println(x));
-      this.prefs_.set('welcome/show-count', notesShowCount + 1);
-
-      this.io.println(localize(
-          'WELCOME_CHANGELOG',
-          [sgrText(osc8Link('/html/changelog.html'), style)]));
+      this.io.println(localize('WELCOME_TIP_OF_DAY',
+                               [num, localize(`TIP_${num}`)]));
     }
-
-    // Display a random tip every time they launch to advertise features.
-    const num = lib.f.randomInt(1, 14);
-    this.io.println('');
-    this.io.println(localize('WELCOME_TIP_OF_DAY',
-                              [num, localize(`TIP_${num}`)]));
 
     if (this.isDevVersion()) {
       // If we're a development version, show build details.
@@ -1232,13 +1250,7 @@ export function parseSlaifAllowlist(text) {
  * @return {!Promise<!Map<string, string>>}
  */
 async function loadSlaifAllowlist() {
-  const response = await fetch(lib.f.getURL(SLAIF_CONFIG_PATH));
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-
-  const text = await response.text();
-  return parseSlaifAllowlist(text);
+  return loadSlaifSection('allowlist');
 }
 
 /**

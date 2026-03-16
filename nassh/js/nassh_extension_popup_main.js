@@ -9,6 +9,7 @@ import {hterm} from '../../hterm/index.js';
 import {
   getSyncStorage, localize, openOptionsPage, sendFeedback,
 } from './nassh.js';
+import {loadSlaifBranding} from './nassh_slaif_config.js';
 import {
   LocalPreferenceManager, PreferenceManager,
 } from './nassh_preference_manager.js';
@@ -19,6 +20,13 @@ import {
  */
 globalThis.addEventListener('DOMContentLoaded', async (event) => {
   await hterm.initPromise;
+
+  try {
+    const branding = await loadSlaifBranding();
+    document.title = branding.popupTitle;
+  } catch (e) {
+    // Keep static fallback title if config fails to load.
+  }
 
   // Save a handle for debugging.
   globalThis.popup_ = new popup();
