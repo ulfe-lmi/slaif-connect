@@ -969,6 +969,13 @@ CommandInstance.prototype.connectTo = async function(params, finalize) {
     return;
   }
 
+  if (!params.hpc) {
+    this.io.println(
+        'Connection blocked: missing required SLAIF hpc parameter.');
+    this.exit(EXIT_INTERNAL_ERROR, true);
+    return;
+  }
+
   applyConnectTargetPrecedence(params);
 
   if (!await this.validateConnectHostname_(params)) {
@@ -1244,7 +1251,7 @@ function normalizeHostLike(value) {
 }
 
 /**
- * Validate that the target hostname is allowlisted, and resolve aliases.
+ * Validate that the target hostname is a SLAIF allowlist alias and resolve it.
  *
  * @param {!Object} params Connection parameters.
  * @return {!Promise<boolean>} True when hostname is allowed.
@@ -1268,10 +1275,8 @@ CommandInstance.prototype.validateConnectHostname_ = async function(params) {
 
   let resolvedHost = null;
   for (const [alias, host] of allowlist.entries()) {
-    const normalizedAlias = alias.toLowerCase();
-    const normalizedHost = normalizeHostLike(host);
-    if (normalizedInput === normalizedAlias ||
-        normalizedInput === normalizedHost) {
+    const normalizedAlias = normalizeHostLike(alias);
+    if (normalizedInput === normalizedAlias) {
       resolvedHost = host;
       break;
     }
@@ -1283,8 +1288,8 @@ CommandInstance.prototype.validateConnectHostname_ = async function(params) {
   }
 
   this.io.println(
-      `Connection blocked: host '${params.hostname}' is not in SLAIF ` +
-      'allowlist [allowlist] section.');
+      `Connection blocked: hpc '${params.hostname}' is not a SLAIF ` +
+      'allowlist alias in [allowlist] section.');
   return false;
 };
 

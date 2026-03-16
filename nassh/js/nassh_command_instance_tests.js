@@ -313,7 +313,7 @@ arneshpc=hpc-login.arnes.si
     assert.isFalse(allowed);
     assert.equal('unknownalias', params.hostname);
     assert.lengthOf(ioLines, 1);
-    assert.include(ioLines[0], 'not in SLAIF allowlist');
+    assert.include(ioLines[0], 'not a SLAIF allowlist alias');
   });
 
   it('blocks unknown hpc aliases after normalization', async () => {
@@ -334,7 +334,28 @@ arneshpc=hpc-login.arnes.si
 
     assert.isFalse(allowed);
     assert.lengthOf(ioLines, 1);
-    assert.include(ioLines[0], 'not in SLAIF allowlist');
+    assert.include(ioLines[0], 'not a SLAIF allowlist alias');
+  });
+
+  it('blocks direct allowlisted host values when alias is required', async () => {
+    const ioLines = [];
+    const params = {
+      hostname: 'uri-host.example',
+      hpc: 'login.vega.izum.si',
+    };
+    const instance = {
+      io: {
+        println: (msg) => ioLines.push(msg),
+      },
+    };
+
+    applyConnectTargetPrecedence(params);
+    const allowed = await CommandInstance.prototype.validateConnectHostname_
+        .call(instance, params);
+
+    assert.isFalse(allowed);
+    assert.lengthOf(ioLines, 1);
+    assert.include(ioLines[0], 'not a SLAIF allowlist alias');
   });
 });
 
