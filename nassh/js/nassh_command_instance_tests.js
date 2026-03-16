@@ -7,7 +7,8 @@
  */
 
 import {
-  isSafeUriNasshOption, isSafeUriSshOption, parseDestination, parseURI,
+  applyConnectTargetPrecedence, isSafeUriNasshOption, isSafeUriSshOption,
+  parseDestination, parseURI,
   postProcessOptions, splitCommandLine, tokenizeOptions,
 } from './nassh_command_instance.js';
 
@@ -213,6 +214,46 @@ describe('parseURI', () => {
  * Check parsing of Secure Shell destinations.
  * Most test logic is in parseURI, so we focus on the little bit that isn't.
  */
+
+
+/**
+ * Verify SLAIF connect target precedence behavior.
+ */
+describe('applyConnectTargetPrecedence', () => {
+  it('uses hpc value as target hostname', () => {
+    const params = {
+      hostname: 'uri-host.example',
+      hpc: 'vegahpc',
+    };
+
+    const rv = applyConnectTargetPrecedence(params);
+
+    assert.strictEqual(rv, params);
+    assert.equal('vegahpc', params.hostname);
+  });
+
+  it('keeps destination hostname when hpc is empty', () => {
+    const params = {
+      hostname: 'uri-host.example',
+      hpc: '',
+    };
+
+    applyConnectTargetPrecedence(params);
+
+    assert.equal('uri-host.example', params.hostname);
+  });
+
+  it('keeps destination hostname when hpc is absent', () => {
+    const params = {
+      hostname: 'uri-host.example',
+    };
+
+    applyConnectTargetPrecedence(params);
+
+    assert.equal('uri-host.example', params.hostname);
+  });
+});
+
 describe('parseDestination', () => {
   const data = [
     // Registered protocol handler.
