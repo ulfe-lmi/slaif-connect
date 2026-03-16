@@ -59,7 +59,7 @@ Star https://crbug.com/217785 for updates.
 SLAIF builds support an `hpc` URI option for selecting an approved HPC target
 from the SLAIF allowlist.
 
-Format: `hpc=<allowlist-alias-or-host>`
+Format: `hpc=<allowlist-alias>`
 
 Example:
 
@@ -85,12 +85,27 @@ section.
 Valid values are:
 
 * an alias key from `[allowlist]` (e.g. `arneshpc`)
-* a host value that appears in `[allowlist]`
 
 #### Security behavior
 
-Unknown `hpc` aliases/hosts are rejected.  If `hpc` cannot be resolved in the
+Unknown `hpc` aliases are rejected.  Host values from `[allowlist]` are not
+accepted as `hpc` input.
+If `hpc` cannot be resolved in the
 SLAIF allowlist, the connection is blocked.
+
+### SLAIF connect.html launcher
+
+SLAIF builds also support direct extension launches via:
+
+`chrome-extension://<id>/connect.html?host=<hpc-alias>&session=<opaque-id>`
+
+Behavior:
+
+* `host` is required and mapped to the URI `hpc` option.
+* `session` is currently accepted but unused.
+* referrer host validation is enforced against `[services]` entries in
+  `nassh/config/SLAIF.conf` when a referrer exists.
+* all connection validation still resolves through `[allowlist]`.
 
 ## Future Work
 

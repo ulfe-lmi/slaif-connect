@@ -64,6 +64,7 @@
   "web_accessible_resources": [
     {
       "resources": [
+        "connect.html",
         "html/nassh.html",
         "html/nassh_google_relay.html"
       ],
