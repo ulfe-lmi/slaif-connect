@@ -27,9 +27,7 @@
     "idle",
     "notifications",
     "storage",
-    "terminalPrivate",
     "unlimitedStorage",
-    "fileSystemProvider",
     "accessibilityFeatures.read"
   ],
   "optional_host_permissions": [
@@ -55,11 +53,6 @@
         "*:*"
       ]
     }
-  },
-  "file_system_provider_capabilities": {
-    "multiple_mounts": true,
-    "configurable": true,
-    "source": "network"
   },
   "web_accessible_resources": [
     {
