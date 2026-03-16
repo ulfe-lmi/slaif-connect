@@ -54,6 +54,44 @@ All other options are parsed out but then currently ignored.
 Star https://crbug.com/217785 for updates.
 ***
 
+### SLAIF HPC target
+
+SLAIF builds support an `hpc` URI option for selecting an approved HPC target
+from the SLAIF allowlist.
+
+Format: `hpc=<allowlist-alias-or-host>`
+
+Example:
+
+`ssh://user;hpc=arneshpc@ignored-host`
+
+In this example, `ignored-host` is not used for connection targeting when
+`hpc` is present.
+
+#### Precedence rule
+
+If both `hpc` and a URI hostname are present, `hpc` takes precedence for target
+selection.
+
+`ssh://user;hpc=arneshpc@anything.example`
+
+connects to the host resolved from `hpc=arneshpc`, not `anything.example`.
+
+#### SLAIF allowlist requirement
+
+`hpc` must resolve through `nassh/config/SLAIF.conf` in the `[allowlist]`
+section.
+
+Valid values are:
+
+* an alias key from `[allowlist]` (e.g. `arneshpc`)
+* a host value that appears in `[allowlist]`
+
+#### Security behavior
+
+Unknown `hpc` aliases/hosts are rejected.  If `hpc` cannot be resolved in the
+SLAIF allowlist, the connection is blocked.
+
 ## Future Work
 
 See these bugs for future work in this area:
