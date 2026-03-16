@@ -5,8 +5,7 @@
 import {lib} from '../../libdot/index.js';
 
 import {punycode} from './deps_punycode.rollup.js';
-
-const SLAIF_CONFIG_PATH = '/config/SLAIF.conf';
+import {loadSlaifSection} from './nassh_slaif_config.js';
 
 /**
  * @param {string} value
@@ -17,63 +16,10 @@ function normalizeHostLike(value) {
 }
 
 /**
- * @param {string} text
- * @param {string} sectionName
- * @return {!Map<string, string>}
- */
-function parseSlaifSection(text, sectionName) {
-  const entries = new Map();
-  let inSection = false;
-
-  text.split(/\r?\n/u).forEach((rawLine) => {
-    let line = rawLine.trim();
-    if (!line || line.startsWith('#') || line.startsWith(';')) {
-      return;
-    }
-
-    line = line.replace(/\s*[#;].*$/u, '').trim();
-    if (!line) {
-      return;
-    }
-
-    const section = line.match(/^\[([^\]]+)\]$/u);
-    if (section) {
-      inSection = section[1].trim().toLowerCase() === sectionName;
-      return;
-    }
-
-    if (!inSection) {
-      return;
-    }
-
-    const eq = line.indexOf('=');
-    if (eq <= 0) {
-      return;
-    }
-
-    const key = line.slice(0, eq).trim();
-    const value = line.slice(eq + 1).trim();
-    if (!key || !value) {
-      return;
-    }
-
-    entries.set(key, value);
-  });
-
-  return entries;
-}
-
-/**
  * @return {!Promise<!Map<string, string>>}
  */
 async function loadSlaifServices() {
-  const response = await fetch(lib.f.getURL(SLAIF_CONFIG_PATH));
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-
-  const text = await response.text();
-  return parseSlaifSection(text, 'services');
+  return loadSlaifSection('services');
 }
 
 /**
