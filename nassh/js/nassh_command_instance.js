@@ -162,6 +162,12 @@ export function CommandInstance(argv) {
  */
 const EXIT_INTERNAL_ERROR = -1;
 
+/** @const {string} */
+const SLAIF_CONFIG_PATH = '/config/SLAIF.conf';
+
+/** @type {?Promise<!Map<string, string>>} */
+let slaifAllowlistPromise = null;
+
 /**
  * Start the nassh command.
  *
@@ -947,6 +953,11 @@ CommandInstance.prototype.connectTo = async function(params, finalize) {
     return;
   }
 
+  if (!await this.validateConnectHostname_(params)) {
+    this.exit(EXIT_INTERNAL_ERROR, true);
+    return;
+  }
+
   // If no username was specified, prompt the user for one.
   if (params.username === undefined) {
     const io = this.io.push();
@@ -1135,6 +1146,128 @@ CommandInstance.prototype.connectTo = async function(params, finalize) {
       return this.connectToFinalize_(params, options);
     }
   });
+};
+
+/**
+ * Parse SLAIF.conf allowlist entries.
+ *
+ * Supports INI-like format and reads only [allowlist] entries where
+ * each line is alias=hostname_or_ip.
+ *
+ * @param {string} text
+ * @return {!Map<string, string>} Map alias -> host.
+ */
+export function parseSlaifAllowlist(text) {
+  const allowlist = new Map();
+  let inAllowlistSection = false;
+
+  text.split(/\r?\n/u).forEach((rawLine) => {
+    let line = rawLine.trim();
+    if (!line || line.startsWith('#') || line.startsWith(';')) {
+      return;
+    }
+
+    // Strip inline comments.
+    line = line.replace(/\s*[#;].*$/u, '').trim();
+    if (!line) {
+      return;
+    }
+
+    const section = line.match(/^\[([^\]]+)\]$/u);
+    if (section) {
+      inAllowlistSection = section[1].trim().toLowerCase() === 'allowlist';
+      return;
+    }
+
+    if (!inAllowlistSection) {
+      return;
+    }
+
+    const eq = line.indexOf('=');
+    if (eq <= 0) {
+      return;
+    }
+
+    const alias = line.slice(0, eq).trim();
+    const host = line.slice(eq + 1).trim();
+    if (!alias || !host) {
+      return;
+    }
+
+    allowlist.set(alias, host);
+  });
+
+  return allowlist;
+}
+
+/**
+ * Load SLAIF allowlist entries from disk.
+ *
+ * @return {!Promise<!Map<string, string>>}
+ */
+async function loadSlaifAllowlist() {
+  const response = await fetch(lib.f.getURL(SLAIF_CONFIG_PATH));
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const text = await response.text();
+  return parseSlaifAllowlist(text);
+}
+
+/**
+ * Normalize hostname/IP text for comparison.
+ *
+ * @param {string} value
+ * @return {string}
+ */
+function normalizeHostLike(value) {
+  return punycode.toASCII(value).toLowerCase().replace(/\.$/, '');
+}
+
+/**
+ * Validate that the target hostname is allowlisted, and resolve aliases.
+ *
+ * @param {!Object} params Connection parameters.
+ * @return {!Promise<boolean>} True when hostname is allowed.
+ */
+CommandInstance.prototype.validateConnectHostname_ = async function(params) {
+  if (!slaifAllowlistPromise) {
+    slaifAllowlistPromise = loadSlaifAllowlist();
+  }
+
+  let allowlist;
+  try {
+    allowlist = await slaifAllowlistPromise;
+  } catch (e) {
+    this.io.println(
+        `Connection blocked: failed to load SLAIF allowlist (${e.message}).`);
+    return false;
+  }
+
+  const inputHost = params.hostname;
+  const normalizedInput = normalizeHostLike(inputHost);
+
+  let resolvedHost = null;
+  for (const [alias, host] of allowlist.entries()) {
+    const normalizedAlias = alias.toLowerCase();
+    const normalizedHost = normalizeHostLike(host);
+    if (normalizedInput === normalizedAlias ||
+        normalizedInput === normalizedHost) {
+      resolvedHost = host;
+      break;
+    }
+  }
+
+  if (resolvedHost !== null) {
+    params.hostname = resolvedHost;
+    return true;
+  }
+
+  this.io.println(
+      `Connection blocked: host '${params.hostname}' is not in SLAIF ` +
+      'allowlist [allowlist] section.');
+  return false;
 };
 
 /**
