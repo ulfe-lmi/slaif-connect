@@ -746,7 +746,7 @@ export function parseURI(uri, stripSchema = true, decodeComponents = false) {
       // '--proxy-mode=foo' will be its value.
       const key = param.split('=', 1)[0];
       const validKeys = new Set([
-          'fingerprint', '-nassh-args', '-nassh-ssh-args',
+          'fingerprint', 'hpc', '-nassh-args', '-nassh-ssh-args',
       ]);
       if (validKeys.has(key)) {
         const value = param.substr(key.length + 1);
