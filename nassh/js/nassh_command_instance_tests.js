@@ -171,10 +171,11 @@ describe('parseURI', () => {
 
     // Params combined.
     ['u;-nassh-args=--proxy-mode=some-mode;fingerprint=foo#;' +
-     '-nassh-ssh-args="usingQuotMarks"@h',
+     '-nassh-ssh-args="usingQuotMarks";hpc=arneshpc@h',
      {'username': 'u', 'hostname': 'h',
       'nassh-args': '--proxy-mode=some-mode',
-      'fingerprint': 'foo#', 'nassh-ssh-args': '"usingQuotMarks"'}],
+      'fingerprint': 'foo#', 'nassh-ssh-args': '"usingQuotMarks"',
+      'hpc': 'arneshpc'}],
 
     // Params combined with encoded chars.
     ['u;-nassh-args=--proxy-mode=ssh-fe%40google.com;fingerprint=foo#;' +
