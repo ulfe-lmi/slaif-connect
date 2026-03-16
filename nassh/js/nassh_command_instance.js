@@ -41,7 +41,11 @@ import {Client as sftpClient} from './nassh_sftp_client.js';
 import {SftpFsp} from './nassh_sftp_fsp.js';
 import {Cli as nasftpCli} from './nasftp_cli.js';
 import {SshPolicy} from './ssh_policy.js';
-import {loadSlaifBranding, loadSlaifSection} from './nassh_slaif_config.js';
+import {
+  loadSlaifAssets,
+  loadSlaifBranding,
+  loadSlaifSection,
+} from './nassh_slaif_config.js';
 
 /**
  * @typedef {{
@@ -169,6 +173,9 @@ let slaifAllowlistPromise = null;
 /** @type {?Promise<!import('./nassh_slaif_config.js').SlaifBranding>} */
 let slaifBrandingPromise = null;
 
+/** @type {?Promise<!import('./nassh_slaif_config.js').SlaifAssets>} */
+let slaifAssetsPromise = null;
+
 /**
  * Start the nassh command.
  *
@@ -245,6 +252,21 @@ CommandInstance.prototype.run = async function() {
         'WELCOME_VERSION',
         [sgrText(branding.productName, style),
          sgrText(this.manifest_.version, style)]));
+
+    if (!slaifAssetsPromise) {
+      slaifAssetsPromise = loadSlaifAssets();
+    }
+
+    try {
+      const assets = await slaifAssetsPromise;
+      const response = await fetch(lib.f.getURL(assets.logoAnsiPath));
+      if (response.ok) {
+        this.io.print(await response.text());
+        this.io.print('\n\n\r');
+      }
+    } catch (e) {
+      // Ignore missing optional logo assets.
+    }
 
     this.io.println(localize(
         'WELCOME_FAQ',
