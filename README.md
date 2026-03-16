@@ -1,5 +1,11 @@
 # SLAIF Connect
 
+<div style="text-align: center;">
+  <a href="https://www.slaif.si">
+    <img src="https://slaif.si/img/logos/SLAIF_logo_ANG_barve.svg" width="400" height="400">
+  </a>
+</div>
+
 **SLAIF Connect** is a browser-based SSH extension for launching and controlling
 **SLAIF workloads on approved HPC systems**.
 
