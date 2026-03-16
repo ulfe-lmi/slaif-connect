@@ -79,6 +79,13 @@ export async function loadSlaifSection(sectionName) {
  */
 export let SlaifBranding;
 
+/**
+ * @typedef {{
+ *   logoAnsiPath: string,
+ * }}
+ */
+export let SlaifAssets;
+
 /** @const {!SlaifBranding} */
 const DEFAULT_BRANDING = {
   productName: 'SLAIF-connect',
@@ -87,6 +94,11 @@ const DEFAULT_BRANDING = {
   popupTitle: 'SLAIF-connect Extension Popup',
   showReleaseHighlights: true,
   showTipOfDay: true,
+};
+
+/** @const {!SlaifAssets} */
+const DEFAULT_ASSETS = {
+  logoAnsiPath: '/config/slaif_logo_ansi.txt',
 };
 
 /**
@@ -129,5 +141,15 @@ export async function loadSlaifBranding() {
                                         DEFAULT_BRANDING.showReleaseHighlights),
     showTipOfDay: parseBoolean(entries.get('show_tip_of_day'),
                                DEFAULT_BRANDING.showTipOfDay),
+  };
+}
+
+/**
+ * @return {!Promise<!SlaifAssets>}
+ */
+export async function loadSlaifAssets() {
+  const entries = await loadSlaifSection('assets');
+  return {
+    logoAnsiPath: entries.get('logo_ansi_path') || DEFAULT_ASSETS.logoAnsiPath,
   };
 }
