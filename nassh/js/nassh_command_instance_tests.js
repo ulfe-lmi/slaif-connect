@@ -7,6 +7,7 @@
  */
 
 import {
+  CommandInstance,
   applyConnectTargetPrecedence, isSafeUriNasshOption, isSafeUriSshOption,
   parseDestination, parseURI,
   postProcessOptions, splitCommandLine, tokenizeOptions,
@@ -251,6 +252,89 @@ describe('applyConnectTargetPrecedence', () => {
     applyConnectTargetPrecedence(params);
 
     assert.equal('uri-host.example', params.hostname);
+  });
+});
+
+describe('validateConnectHostname_', () => {
+  const originalFetch = globalThis.fetch;
+
+  before(() => {
+    globalThis.fetch = async () => ({
+      ok: true,
+      text: async () => `
+[allowlist]
+vegahpc=login.vega.izum.si
+arneshpc=hpc-login.arnes.si
+`,
+    });
+  });
+
+  after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it('normalizes hpc targets through validateConnectHostname_', async () => {
+    const ioLines = [];
+    const params = {
+      hostname: 'uri-host.example',
+      hpc: 'VEGAHPC.',
+    };
+    const instance = {
+      io: {
+        println: (msg) => ioLines.push(msg),
+      },
+    };
+
+    applyConnectTargetPrecedence(params);
+    const allowed = await CommandInstance.prototype.validateConnectHostname_
+        .call(instance, params);
+
+    assert.isTrue(allowed);
+    assert.equal('login.vega.izum.si', params.hostname);
+    assert.deepStrictEqual([], ioLines);
+  });
+
+  it('blocks unknown hpc aliases with allowlist error message', async () => {
+    const ioLines = [];
+    const params = {
+      hostname: 'uri-host.example',
+      hpc: 'unknownalias',
+    };
+    const instance = {
+      io: {
+        println: (msg) => ioLines.push(msg),
+      },
+    };
+
+    applyConnectTargetPrecedence(params);
+    const allowed = await CommandInstance.prototype.validateConnectHostname_
+        .call(instance, params);
+
+    assert.isFalse(allowed);
+    assert.equal('unknownalias', params.hostname);
+    assert.lengthOf(ioLines, 1);
+    assert.include(ioLines[0], 'not in SLAIF allowlist');
+  });
+
+  it('blocks unknown hpc aliases after normalization', async () => {
+    const ioLines = [];
+    const params = {
+      hostname: 'uri-host.example',
+      hpc: 'UnknownAlias.',
+    };
+    const instance = {
+      io: {
+        println: (msg) => ioLines.push(msg),
+      },
+    };
+
+    applyConnectTargetPrecedence(params);
+    const allowed = await CommandInstance.prototype.validateConnectHostname_
+        .call(instance, params);
+
+    assert.isFalse(allowed);
+    assert.lengthOf(ioLines, 1);
+    assert.include(ioLines[0], 'not in SLAIF allowlist');
   });
 });
 
