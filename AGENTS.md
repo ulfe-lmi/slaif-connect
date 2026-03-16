@@ -6,6 +6,12 @@ The repository is a fork of Chromium's **Secure Shell (nassh)** codebase adapted
 
 Agents must follow the rules below strictly.
 
+For system design see:
+ARCHITECTURE.md
+
+For security constraints see:
+SECURITY.md
+
 ---
 
 # Mission
