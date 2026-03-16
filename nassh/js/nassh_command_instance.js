@@ -833,6 +833,22 @@ export function parseDestination(destination) {
 }
 
 /**
+ * Apply SLAIF-specific connect target precedence rules.
+ *
+ * @param {!Object} params The mutable connection settings.
+ * @return {!Object} The same params object for chaining.
+ */
+export function applyConnectTargetPrecedence(params) {
+  // SLAIF-specific precedence: when present, `hpc` overrides the hostname
+  // parsed from the destination URI so allowlist validation/alias resolution
+  // uses the HPC target.
+  if (params.hpc) {
+    params.hostname = params.hpc;
+  }
+  return params;
+}
+
+/**
  * Initiate a connection to a remote host given a destination string.
  *
  * @param {string} destination A string of the form username@host[:port].
@@ -952,6 +968,8 @@ CommandInstance.prototype.connectTo = async function(params, finalize) {
     this.promptForDestination_();
     return;
   }
+
+  applyConnectTargetPrecedence(params);
 
   if (!await this.validateConnectHostname_(params)) {
     this.exit(EXIT_INTERNAL_ERROR, true);
