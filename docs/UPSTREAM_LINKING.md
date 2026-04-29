@@ -44,7 +44,9 @@ Do not use the old SLAIF fork as the dependency.
 
 ```bash
 npm run vendor:libapps
+npm run plugin:install
 npm run build:extension
+npm run plugin:verify
 ```
 
 The generated local dependency model is:
@@ -67,10 +69,16 @@ libdot
 wassh
 wasi-js-bindings
 nassh/js
+nassh/wassh   generated compatibility copy for pinned nassh imports
+nassh/js/deps_*.rollup.js minimal generated local bundles for the prototype
 ```
 
 It does not copy the upstream `nassh` manifest, HTML UI, images, locales, or
-Secure Shell product wrapper. It also does not wire OpenSSH/WASM yet.
+Secure Shell product wrapper.
+
+Plugin artifacts are installed by `scripts/install-plugin.sh`, which uses the
+same upstream manifest helper as `third_party/libapps/nassh/bin/plugin` but
+writes to `extension/plugin` so upstream remains untouched.
 
 ## Do not edit upstream files
 

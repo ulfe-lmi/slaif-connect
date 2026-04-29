@@ -2219,3 +2219,35 @@ Production host-key rotation is controlled and auditable.
 ```
 
 This is the architecture to implement.
+
+---
+
+## Browser-side OpenSSH/WASM work rules
+
+Before changing browser-side SSH code, inspect the pinned upstream APIs under
+`third_party/libapps`. Do not guess the runtime interface and do not edit
+upstream files.
+
+Hard rules:
+
+- never edit `third_party/libapps`;
+- never add `chrome.sockets` or direct TCP from the extension;
+- never bypass or weaken SSH host-key verification;
+- never fake SSH success or claim browser SSH works without starting bundled OpenSSH/WASM;
+- keep local development mode separate from production session launch;
+- keep relay E2E tests intact and run them where possible;
+- do not accept arbitrary shell commands from the web page or server;
+- do not accept arbitrary host/port from the web page;
+- future SSH integration must use the SLAIF relay adapter, not direct TCP.
+
+Plugin artifacts are generated build output under `extension/plugin` and must
+not be committed unless the project owner explicitly requests it. Use:
+
+```bash
+npm run plugin:install
+npm run plugin:verify
+```
+
+Manual browser development uses `tools/start-extension-dev-stack.mjs` and
+`build/extension/config/dev_runtime.local.json`. That generated config is local
+development state only.

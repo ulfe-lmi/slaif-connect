@@ -57,6 +57,31 @@ export async function loadHpcPolicy(url = defaultPolicyUrl()) {
   return policy;
 }
 
+export function buildDevelopmentPolicy(runtimeConfig) {
+  validateDevelopmentRuntimeConfig(runtimeConfig);
+  return {
+    version: 1,
+    description: 'Local development policy generated for browser relay testing.',
+    development: true,
+    relay: {
+      url: runtimeConfig.relayUrl,
+    },
+    hosts: {
+      [runtimeConfig.hpc]: {
+        displayName: 'Local test sshd',
+        sshHost: runtimeConfig.sshHost || '127.0.0.1',
+        sshPort: runtimeConfig.sshPort || 22,
+        hostKeyAlias: runtimeConfig.hostKeyAlias || runtimeConfig.hpc,
+        knownHosts: runtimeConfig.knownHosts,
+        remoteCommandTemplate: runtimeConfig.remoteCommandTemplate ||
+            'SESSION_ID=${SESSION_ID} /bin/printf slaif-browser-relay-ok',
+        allowInteractiveTerminal: false,
+        developmentOnly: true,
+      },
+    },
+  };
+}
+
 export function validatePolicy(policy) {
   if (!policy || typeof policy !== 'object') {
     throw new Error('policy must be an object');
@@ -69,7 +94,10 @@ export function validatePolicy(policy) {
   }
 
   const relayUrl = new URL(policy.relay.url);
-  if (relayUrl.protocol !== 'wss:') {
+  if (relayUrl.protocol !== 'wss:' &&
+      !(policy.development === true &&
+        relayUrl.protocol === 'ws:' &&
+        ['127.0.0.1', 'localhost'].includes(relayUrl.hostname))) {
     throw new Error('relay URL must use wss: in production');
   }
 
@@ -98,6 +126,11 @@ export function validatePolicyHost(alias, host) {
   if (host.knownHosts.some((line) => typeof line !== 'string')) {
     throw new Error(`policy host ${alias} knownHosts entries must be strings`);
   }
+  for (const line of host.knownHosts) {
+    if (line.trim() && !line.trim().startsWith('#')) {
+      validateKnownHostsLine(line, alias);
+    }
+  }
   if (host.knownHosts.every((line) => line.trim().startsWith('#'))) {
     console.warn(`policy host ${alias} contains placeholder known_hosts entries only`);
   }
@@ -108,6 +141,37 @@ export function validatePolicyHost(alias, host) {
 
   // Normalize as a smoke check.
   normalizeHostLike(host.sshHost);
+}
+
+export function validateKnownHostsLine(line, alias = 'host') {
+  if (typeof line !== 'string') {
+    throw new Error(`policy host ${alias} known_hosts entry must be a string`);
+  }
+  const trimmed = line.trim();
+  if (!trimmed || trimmed.startsWith('#')) {
+    return trimmed;
+  }
+  if (/[\r\n\0]/.test(trimmed)) {
+    throw new Error(`policy host ${alias} known_hosts entry contains control characters`);
+  }
+  const parts = trimmed.split(/\s+/);
+  const keyIndex = parts[0].startsWith('@') ? 2 : 1;
+  if (parts.length <= keyIndex + 1) {
+    throw new Error(`policy host ${alias} known_hosts entry is incomplete`);
+  }
+  const hosts = parts[0].startsWith('@') ? parts[1] : parts[0];
+  const keyType = parts[keyIndex];
+  const keyBody = parts[keyIndex + 1];
+  if (!hosts.split(',').some((host) => host === alias)) {
+    throw new Error(`policy host ${alias} known_hosts entry must include alias`);
+  }
+  if (!/^ssh-(ed25519|rsa)|^ecdsa-sha2-nistp(256|384|521)$/.test(keyType)) {
+    throw new Error(`policy host ${alias} known_hosts entry has unsupported key type`);
+  }
+  if (!/^[A-Za-z0-9+/=]+$/.test(keyBody)) {
+    throw new Error(`policy host ${alias} known_hosts entry has invalid key data`);
+  }
+  return trimmed;
 }
 
 export function validateRemoteCommandTemplate(template, alias = 'host') {
@@ -147,4 +211,50 @@ export function buildKnownHostsText(policyHost) {
   return policyHost.knownHosts
       .filter((line) => line.trim() && !line.trim().startsWith('#'))
       .join('\n') + '\n';
+}
+
+export function requireLaunchableKnownHosts(policyHost) {
+  const knownHosts = buildKnownHostsText(policyHost).trim();
+  if (!knownHosts) {
+    throw new Error('SSH launch requires at least one non-placeholder known_hosts entry');
+  }
+  return `${knownHosts}\n`;
+}
+
+export function validateDevelopmentRuntimeConfig(config) {
+  if (!config || typeof config !== 'object') {
+    throw new Error('development runtime config must be an object');
+  }
+  if (config.mode !== 'local-dev') {
+    throw new Error('development runtime config mode must be local-dev');
+  }
+  validateAlias(config.hpc);
+  validateSessionId(config.sessionId);
+  if (typeof config.relayUrl !== 'string') {
+    throw new Error('development runtime config missing relayUrl');
+  }
+  const relayUrl = new URL(config.relayUrl);
+  if (relayUrl.protocol !== 'ws:' ||
+      !['127.0.0.1', 'localhost'].includes(relayUrl.hostname)) {
+    throw new Error('development relayUrl must be ws://127.0.0.1 or ws://localhost');
+  }
+  if (typeof config.relayToken !== 'string' || config.relayToken.length < 8) {
+    throw new Error('development runtime config missing relayToken');
+  }
+  if (typeof config.username !== 'string' || !/^[A-Za-z0-9_.-]{1,64}$/.test(config.username)) {
+    throw new Error('development runtime config has invalid username');
+  }
+  if (!Array.isArray(config.knownHosts) || config.knownHosts.length === 0) {
+    throw new Error('development runtime config missing knownHosts');
+  }
+  const alias = config.hostKeyAlias || config.hpc;
+  validateAlias(alias);
+  for (const line of config.knownHosts) {
+    validateKnownHostsLine(line, alias);
+  }
+  if (config.sshPort !== undefined &&
+      (!Number.isInteger(config.sshPort) || config.sshPort <= 0 || config.sshPort > 65535)) {
+    throw new Error('development runtime config has invalid sshPort');
+  }
+  return config;
 }

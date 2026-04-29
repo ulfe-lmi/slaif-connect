@@ -10,6 +10,7 @@ const requiredDirs = [
   'wassh',
   'wasi-js-bindings',
   'nassh/js',
+  'nassh/wassh',
 ];
 
 function fail(message) {

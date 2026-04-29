@@ -3,6 +3,7 @@ dist/
 build/
 extension/vendor/
 extension/plugin/
+extension/config/dev_runtime.local.json
 server/relay/allowed_hpc_hosts.json
 .DS_Store
 *.log

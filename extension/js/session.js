@@ -1,22 +1,25 @@
 import {
+  buildDevelopmentPolicy,
   buildRemoteCommand,
   loadHpcPolicy,
   requireKnownHpcAlias,
   validateSessionId,
 } from './slaif_policy.js';
 import {SlaifRelay} from './slaif_relay.js';
+import {startBrowserSshSession} from './slaif_ssh_client.js';
 import {parseSlurmJobId} from './job_output_parser.js';
 
 const statusEl = document.getElementById('status');
 const terminalEl = document.getElementById('terminal');
+const logEl = document.getElementById('log');
 
 function status(text) {
   statusEl.textContent = text;
 }
 
 function print(text) {
-  terminalEl.textContent += `${text}\n`;
-  terminalEl.scrollTop = terminalEl.scrollHeight;
+  logEl.textContent += `${text}\n`;
+  logEl.scrollTop = logEl.scrollHeight;
 }
 
 function getPendingSession() {
@@ -29,6 +32,32 @@ function getPendingSession() {
       resolve(items.pendingSlaifSession || null);
     });
   });
+}
+
+async function fetchOptionalJson(url) {
+  let response;
+  try {
+    response = await fetch(url, {cache: 'no-store'});
+  } catch (error) {
+    if (String(error?.message || error).includes('Failed to fetch')) {
+      return null;
+    }
+    throw error;
+  }
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`failed to load ${url}: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function loadDevelopmentRuntimeConfig() {
+  if (!globalThis.chrome?.runtime?.getURL) {
+    return null;
+  }
+  return fetchOptionalJson(chrome.runtime.getURL('config/dev_runtime.local.json'));
 }
 
 async function fetchSessionDescriptor(policy, sessionId) {
@@ -65,30 +94,6 @@ function validateDescriptor(descriptor, pending) {
 }
 
 async function startSshOverRelay({policyHost, relay, sessionId}) {
-  // TODO: Wire this into the vendored upstream libapps/wassh/nassh runtime.
-  // Desired behavior:
-  //
-  // 1. Initialize hterm for terminal UI.
-  // 2. Start the OpenSSH WASM client.
-  // 3. Configure the JS/WASI socket layer to use `relay.openSocket(host, port)`.
-  // 4. Pass OpenSSH args equivalent to:
-  //
-  //    -o StrictHostKeyChecking=yes
-  //    -o CheckHostIP=no
-  //    -o HostKeyAlias=<policyHost.hostKeyAlias>
-  //    -o ForwardAgent=no
-  //    -o ForwardX11=no
-  //    -o ClearAllForwardings=yes
-  //    -p <policyHost.sshPort>
-  //    <user>@<policyHost.sshHost>
-  //    <fixed remote command>
-  //
-  // 5. Feed known_hosts from policyHost.knownHosts.
-  // 6. Capture stdout/stderr for job-id parsing.
-  //
-  // This starter deliberately leaves the final upstream integration as a clear
-  // boundary rather than patching nassh_command_instance.js.
-
   const command = buildRemoteCommand(policyHost, sessionId);
 
   print('Prepared SSH-over-relay session:');
@@ -96,8 +101,8 @@ async function startSshOverRelay({policyHost, relay, sessionId}) {
   print(`  target host:  ${policyHost.sshHost}:${policyHost.sshPort}`);
   print(`  relay URL:    ${relay.relayUrl}`);
   print(`  command:      ${command}`);
-  print('');
-  print('TODO: connect this boundary to upstream libapps/wassh OpenSSH runtime.');
+  print('Browser OpenSSH/WASM is not started for externally launched production sessions yet.');
+  print('Use the local development stack for the browser relay prototype.');
 
   // Example output parser check for local development.
   const example = 'Submitted batch job 123456';
@@ -105,7 +110,49 @@ async function startSshOverRelay({policyHost, relay, sessionId}) {
   print(`Parser smoke test: ${example} → job id ${jobId}`);
 }
 
+async function startDevelopmentSession(runtimeConfig) {
+  status('Loading local development SSH policy...');
+  const policy = buildDevelopmentPolicy(runtimeConfig);
+  const policyHost = requireKnownHpcAlias(policy, runtimeConfig.hpc);
+  const relay = new SlaifRelay({
+    policyHost,
+    relayUrl: runtimeConfig.relayUrl,
+    relayToken: runtimeConfig.relayToken,
+  });
+
+  logEl.hidden = true;
+  terminalEl.hidden = false;
+  status(`Starting browser OpenSSH/WASM prototype for ${policyHost.hostKeyAlias}...`);
+
+  const result = await startBrowserSshSession({
+    policyHost,
+    relay,
+    username: runtimeConfig.username,
+    sessionId: runtimeConfig.sessionId,
+    terminalElement: terminalEl,
+  });
+
+  if (runtimeConfig.expectedOutput) {
+    console.info('Expected local development output:', runtimeConfig.expectedOutput);
+  }
+
+  status(`OpenSSH/WASM exited with code ${result.exitCode}`);
+}
+
 async function main() {
+  const url = new URL(globalThis.location.href);
+  if (url.searchParams.get('dev') === '1') {
+    status('Loading local development runtime config...');
+    const runtimeConfig = await loadDevelopmentRuntimeConfig();
+    if (!runtimeConfig) {
+      status('Local development config not found');
+      print('Run npm run build:extension and npm run dev:extension-stack, then open this page again.');
+      return;
+    }
+    await startDevelopmentSession(runtimeConfig);
+    return;
+  }
+
   status('Loading pending SLAIF session…');
   const pending = await getPendingSession();
   if (!pending) {

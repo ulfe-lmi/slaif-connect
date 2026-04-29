@@ -15,6 +15,16 @@ if [ ! -f "$VENDOR_META" ]; then
   "$ROOT/scripts/vendor-libapps.sh"
 fi
 
+plugin_status="missing"
+if [ -d "$ROOT/extension/plugin" ]; then
+  if SLAIF_VERIFY_PLUGIN_SKIP_BUILD=1 node "$ROOT/scripts/verify-plugin.js"; then
+    plugin_status="verified"
+  else
+    echo "Plugin artifacts are present but failed verification." >&2
+    exit 1
+  fi
+fi
+
 rm -rf "$BUILD"
 mkdir -p "$BUILD"
 
@@ -37,4 +47,8 @@ if [ ! -d "$BUILD/plugin" ]; then
 fi
 
 echo "Built unpacked extension at $BUILD"
-echo "SSH is not wired yet; this build only packages the current extension scaffold and vendored upstream files."
+if [ "$plugin_status" = "verified" ]; then
+  echo "OpenSSH/WASM plugin artifacts were verified and bundled."
+else
+  echo "Browser SSH prototype files were packaged, but plugin artifacts are missing."
+fi
