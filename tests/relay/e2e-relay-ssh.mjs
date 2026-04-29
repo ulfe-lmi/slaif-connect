@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {spawnSync} from 'node:child_process';
+import {spawn, spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -118,7 +118,7 @@ function dockerPort(containerId) {
 }
 
 function runSsh({bridgePort, keyPath, knownHostsPath}) {
-  return runAllowFailure('ssh', [
+  const args = [
     '-p', String(bridgePort),
     '-i', keyPath,
     '-o', 'BatchMode=yes',
@@ -134,8 +134,38 @@ function runSsh({bridgePort, keyPath, knownHostsPath}) {
     '-o', 'LogLevel=ERROR',
     'testuser@127.0.0.1',
     'printf slaif-relay-ok',
-  ], {
-    timeout: 20000,
+  ];
+
+  return new Promise((resolve) => {
+    const child = spawn('ssh', args, {
+      cwd: root,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGTERM');
+    }, 20000);
+
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk;
+    });
+    child.on('close', (status, signal) => {
+      clearTimeout(timeout);
+      resolve({
+        status: timedOut ? 124 : status,
+        signal,
+        stdout,
+        stderr,
+      });
+    });
   });
 }
 
@@ -188,6 +218,14 @@ async function main() {
     const sshdPort = dockerPort(containerId);
     await waitForPort(sshdPort);
 
+    const direct = await runSsh({
+      bridgePort: sshdPort,
+      keyPath: clientKey,
+      knownHostsPath: knownHosts,
+    });
+    assert.equal(direct.status, 0, direct.stderr);
+    assert.equal(direct.stdout, 'slaif-relay-ok');
+
     relay = createRelayServer({
       allowedHosts: {
         'test-sshd': {
@@ -219,7 +257,7 @@ async function main() {
     });
     const bridgePort = bridge.address().port;
 
-    const success = runSsh({
+    const success = await runSsh({
       bridgePort,
       keyPath: clientKey,
       knownHostsPath: knownHosts,
@@ -227,7 +265,7 @@ async function main() {
     assert.equal(success.status, 0, success.stderr);
     assert.equal(success.stdout, 'slaif-relay-ok');
 
-    const hostKeyFailure = runSsh({
+    const hostKeyFailure = await runSsh({
       bridgePort,
       keyPath: clientKey,
       knownHostsPath: wrongKnownHosts,

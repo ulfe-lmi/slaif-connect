@@ -34,6 +34,7 @@ export function startWsTcpBridge(options = {}) {
 
   const active = new Set();
   const server = net.createServer((tcp) => {
+    logger.info?.('bridge accepted local TCP connection');
     tcp.pause();
 
     const ws = new WebSocket(relayUrl, ['slaif-ssh-relay-v1']);
@@ -42,6 +43,7 @@ export function startWsTcpBridge(options = {}) {
 
     let authed = false;
     let closed = false;
+    const pendingTcpChunks = [];
 
     const closeBoth = () => {
       if (closed) {
@@ -54,6 +56,7 @@ export function startWsTcpBridge(options = {}) {
     };
 
     ws.on('open', () => {
+      logger.info?.('bridge connected to relay websocket');
       ws.send(JSON.stringify({
         type: 'auth',
         relayToken,
@@ -81,6 +84,10 @@ export function startWsTcpBridge(options = {}) {
           return;
         }
         authed = true;
+        logger.info?.('bridge relay auth accepted');
+        for (const chunk of pendingTcpChunks.splice(0)) {
+          ws.send(chunk, {binary: true});
+        }
         tcp.resume();
         return;
       }
@@ -96,7 +103,11 @@ export function startWsTcpBridge(options = {}) {
     });
 
     tcp.on('data', (chunk) => {
-      if (!authed || ws.readyState !== WebSocket.OPEN) {
+      if (!authed) {
+        pendingTcpChunks.push(Buffer.from(chunk));
+        return;
+      }
+      if (ws.readyState !== WebSocket.OPEN) {
         return;
       }
       // Do not inspect or log SSH payload bytes.
