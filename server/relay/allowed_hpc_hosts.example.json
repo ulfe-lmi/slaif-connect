@@ -1,0 +1,24 @@
+{
+  "hosts": {
+    "stare": {
+      "host": "stare.lmi.link",
+      "port": 22
+    },
+    "arneshpc": {
+      "host": "hpc-login.arnes.si",
+      "port": 22
+    },
+    "vegahpc": {
+      "host": "login.vega.izum.si",
+      "port": 22
+    },
+    "vegahpccpu": {
+      "host": "logincpu.vega.izum.si",
+      "port": 22
+    },
+    "vegahpcgpu": {
+      "host": "gpulogingpu.vega.izum.si",
+      "port": 22
+    }
+  }
+}

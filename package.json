@@ -1,0 +1,11 @@
+{
+  "name": "slaif-connect-relay-starter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:extension": "./scripts/build-extension.sh",
+    "vendor:libapps": "./scripts/vendor-libapps.sh",
+    "start:relay": "npm --prefix server/relay start"
+  }
+}

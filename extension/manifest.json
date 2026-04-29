@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "SLAIF Connect",
+  "version": "0.1.0",
+  "description": "Browser-side SSH launcher for approved SLAIF HPC systems over a WebSocket relay.",
+  "minimum_chrome_version": "116",
+
+  "permissions": [
+    "storage"
+  ],
+
+  "host_permissions": [
+    "https://connect.slaif.example/*"
+  ],
+
+  "externally_connectable": {
+    "matches": [
+      "https://*.slaif.example/*",
+      "https://stare.lmi.link/*"
+    ]
+  },
+
+  "background": {
+    "service_worker": "js/background.js",
+    "type": "module"
+  },
+
+  "action": {
+    "default_title": "SLAIF Connect"
+  },
+
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https://connect.slaif.example wss://connect.slaif.example"
+  }
+}

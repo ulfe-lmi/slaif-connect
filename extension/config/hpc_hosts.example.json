@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "description": "Example SLAIF Connect HPC policy. Replace host keys before production use.",
+  "relay": {
+    "url": "wss://connect.slaif.example/ssh-relay",
+    "sessionDescriptorUrlTemplate": "https://connect.slaif.example/api/connect/session/${SESSION_ID}"
+  },
+  "hosts": {
+    "stare": {
+      "displayName": "LMI STARE host",
+      "sshHost": "stare.lmi.link",
+      "sshPort": 22,
+      "hostKeyAlias": "stare",
+      "knownHosts": [
+        "# TODO replace with real SSH host key: stare ssh-ed25519 AAAA..."
+      ],
+      "remoteCommandTemplate": "/opt/slaif/bin/slaif-launch --session ${SESSION_ID}",
+      "allowInteractiveTerminal": false
+    },
+    "arneshpc": {
+      "displayName": "ARNES HPC",
+      "sshHost": "hpc-login.arnes.si",
+      "sshPort": 22,
+      "hostKeyAlias": "arneshpc",
+      "knownHosts": [
+        "# TODO replace with real SSH host key: arneshpc ssh-ed25519 AAAA..."
+      ],
+      "remoteCommandTemplate": "/opt/slaif/bin/slaif-launch --session ${SESSION_ID}",
+      "allowInteractiveTerminal": false
+    },
+    "vegahpc": {
+      "displayName": "Vega HPC login",
+      "sshHost": "login.vega.izum.si",
+      "sshPort": 22,
+      "hostKeyAlias": "vegahpc",
+      "knownHosts": [
+        "# TODO replace with real SSH host key or host certificate CA entry"
+      ],
+      "remoteCommandTemplate": "/opt/slaif/bin/slaif-launch --session ${SESSION_ID}",
+      "allowInteractiveTerminal": false
+    },
+    "vegahpccpu": {
+      "displayName": "Vega HPC CPU login",
+      "sshHost": "logincpu.vega.izum.si",
+      "sshPort": 22,
+      "hostKeyAlias": "vegahpccpu",
+      "knownHosts": [
+        "# TODO replace with real SSH host key or host certificate CA entry"
+      ],
+      "remoteCommandTemplate": "/opt/slaif/bin/slaif-launch --session ${SESSION_ID}",
+      "allowInteractiveTerminal": false
+    },
+    "vegahpcgpu": {
+      "displayName": "Vega HPC GPU login",
+      "sshHost": "gpulogingpu.vega.izum.si",
+      "sshPort": 22,
+      "hostKeyAlias": "vegahpcgpu",
+      "knownHosts": [
+        "# TODO replace with real SSH host key or host certificate CA entry"
+      ],
+      "remoteCommandTemplate": "/opt/slaif/bin/slaif-launch --session ${SESSION_ID}",
+      "allowInteractiveTerminal": false
+    }
+  }
+}
