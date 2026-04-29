@@ -139,6 +139,17 @@ For extension testing:
 
 Then load `build/extension` as an unpacked extension in Chrome.
 
+For the local relay/OpenSSH harness, see `docs/RELAY_E2E_TESTING.md`:
+
+```bash
+npm run test:relay
+npm run test:relay:e2e
+```
+
+The E2E harness uses system OpenSSH and a test sshd container to prove relay byte
+forwarding and strict host-key verification. It is a development test only; the
+production extension will use browser-side OpenSSH/WASM later.
+
 ## Important production rules
 
 1. Do not load executable JavaScript or WASM from the web at runtime. Vendor upstream code at build time.
