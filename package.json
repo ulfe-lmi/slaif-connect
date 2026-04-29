@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "build:extension": "./scripts/build-extension.sh",
+    "check:js": "node scripts/checks/check-js.mjs",
+    "check:json": "node scripts/checks/check-json.mjs",
+    "test": "npm run check:json && npm run check:js && node tests/policy.test.mjs && node tests/job_output_parser.test.mjs",
     "vendor:libapps": "./scripts/vendor-libapps.sh",
     "start:relay": "npm --prefix server/relay start"
   }

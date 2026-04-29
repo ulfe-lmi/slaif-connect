@@ -24,6 +24,10 @@ For this project, “linking against upstream” means:
 
 ## Initialize upstream dependency
 
+This starter PR intentionally creates only the scaffolding. A later PR should
+add the actual submodule, pin the commit, and vendor only the runtime files that
+the extension packages.
+
 ```bash
 git submodule add https://chromium.googlesource.com/apps/libapps third_party/libapps
 git submodule update --init --recursive
@@ -89,6 +93,14 @@ ssh_client WASM               OpenSSH client runtime
 wassh                         JS/WASI socket bridge
 SLAIF Relay adapter           WebSocket-to-relay socket object
 SLAIF Policy                  alias, host key, command template, relay URL
+```
+
+Expected generated paths:
+
+```text
+third_party/libapps       upstream submodule, untouched
+extension/vendor/libapps  generated/copy output from build script
+extension/plugin          generated/copied OpenSSH/WASM plugin artifacts
 ```
 
 The relay adapter should be passed into the upstream SSH/WASM runtime rather than patching `nassh_command_instance.js`.

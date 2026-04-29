@@ -10,12 +10,12 @@
   ],
 
   "host_permissions": [
-    "https://connect.slaif.example/*"
+    "https://connect.slaif.si/*"
   ],
 
   "externally_connectable": {
     "matches": [
-      "https://*.slaif.example/*",
+      "https://*.slaif.si/*",
       "https://stare.lmi.link/*"
     ]
   },
@@ -26,10 +26,11 @@
   },
 
   "action": {
-    "default_title": "SLAIF Connect"
+    "default_title": "SLAIF Connect",
+    "default_popup": "html/popup.html"
   },
 
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https://connect.slaif.example wss://connect.slaif.example"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https://connect.slaif.si wss://connect.slaif.si"
   }
 }

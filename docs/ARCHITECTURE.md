@@ -139,7 +139,7 @@ The relay token must not contain an arbitrary client-provided host or port.
 ### Step 4 — extension opens WSS to relay
 
 ```text
-extension → wss://connect.slaif.example/ssh-relay
+extension → wss://connect.slaif.si/ssh-relay
 ```
 
 The first message authenticates the relay token. After success, the connection switches to binary SSH byte forwarding.
@@ -226,6 +226,7 @@ It uses upstream `libapps` as a build-time dependency:
 ```text
 third_party/libapps       upstream submodule, untouched
 extension/vendor/libapps  generated copy used by the packaged extension
+extension/plugin          generated/copied OpenSSH/WASM plugin artifacts
 extension/js              SLAIF-specific logic
 ```
 
@@ -260,6 +261,12 @@ Therefore:
 ```text
 No production connection may proceed with an unknown or mismatched host key.
 ```
+
+The relay can improve perimeter security if the HPC center recognizes the SLAIF
+web server as an approved relay or bastion source. For example, HPC firewall
+rules may permit SSH only from the relay IP. That network control is useful, but
+it must not replace normal SSH user authentication or extension-side host-key
+verification.
 
 ## Non-goals
 
