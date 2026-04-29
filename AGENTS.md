@@ -140,6 +140,26 @@ propose one of these instead:
 2. a minimal explicit patch-overlay strategy;
 3. an upstreamable change.
 
+### 1.3.2 Relay E2E harness
+
+Before wiring browser-side OpenSSH/WASM, preserve the local relay E2E harness
+and run it where the environment has Docker and OpenSSH available:
+
+```bash
+npm run test:relay
+npm run test:relay:e2e
+```
+
+Do not weaken relay tests by accepting unknown host keys, accepting changed host
+keys, disabling strict host-key checking, or treating host-key failures as
+success. The host-key negative test is the local proof that a fake SSH server
+behind the relay is rejected before trust is established.
+
+`tools/ws-tcp-bridge.js` is development-only test code. Do not confuse it with
+extension runtime code, and do not use it to justify direct TCP from the Chrome
+extension. The production extension must use the relay adapter and bundled
+browser-side OpenSSH/WASM.
+
 ### 1.4 Direct TCP from the extension is intentionally not the goal
 
 Do not try to depend on `chrome.sockets.tcp`, raw TCP extension permissions, Secure Shell's special extension identity, or any direct-TCP capability.
