@@ -3,11 +3,14 @@ import path from 'node:path';
 import process from 'node:process';
 
 const root = process.cwd();
-const skipDirs = new Set(['.git', 'node_modules', 'dist', 'third_party']);
-const skipPrefixes = ['extension/vendor'];
+const skipDirs = new Set(['.git', 'node_modules', 'build', 'dist', 'third_party']);
+const skipPrefixes = ['extension/vendor', 'extension/plugin'];
 
 function shouldSkip(relativePath) {
   const normalized = relativePath.split(path.sep).join('/');
+  if (normalized === 'extension/vendor/libapps/VENDORED_FROM.json') {
+    return false;
+  }
   return relativePath.split(path.sep).some((part) => skipDirs.has(part)) ||
       skipPrefixes.some((prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`));
 }
@@ -29,7 +32,13 @@ function walk(dir) {
   return out;
 }
 
-for (const file of walk(root)) {
+const files = walk(root);
+const vendorMetadata = path.join(root, 'extension/vendor/libapps/VENDORED_FROM.json');
+if (fs.existsSync(vendorMetadata)) {
+  files.push(vendorMetadata);
+}
+
+for (const file of files) {
   JSON.parse(fs.readFileSync(file, 'utf8'));
 }
 

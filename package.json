@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "build:extension": "./scripts/build-extension.sh",
+    "check:vendor": "node scripts/check-vendor.mjs",
     "check:js": "node scripts/checks/check-js.mjs",
     "check:json": "node scripts/checks/check-json.mjs",
-    "test": "npm run check:json && npm run check:js && node tests/policy.test.mjs && node tests/job_output_parser.test.mjs",
+    "test": "npm run check:json && npm run check:js && npm run check:vendor && node tests/policy.test.mjs && node tests/job_output_parser.test.mjs",
+    "upstream:init": "./scripts/init-upstream.sh",
     "vendor:libapps": "./scripts/vendor-libapps.sh",
     "start:relay": "npm --prefix server/relay start"
   }

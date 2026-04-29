@@ -1,18 +1,38 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cat <<'MSG'
-SLAIF Connect will use Chromium libapps as a pinned build-time dependency.
+UPSTREAM_URL="https://chromium.googlesource.com/apps/libapps"
+ROOT="$(git -C "$(dirname "$0")/.." rev-parse --show-toplevel)"
+UPSTREAM="$ROOT/third_party/libapps"
 
-This starter PR does not initialize upstream automatically. A later PR should:
+if [ ! -f "$ROOT/.gitmodules" ] || ! git -C "$ROOT" config --file .gitmodules --get submodule.third_party/libapps.url >/dev/null; then
+  echo "Missing third_party/libapps submodule config. Add it with:" >&2
+  echo "  git submodule add $UPSTREAM_URL third_party/libapps" >&2
+  exit 1
+fi
 
-  git submodule add https://chromium.googlesource.com/apps/libapps third_party/libapps
-  git submodule update --init --recursive
-  git -C third_party/libapps rev-parse HEAD > UPSTREAM_LIBAPPS_COMMIT
+git -C "$ROOT" submodule update --init --recursive third_party/libapps
 
-After that, run:
+missing=0
+for dir in hterm libdot wassh wasi-js-bindings nassh ssh_client; do
+  if [ ! -d "$UPSTREAM/$dir" ]; then
+    echo "missing: third_party/libapps/$dir" >&2
+    missing=1
+  fi
+done
 
-  ./scripts/vendor-libapps.sh
+if [ "$missing" -ne 0 ]; then
+  echo "Upstream libapps checkout is incomplete." >&2
+  exit 1
+fi
 
-Do not edit files under third_party/libapps directly.
+commit="$(git -C "$UPSTREAM" rev-parse HEAD)"
+printf '%s\n' "$commit" > "$ROOT/UPSTREAM_LIBAPPS_COMMIT"
+printf '%s\n' "$UPSTREAM_URL" > "$ROOT/UPSTREAM_LIBAPPS_URL"
+
+cat <<MSG
+Upstream libapps initialized.
+URL: $UPSTREAM_URL
+Pinned commit: $commit
+Expected directories: found
 MSG

@@ -98,11 +98,29 @@ docs/
   PROTOTYPE_SNIPPETS.md
 ```
 
-## Quick start
+## Development setup
 
-This PR only creates the scaffold. A later PR will add and pin
-`third_party/libapps`; until then, `./scripts/vendor-libapps.sh` exits with a
-clear message if upstream has not been initialized.
+Initialize the pinned upstream dependency, generate the local vendored copy, and
+build the unpacked extension directory:
+
+```bash
+git submodule update --init --recursive
+npm install
+npm run upstream:init
+npm run vendor:libapps
+npm run build:extension
+npm test
+```
+
+The generated extension can be inspected at:
+
+```text
+build/extension
+```
+
+SSH login is still a future milestone. The build currently packages the
+extension scaffold and bundled upstream files only; it does not start
+OpenSSH/WASM.
 
 For local relay testing:
 
@@ -119,7 +137,7 @@ For extension testing:
 ./scripts/build-extension.sh
 ```
 
-Then load `dist/extension` as an unpacked extension in Chrome.
+Then load `build/extension` as an unpacked extension in Chrome.
 
 ## Important production rules
 
