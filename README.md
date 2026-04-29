@@ -5,7 +5,7 @@ This is the clean, non-fork direction for **SLAIF Connect**.
 The previous prototype started inside a fork of Chromium `libapps` / Secure Shell (`nassh`). This starter keeps the same product reasoning but changes the implementation model:
 
 - no permanent `nassh` fork;
-- upstream `libapps` is used only as a pinned build-time dependency;
+- upstream `libapps` will be used only as a pinned build-time dependency;
 - the browser extension always speaks SSH over a WebSocket-to-TCP relay;
 - SSH credentials stay inside the browser-side SSH client;
 - the SLAIF web server may relay encrypted SSH bytes, but it must not terminate SSH or receive passwords, OTPs, passphrases, or private keys;
@@ -94,11 +94,9 @@ docs/
 
 ## Quick start
 
-```bash
-git init
-git submodule add https://chromium.googlesource.com/apps/libapps third_party/libapps
-./scripts/vendor-libapps.sh
-```
+This PR only creates the scaffold. A later PR will add and pin
+`third_party/libapps`; until then, `./scripts/vendor-libapps.sh` exits with a
+clear message if upstream has not been initialized.
 
 For local relay testing:
 
@@ -137,4 +135,3 @@ Start with these:
 - `extension/js/slaif_policy.js`
 - `extension/js/slaif_relay.js`
 - `server/relay/relay.js`
-

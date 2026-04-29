@@ -2,8 +2,8 @@
 // Receives launch requests from approved SLAIF web origins and opens a session page.
 
 const ALLOWED_WEB_ORIGINS = new Set([
-  'https://connect.slaif.example',
-  'https://www.slaif.example',
+  'https://connect.slaif.si',
+  'https://www.slaif.si',
   'https://stare.lmi.link',
 ]);
 

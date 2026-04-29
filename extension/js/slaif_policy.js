@@ -1,7 +1,12 @@
 // SLAIF Connect policy helpers.
 // This module keeps the old fork's allowlist idea but moves it out of nassh.
 
-const DEFAULT_POLICY_URL = chrome.runtime.getURL('config/hpc_hosts.example.json');
+function defaultPolicyUrl() {
+  if (globalThis.chrome?.runtime?.getURL) {
+    return chrome.runtime.getURL('config/hpc_hosts.example.json');
+  }
+  return new URL('../config/hpc_hosts.example.json', import.meta.url).href;
+}
 
 export function normalizeHostLike(value) {
   if (typeof value !== 'string') {
@@ -42,7 +47,7 @@ export function validateSessionId(sessionId) {
   return sessionId;
 }
 
-export async function loadHpcPolicy(url = DEFAULT_POLICY_URL) {
+export async function loadHpcPolicy(url = defaultPolicyUrl()) {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`failed to load HPC policy: ${response.status}`);
@@ -99,9 +104,25 @@ export function validatePolicyHost(alias, host) {
   if (typeof host.remoteCommandTemplate !== 'string' || !host.remoteCommandTemplate.includes('${SESSION_ID}')) {
     throw new Error(`policy host ${alias} missing remoteCommandTemplate with \\${SESSION_ID}`);
   }
+  validateRemoteCommandTemplate(host.remoteCommandTemplate, alias);
 
   // Normalize as a smoke check.
   normalizeHostLike(host.sshHost);
+}
+
+export function validateRemoteCommandTemplate(template, alias = 'host') {
+  if (typeof template !== 'string' || !template.trim()) {
+    throw new Error(`policy host ${alias} has empty remoteCommandTemplate`);
+  }
+  if (!template.includes('${SESSION_ID}')) {
+    throw new Error(`policy host ${alias} command template must include \\${SESSION_ID}`);
+  }
+  if (/\$\{(?!SESSION_ID\})/.test(template)) {
+    throw new Error(`policy host ${alias} command template contains unsupported placeholders`);
+  }
+  if (/[\r\n\0]/.test(template)) {
+    throw new Error(`policy host ${alias} command template contains control characters`);
+  }
 }
 
 export function requireKnownHpcAlias(policy, alias) {

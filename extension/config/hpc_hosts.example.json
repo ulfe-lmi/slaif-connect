@@ -2,8 +2,8 @@
   "version": 1,
   "description": "Example SLAIF Connect HPC policy. Replace host keys before production use.",
   "relay": {
-    "url": "wss://connect.slaif.example/ssh-relay",
-    "sessionDescriptorUrlTemplate": "https://connect.slaif.example/api/connect/session/${SESSION_ID}"
+    "url": "wss://connect.slaif.si/ssh-relay",
+    "sessionDescriptorUrlTemplate": "https://connect.slaif.si/api/connect/session/${SESSION_ID}"
   },
   "hosts": {
     "stare": {
