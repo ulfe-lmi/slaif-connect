@@ -4,8 +4,8 @@ import path from 'node:path';
 import process from 'node:process';
 
 const root = process.cwd();
-const skipDirs = new Set(['.git', 'node_modules', 'dist', 'third_party']);
-const skipPrefixes = ['extension/vendor'];
+const skipDirs = new Set(['.git', 'node_modules', 'build', 'dist', 'third_party']);
+const skipPrefixes = ['extension/vendor', 'extension/plugin'];
 
 function shouldSkip(relativePath) {
   const normalized = relativePath.split(path.sep).join('/');

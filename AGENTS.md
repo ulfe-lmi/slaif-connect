@@ -107,6 +107,39 @@ remote JS/WASM is loaded from GitHub, Gitiles, CDN, or SLAIF server at runtime
 
 Chrome extension executable code must be packaged with the extension. Runtime-loading executable JavaScript or WebAssembly from remote servers is not allowed for the product path.
 
+### 1.3.1 Working with upstream libapps
+
+Files under `third_party/libapps` are upstream-owned. Never edit them directly.
+Never silently patch vendored upstream code.
+
+SLAIF-specific code belongs under:
+
+```text
+extension/
+server/
+scripts/
+tests/
+docs/
+```
+
+Generated files under `extension/vendor` and `extension/plugin` are build
+outputs. Do not commit them unless the project owner explicitly requests it.
+
+Always preserve the no-fork direction:
+
+- use build-time vendoring from the pinned upstream submodule;
+- do not load executable JavaScript or WASM remotely at runtime;
+- do not add `chrome.sockets` permissions;
+- keep relay-only networking, with no direct TCP from the Chrome extension;
+- future SSH integration must use the SLAIF relay adapter, not a direct TCP path.
+
+If a future change appears to require changing `third_party/libapps`, stop and
+propose one of these instead:
+
+1. a local adapter around upstream APIs;
+2. a minimal explicit patch-overlay strategy;
+3. an upstreamable change.
+
 ### 1.4 Direct TCP from the extension is intentionally not the goal
 
 Do not try to depend on `chrome.sockets.tcp`, raw TCP extension permissions, Secure Shell's special extension identity, or any direct-TCP capability.

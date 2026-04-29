@@ -24,36 +24,58 @@ For this project, “linking against upstream” means:
 
 ## Initialize upstream dependency
 
-This starter PR intentionally creates only the scaffolding. A later PR should
-add the actual submodule, pin the commit, and vendor only the runtime files that
-the extension packages.
+This repository uses the official Chromium Gitiles upstream as a git submodule:
 
 ```bash
-git submodule add https://chromium.googlesource.com/apps/libapps third_party/libapps
 git submodule update --init --recursive
-git -C third_party/libapps rev-parse HEAD > UPSTREAM_LIBAPPS_COMMIT
+npm run upstream:init
 ```
+
+`UPSTREAM_LIBAPPS_COMMIT` records the exact pinned submodule commit, and
+`UPSTREAM_LIBAPPS_URL` records the upstream URL:
+
+```text
+https://chromium.googlesource.com/apps/libapps
+```
+
+Do not use the old SLAIF fork as the dependency.
 
 ## Vendor selected files
 
 ```bash
-./scripts/vendor-libapps.sh
+npm run vendor:libapps
+npm run build:extension
 ```
 
-Initial vendoring can be broad:
+The generated local dependency model is:
 
 ```text
-hterm/
-libdot/
-wassh/
-wasi-js-bindings/
-selected nassh/js modules
-plugin WASM artifacts
+third_party/libapps        upstream submodule, pinned, untouched
+extension/vendor/libapps   generated copy used for local development/builds
+extension/plugin           generated/copied OpenSSH/WASM plugin artifacts, if available
+build/extension            packaged unpacked extension directory
 ```
 
-Later shrink it to only what the extension actually imports.
+Generated vendor and plugin files are ignored by git. Regenerate them during
+development or build instead of committing them.
+
+This PR vendors only initial runtime source directories:
+
+```text
+hterm
+libdot
+wassh
+wasi-js-bindings
+nassh/js
+```
+
+It does not copy the upstream `nassh` manifest, HTML UI, images, locales, or
+Secure Shell product wrapper. It also does not wire OpenSSH/WASM yet.
 
 ## Do not edit upstream files
+
+Files under `third_party/libapps` are upstream-owned. Agents must not edit files
+inside that directory.
 
 SLAIF-specific code belongs in:
 
@@ -61,23 +83,27 @@ SLAIF-specific code belongs in:
 extension/js/
 extension/config/
 server/relay/
+scripts/
+tests/
+docs/
 ```
 
-If you absolutely must patch upstream, keep the patch as a small, explicit patch file under:
+If a future change appears to require patching libapps, stop and propose one of:
 
-```text
-patches/
-```
+- a local adapter around upstream APIs;
+- a minimal explicit patch-overlay strategy;
+- an upstreamable change.
 
-But the preferred path is no patch.
+Never silently patch vendored upstream code.
 
 ## Updating upstream
 
 ```bash
 git -C third_party/libapps fetch origin
 git -C third_party/libapps checkout <new-known-good-commit>
-git -C third_party/libapps rev-parse HEAD > UPSTREAM_LIBAPPS_COMMIT
-./scripts/vendor-libapps.sh
+npm run upstream:init
+npm run vendor:libapps
+npm run build:extension
 npm test
 ```
 
@@ -101,6 +127,7 @@ Expected generated paths:
 third_party/libapps       upstream submodule, untouched
 extension/vendor/libapps  generated/copy output from build script
 extension/plugin          generated/copied OpenSSH/WASM plugin artifacts
+build/extension           unpacked extension package
 ```
 
 The relay adapter should be passed into the upstream SSH/WASM runtime rather than patching `nassh_command_instance.js`.

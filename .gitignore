@@ -1,7 +1,9 @@
 node_modules/
 dist/
+build/
 extension/vendor/
+extension/plugin/
 server/relay/allowed_hpc_hosts.json
-UPSTREAM_LIBAPPS_COMMIT
 .DS_Store
 *.log
+*.zip
