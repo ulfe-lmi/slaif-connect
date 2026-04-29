@@ -1,8 +1,14 @@
-# SLAIF Connect — Relay-Only Starter
+<div style="text-align: center;">
+  <a href="https://www.slaif.si">
+    <img src="https://slaif.si/img/logos/SLAIF_logo_ANG_barve.svg" width="400" height="400">
+  </a>
+</div>
+
+# SLAIF Connect
 
 This is the clean, non-fork direction for **SLAIF Connect**.
 
-The previous prototype started inside a fork of Chromium `libapps` / Secure Shell (`nassh`). This starter keeps the same product reasoning but changes the implementation model:
+The [previous prototype](https://github.com/ulfe-lmi/slaif-connect-nassh-prototype) started inside a fork of Chromium `libapps` / Secure Shell (`nassh`). This starter keeps the same product reasoning but changes the implementation model:
 
 - no permanent `nassh` fork;
 - upstream `libapps` will be used only as a pinned build-time dependency;
