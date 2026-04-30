@@ -8,6 +8,12 @@ extension/wasi-js-bindings/
 extension/config/dev_runtime.local.json
 extension/config/hpc_policy.local.json
 extension/config/policy_trust_roots.local.json
+config/pilot/*.local.json
+config/pilot/*.signed.json
+config/pilot/*.private-key.*
+config/pilot/*.candidate-known-hosts
+config/pilot/*.verified-known-hosts
+config/pilot/*.fingerprints
 *.private-key.json
 server/relay/allowed_hpc_hosts.json
 .DS_Store

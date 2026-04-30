@@ -254,6 +254,26 @@ npm run test:policy
 npm run test:browser:signed-policy
 ```
 
+### 13. Real-HPC pilot onboarding support
+
+The repository now includes a manual pilot path for preparing a signed policy for one real HPC target, collecting candidate host keys, verifying operator-provided fingerprints, and running a local mock SLAIF web/API plus relay stack that connects only to the signed-policy host and port.
+
+Main files and docs:
+
+- [docs/REAL_HPC_PILOT.md](docs/REAL_HPC_PILOT.md)
+- [config/pilot/](config/pilot)
+- [scripts/pilot/](scripts/pilot)
+- [tools/start-real-hpc-pilot-stack.mjs](tools/start-real-hpc-pilot-stack.mjs)
+- [tests/pilot/](tests/pilot)
+
+Validation:
+
+```bash
+npm run test:pilot
+```
+
+This is onboarding support only. No real HPC host has been validated in this repository, and no real credentials or unverified host keys should be committed.
+
 ## What Is Validated
 
 | Capability | Status | Evidence / command |
@@ -268,6 +288,7 @@ npm run test:browser:signed-policy
 | Signed HPC policy verification | Working locally | `npm run policy:verify`, `npm run test:policy` |
 | Tampered/wrong-signer/expired policy rejection | Working locally | policy unit tests and signed-policy browser tests |
 | Relay origin constrained by signed policy | Working locally | signed-policy browser tests |
+| Real-HPC pilot onboarding tooling | Scaffolded | `npm run test:pilot`; manual real-HPC run requires verified host data |
 | Production HPC integration | Pending | not yet validated against real HPC |
 | Production signed policy operations | Pending | real trust root and operational signing process not deployed |
 | Production host-key rotation | Pending | foundation exists; real HPC rotation process not deployed |
@@ -299,7 +320,7 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 ## Current Known Limitations
 
 - SLAIF Connect is not production-ready.
-- Real HPC hosts are not integrated or validated yet.
+- Real HPC hosts are not integrated or validated yet; pilot tooling exists for an operator-supplied verified host key or host CA.
 - Signed policy verification exists, but production trust-root operations are not deployed.
 - Production host-key rotation and emergency revocation procedures are documented as foundations, not operated against real HPC yet.
 - Browser E2E uses a disposable local-only password for the test sshd container; this is not production credential storage.
@@ -312,8 +333,8 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 ## Next Milestones
 
 1. Documentation/status refresh. This PR.
-2. Real SLAIF policy signing operations and production trust-root handling.
-3. Real HPC pilot target with pinned host key or host CA.
+2. Real HPC pilot target with independently verified pinned host key or host CA.
+3. Real SLAIF policy signing operations and production trust-root handling.
 4. Production authentication UX.
 5. Fixed SLAIF remote launcher and SLURM job-id reporting integration.
 6. Relay deployment hardening.
@@ -335,6 +356,8 @@ Merged PRs visible from GitHub at the time of this update:
 | [#5 Wire browser-side OpenSSH WASM relay prototype](https://github.com/ulfe-lmi/slaif-connect/pull/5) | 2026-04-30 | Added the first browser-side OpenSSH/WASM relay prototype and local extension dev stack. |
 | [#6 Add browser E2E validation for WASM relay prototype](https://github.com/ulfe-lmi/slaif-connect/pull/6) | 2026-04-30 | Added Playwright/Chromium validation for real browser-side remote command output and browser host-key negative coverage. |
 | [#7 Add SLAIF web launch session flow](https://github.com/ulfe-lmi/slaif-connect/pull/7) | 2026-04-30 | Added external web launch validation, session descriptor validation, mock SLAIF launcher/API, and browser E2E coverage for the product-shaped flow. |
+| [#8 Update README and project status documentation](https://github.com/ulfe-lmi/slaif-connect/pull/8) | 2026-04-30 | Rewrote the project README and added this status/roadmap document. |
+| [#9 Add signed HPC policy verification](https://github.com/ulfe-lmi/slaif-connect/pull/9) | 2026-04-30 | Added signed policy verification, policy tooling, rollback foundations, signed local-dev policy, and signed-policy browser validation. |
 
 ## How To Read The Repository
 
@@ -346,6 +369,7 @@ Merged PRs visible from GitHub at the time of this update:
 - [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md): threat table.
 - [docs/HPC_POLICY.md](docs/HPC_POLICY.md): signed HPC policy format and tooling.
 - [docs/HOST_KEY_ROTATION.md](docs/HOST_KEY_ROTATION.md): host-key and host-CA rotation foundation.
+- [docs/REAL_HPC_PILOT.md](docs/REAL_HPC_PILOT.md): manual real-HPC pilot onboarding.
 - [docs/UPSTREAM_LINKING.md](docs/UPSTREAM_LINKING.md): upstream `libapps` vendoring.
 - [docs/RELAY_E2E_TESTING.md](docs/RELAY_E2E_TESTING.md): system SSH relay tests.
 - [docs/BROWSER_E2E_TESTING.md](docs/BROWSER_E2E_TESTING.md): browser E2E tests.

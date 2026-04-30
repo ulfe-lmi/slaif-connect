@@ -17,6 +17,8 @@ For sites without SSH host certificates:
 
 The extension must reject unknown and changed host keys outside the signed policy.
 
+For real-HPC pilots, `ssh-keyscan` may be used to collect candidate keys, but it must not be treated as a trust decision. The pilot policy should only be signed after the candidate fingerprint is verified through an HPC administrator, official documentation, DNS SSHFP with DNSSEC where trusted, or another approved independent channel.
+
 ## Operational Rules
 
 - Private policy signing keys must never be committed.
@@ -29,3 +31,5 @@ The extension must reject unknown and changed host keys outside the signed polic
 ## Current Status
 
 This repository now contains the verification, validation, signing-tooling, and rollback foundation. Production still needs real SLAIF signing-key operations, real HPC host keys or host CAs, and an approved rotation procedure.
+
+See [REAL_HPC_PILOT.md](REAL_HPC_PILOT.md) for the manual pilot onboarding flow.

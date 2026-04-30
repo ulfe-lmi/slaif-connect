@@ -61,6 +61,8 @@ npm run test:browser:signed-policy
 
 `npm test` intentionally does not require Playwright or Chromium. Browser validation is explicit because it needs Chromium, Docker, and the generated extension build.
 
+Real-HPC pilot testing is intentionally separate from the automated browser suite. Use [REAL_HPC_PILOT.md](REAL_HPC_PILOT.md) with operator-verified host-key or host-CA data. Do not make real-HPC access mandatory for `npm test` or `npm run test:browser`.
+
 The Playwright config runs extension tests with one worker because the unpacked
 extension directory is shared generated state and each dev stack writes
 `build/extension/config/dev_runtime.local.json`.

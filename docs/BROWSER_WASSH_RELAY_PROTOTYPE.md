@@ -87,6 +87,11 @@ For manual browser testing, changing the generated signed policy payload after s
 
 See `docs/BROWSER_E2E_TESTING.md` for the automated Chromium harness.
 
+For a real-HPC manual pilot, use [REAL_HPC_PILOT.md](REAL_HPC_PILOT.md)
+instead of the disposable local sshd stack. The real-HPC pilot path still uses
+browser-side OpenSSH/WASM and the relay, but it requires independently verified
+host-key or host-CA data in a signed policy before any connection is attempted.
+
 ## Limitations
 
 This prototype now exercises the product-shaped web launch/session descriptor
