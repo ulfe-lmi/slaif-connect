@@ -59,13 +59,43 @@ The first pilot command should be harmless and fixed, for example:
 /bin/printf slaif-pilot-ok
 ```
 
-Production-style command templates should include `${SESSION_ID}`, for example:
+Production-style command templates should normally invoke the remote launcher contract and include `${SESSION_ID}`, for example:
 
 ```text
 /opt/slaif/bin/slaif-launch --session ${SESSION_ID}
 ```
 
 Pilot tooling supports a fixed no-session command only when `--pilot-fixed-command` is explicitly provided. Do not use destructive commands, do not accept command strings from the web app, and do not allow the session descriptor to define the command.
+
+## Installing The Pilot Launcher On HPC
+
+Before a real SLURM pilot, install or adapt the reference launcher under a site-approved path such as:
+
+```text
+/opt/slaif/bin/slaif-launch
+```
+
+Recommended deployment properties:
+
+- owned by a trusted HPC administrator or deployment account;
+- writable only by trusted administrators;
+- executable by the intended users;
+- configured with a site-approved SLURM script or wrapper;
+- logged according to HPC site policy.
+
+The reference implementation is in [remote/launcher/slaif-launch](../remote/launcher/slaif-launch), with the contract in [REMOTE_LAUNCHER_CONTRACT.md](REMOTE_LAUNCHER_CONTRACT.md). Test manually after SSH login:
+
+```bash
+/opt/slaif/bin/slaif-launch --session sess_manual_test_123
+```
+
+Expected output:
+
+```text
+Submitted batch job <id>
+```
+
+Never install a launcher that executes arbitrary web-provided commands, accepts job scripts from the session descriptor, or stores SSH credentials.
 
 ## Manual Pilot Flow
 
@@ -103,9 +133,11 @@ Pilot tooling supports a fixed no-session command only when `--pilot-fixed-comma
      --policy-id slaif-hpc-policy-pilot \
      --sequence 1 \
      --valid-from 2026-04-30T00:00:00.000Z \
-     --valid-until 2026-05-31T23:59:59.000Z \
-     --pilot-fixed-command
+     --valid-until 2026-05-31T23:59:59.000Z
    ```
+
+   Use `--pilot-fixed-command` only for an explicitly reviewed harmless
+   no-session pilot command such as `/bin/printf slaif-pilot-ok`.
 
 5. Generate a local pilot signing key if you do not already have one:
 

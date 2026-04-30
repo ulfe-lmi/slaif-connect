@@ -294,6 +294,25 @@ npm run test:jobs
 npm run test:browser:job-reporting
 ```
 
+### 15. Remote launcher contract and reference implementation
+
+The repository now defines the HPC-side launcher contract for the signed-policy remote command and includes a safe local/test reference implementation. Local browser job-reporting E2E mounts that reference launcher into the test sshd container, so the fixed command path exercises the launcher contract before parsing and reporting SLURM metadata.
+
+Main files and docs:
+
+- [docs/REMOTE_LAUNCHER_CONTRACT.md](docs/REMOTE_LAUNCHER_CONTRACT.md)
+- [remote/launcher/slaif-launch](remote/launcher/slaif-launch)
+- [remote/launcher/README.md](remote/launcher/README.md)
+- [tests/remote/launcher.test.mjs](tests/remote/launcher.test.mjs)
+- [tools/start-extension-dev-stack.mjs](tools/start-extension-dev-stack.mjs)
+
+Validation:
+
+```bash
+npm run test:remote-launcher
+npm run test:browser:job-reporting
+```
+
 ## What Is Validated
 
 | Capability | Status | Evidence / command |
@@ -304,6 +323,7 @@ npm run test:browser:job-reporting
 | Browser observes real remote command output | Working locally | expected output includes `Submitted batch job 424242` |
 | SLURM job ID parsing | Working locally | `npm run test:jobs` |
 | Mock SLAIF API receives safe job metadata report | Working locally | `npm run test:browser:job-reporting` |
+| Remote launcher contract/reference implementation | Working locally | `npm run test:remote-launcher`; browser job-reporting E2E mounts the reference launcher |
 | Web launch/session descriptor flow | Working locally | `npm run test:browser:launch-flow` |
 | Malicious launch fields are rejected | Working locally | `tests/session_descriptor.test.mjs`, browser launch-flow test |
 | Malicious descriptor SSH-target fields are rejected | Working locally | `tests/session_descriptor.test.mjs` |
@@ -345,6 +365,7 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 
 - SLAIF Connect is not production-ready.
 - Real HPC hosts are not integrated or validated yet; pilot tooling exists for an operator-supplied verified host key or host CA.
+- The remote launcher contract and reference implementation exist, but no real HPC site has installed or validated `/opt/slaif/bin/slaif-launch`.
 - Signed policy verification exists, but production trust-root operations are not deployed.
 - Production host-key rotation and emergency revocation procedures are documented as foundations, not operated against real HPC yet.
 - Browser E2E uses a disposable local-only password for the test sshd container; this is not production credential storage.
@@ -357,11 +378,11 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 
 ## Next Milestones
 
-1. Fixed-command SLURM job metadata reporting. This PR.
+1. Remote launcher contract and reference implementation. This PR.
 2. Real HPC pilot target with independently verified pinned host key or host CA.
-3. Real SLAIF policy signing operations and production trust-root handling.
-4. Production authentication UX.
-5. Site-approved production SLAIF remote launcher deployment.
+3. Site-approved production SLAIF remote launcher deployment.
+4. Real SLAIF policy signing operations and production trust-root handling.
+5. Production authentication UX.
 6. Relay deployment hardening.
 7. Chrome extension packaging and release workflow.
 8. Security review.
@@ -384,6 +405,7 @@ Merged PRs visible from GitHub at the time of this update:
 | [#8 Update README and project status documentation](https://github.com/ulfe-lmi/slaif-connect/pull/8) | 2026-04-30 | Rewrote the project README and added this status/roadmap document. |
 | [#9 Add signed HPC policy verification](https://github.com/ulfe-lmi/slaif-connect/pull/9) | 2026-04-30 | Added signed policy verification, policy tooling, rollback foundations, signed local-dev policy, and signed-policy browser validation. |
 | [#10 Add real HPC pilot onboarding tooling](https://github.com/ulfe-lmi/slaif-connect/pull/10) | 2026-04-30 | Added real-HPC pilot documentation, host-key collection/verification tools, pilot policy creation, and manual pilot stack. |
+| [#11 Add SLURM job metadata reporting](https://github.com/ulfe-lmi/slaif-connect/pull/11) | 2026-04-30 | Added fixed-command SLURM output parsing and safe job metadata reporting to the mock SLAIF API. |
 
 ## How To Read The Repository
 
@@ -396,6 +418,7 @@ Merged PRs visible from GitHub at the time of this update:
 - [docs/HPC_POLICY.md](docs/HPC_POLICY.md): signed HPC policy format and tooling.
 - [docs/HOST_KEY_ROTATION.md](docs/HOST_KEY_ROTATION.md): host-key and host-CA rotation foundation.
 - [docs/REAL_HPC_PILOT.md](docs/REAL_HPC_PILOT.md): manual real-HPC pilot onboarding.
+- [docs/REMOTE_LAUNCHER_CONTRACT.md](docs/REMOTE_LAUNCHER_CONTRACT.md): HPC-side launcher contract.
 - [docs/UPSTREAM_LINKING.md](docs/UPSTREAM_LINKING.md): upstream `libapps` vendoring.
 - [docs/RELAY_E2E_TESTING.md](docs/RELAY_E2E_TESTING.md): system SSH relay tests.
 - [docs/BROWSER_E2E_TESTING.md](docs/BROWSER_E2E_TESTING.md): browser E2E tests.

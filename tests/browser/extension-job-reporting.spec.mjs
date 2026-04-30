@@ -1,4 +1,5 @@
 import {expect, test} from '@playwright/test';
+import fs from 'node:fs';
 import {launchSlaifExtensionContext} from './fixtures/extensionContext.mjs';
 import {
   startBrowserRelayDevStack,
@@ -16,6 +17,10 @@ test.describe('SLAIF Connect SLURM job metadata reporting', () => {
     let extensionHarness = null;
 
     try {
+      const signedPolicy = JSON.parse(fs.readFileSync(stack.signedPolicyPath, 'utf8'));
+      expect(signedPolicy.payload.hosts[stack.runtimeConfig.hpc].remoteCommandTemplate)
+          .toContain('/keys/slaif-launch --session ${SESSION_ID}');
+
       extensionHarness = await launchSlaifExtensionContext({
         headless: process.env.SLAIF_BROWSER_HEADED !== '1',
       });

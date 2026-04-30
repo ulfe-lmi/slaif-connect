@@ -65,6 +65,8 @@ npm run test:browser:signed-policy
 npm run test:browser:job-reporting
 ```
 
+The job-reporting browser test uses the generated signed local-dev policy to run the reference remote launcher mounted into the test sshd container. Success requires both real browser-side SSH output and a received metadata report at the mock SLAIF API.
+
 `npm test` intentionally does not require Playwright or Chromium. Browser validation is explicit because it needs Chromium, Docker, and the generated extension build.
 
 Real-HPC pilot testing is intentionally separate from the automated browser suite. Use [REAL_HPC_PILOT.md](REAL_HPC_PILOT.md) with operator-verified host-key or host-CA data. Do not make real-HPC access mandatory for `npm test` or `npm run test:browser`.

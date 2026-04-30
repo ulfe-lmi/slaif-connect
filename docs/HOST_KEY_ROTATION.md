@@ -17,6 +17,8 @@ For sites without SSH host certificates:
 
 The extension must reject unknown and changed host keys outside the signed policy.
 
+Production command templates should normally remain anchored to the remote launcher contract, for example `/opt/slaif/bin/slaif-launch --session ${SESSION_ID}`. Host-key or host-CA rotation must not be used as a vehicle to introduce arbitrary command execution.
+
 For real-HPC pilots, `ssh-keyscan` may be used to collect candidate keys, but it must not be treated as a trust decision. The pilot policy should only be signed after the candidate fingerprint is verified through an HPC administrator, official documentation, DNS SSHFP with DNSSEC where trusted, or another approved independent channel.
 
 ## Operational Rules

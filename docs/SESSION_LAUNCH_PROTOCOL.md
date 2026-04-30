@@ -115,6 +115,18 @@ allowed relay origins
 remote command template
 ```
 
+The preferred production remote command template is the HPC-side launcher
+contract:
+
+```text
+/opt/slaif/bin/slaif-launch --session ${SESSION_ID}
+```
+
+The launcher contract is documented in
+[REMOTE_LAUNCHER_CONTRACT.md](REMOTE_LAUNCHER_CONTRACT.md). Neither the web
+launch message nor the descriptor may provide launcher arguments, job scripts,
+or shell fragments.
+
 Job reports are posted to:
 
 ```text

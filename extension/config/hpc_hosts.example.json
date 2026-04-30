@@ -70,7 +70,7 @@
         "# DEVELOPMENT ONLY. tools/start-extension-dev-stack.mjs writes a real generated known_hosts entry into build/extension/config/dev_runtime.local.json.",
         "test-sshd ssh-ed25519 AAAAplaceholder"
       ],
-      "remoteCommandTemplate": "SESSION_ID=${SESSION_ID} /bin/printf slaif-browser-relay-ok",
+      "remoteCommandTemplate": "/opt/slaif/bin/slaif-launch --session ${SESSION_ID}",
       "allowInteractiveTerminal": false,
       "developmentOnly": true
     }

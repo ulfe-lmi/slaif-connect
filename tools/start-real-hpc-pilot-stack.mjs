@@ -426,6 +426,7 @@ async function main() {
   console.log(`Policy fingerprint: ${stack.policyFingerprint}`);
   console.log(`Pilot alias: ${stack.hpc}`);
   console.log(`Signed-policy target: ${stack.policyHost.sshHost}:${stack.policyHost.sshPort}`);
+  console.log(`Signed-policy command: ${stack.policyHost.remoteCommandTemplate}`);
   console.log(`Relay URL: ${stack.relayUrl}`);
   console.log(`Mock SLAIF launcher: ${stack.launcherUrl}?extensionId=<extension-id>`);
   console.log(`Mock SLAIF API base: ${stack.apiBaseUrl}`);
@@ -439,6 +440,7 @@ async function main() {
   console.log(`5. Expected fixed command output: ${stack.expectedOutput}`);
   console.log('');
   console.log('The relay target came from the verified signed policy, not CLI host/port arguments.');
+  console.log('If the policy uses /opt/slaif/bin/slaif-launch, install that launcher on the HPC side first.');
   console.log('The mock API will accept one session-bound job metadata report and will not accept transcripts.');
   console.log('When a job report arrives, the mock API prints its status without tokens or transcripts.');
   console.log('Press Ctrl-C to stop the mock API/relay and remove local generated extension config.');
