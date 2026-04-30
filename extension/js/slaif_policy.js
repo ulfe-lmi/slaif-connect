@@ -241,6 +241,17 @@ export function validateDevelopmentRuntimeConfig(config) {
   if (typeof config.relayToken !== 'string' || config.relayToken.length < 8) {
     throw new Error('development runtime config missing relayToken');
   }
+  if (config.apiBaseUrl !== undefined) {
+    const apiBaseUrl = new URL(config.apiBaseUrl);
+    if (apiBaseUrl.protocol !== 'http:' ||
+        !['127.0.0.1', 'localhost'].includes(apiBaseUrl.hostname)) {
+      throw new Error('development apiBaseUrl must be http://127.0.0.1 or http://localhost');
+    }
+  }
+  if (config.launchToken !== undefined &&
+      (typeof config.launchToken !== 'string' || config.launchToken.length < 16)) {
+    throw new Error('development runtime config has invalid launchToken');
+  }
   if (typeof config.username !== 'string' || !/^[A-Za-z0-9_.-]{1,64}$/.test(config.username)) {
     throw new Error('development runtime config has invalid username');
   }

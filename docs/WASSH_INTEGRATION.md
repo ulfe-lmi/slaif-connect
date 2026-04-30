@@ -69,7 +69,9 @@ npm run plugin:verify
 
 `docs/BROWSER_E2E_TESTING.md` documents the automated Chromium harness. It loads `build/extension`, starts the local sshd/relay stack, enters the disposable local test password in the extension page, and requires the real remote output `slaif-browser-relay-ok`.
 
-The browser suite also runs a wrong-host-key case and verifies the command output is not observed.
+The browser suite also runs a wrong-host-key case and verifies the command output is not observed. The web-launch browser test starts a mock SLAIF launcher/API, sends the external `slaif.startSession` message, fetches the descriptor from `/api/connect/session/<sessionId>`, and then starts the same OpenSSH/WASM relay path.
+
+Session descriptors are intentionally narrow. They supply relay connection data only. `SshSubproc` still receives SSH host, port, known_hosts, HostKeyAlias, and the fixed remote command from extension-side policy.
 
 ## Current Uncertainties
 

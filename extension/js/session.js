@@ -5,6 +5,11 @@ import {
   requireKnownHpcAlias,
   validateSessionId,
 } from './slaif_policy.js';
+import {
+  buildDescriptorFetchRequest,
+  validateLaunchMessage,
+  validateSessionDescriptor,
+} from './slaif_session_descriptor.js';
 import {SlaifRelay} from './slaif_relay.js';
 import {startBrowserSshSession} from './slaif_ssh_client.js';
 import {parseSlurmJobId} from './job_output_parser.js';
@@ -77,15 +82,35 @@ async function loadDevelopmentRuntimeConfig() {
   return fetchOptionalJson(chrome.runtime.getURL('config/dev_runtime.local.json'));
 }
 
-async function fetchSessionDescriptor(policy, sessionId) {
-  const template = policy.relay.sessionDescriptorUrlTemplate;
-  const url = template.replace('${SESSION_ID}', encodeURIComponent(sessionId));
+function isLocalDevOrigin(origin) {
+  try {
+    const parsed = new URL(origin);
+    return parsed.protocol === 'http:' && parsed.hostname === '127.0.0.1';
+  } catch (_e) {
+    return false;
+  }
+}
 
-  const response = await fetch(url, {
-    method: 'GET',
-    credentials: 'include',
-    headers: {'Accept': 'application/json'},
-  });
+function apiBaseUrlFromPolicy(policy) {
+  if (policy.relay?.apiBaseUrl) {
+    return policy.relay.apiBaseUrl;
+  }
+  if (policy.relay?.sessionDescriptorUrlTemplate) {
+    const templateUrl = new URL(policy.relay.sessionDescriptorUrlTemplate);
+    const marker = '/api/connect/session/';
+    if (templateUrl.pathname.includes(marker)) {
+      templateUrl.pathname = templateUrl.pathname.slice(0, templateUrl.pathname.indexOf(marker)) || '/';
+      templateUrl.search = '';
+      templateUrl.hash = '';
+      return templateUrl.href;
+    }
+  }
+  throw new Error('SLAIF API base URL is not configured');
+}
+
+async function fetchSessionDescriptor(pending, apiBaseUrl) {
+  const {url, options} = buildDescriptorFetchRequest(pending, apiBaseUrl);
+  const response = await fetch(url, options);
 
   if (!response.ok) {
     throw new Error(`session descriptor request failed: ${response.status}`);
@@ -94,23 +119,7 @@ async function fetchSessionDescriptor(policy, sessionId) {
   return response.json();
 }
 
-function validateDescriptor(descriptor, pending) {
-  if (!descriptor || typeof descriptor !== 'object') {
-    throw new Error('empty session descriptor');
-  }
-  if (descriptor.sessionId !== pending.sessionId) {
-    throw new Error('session descriptor mismatch');
-  }
-  if (descriptor.hpc !== pending.hpc) {
-    throw new Error('HPC alias mismatch in session descriptor');
-  }
-  if (typeof descriptor.relayToken !== 'string' || descriptor.relayToken.length < 16) {
-    throw new Error('missing relay token');
-  }
-  return descriptor;
-}
-
-async function startSshOverRelay({policyHost, relay, sessionId}) {
+async function startSshOverRelay({policyHost, relay, sessionId, username, expectedOutput}) {
   const command = buildRemoteCommand(policyHost, sessionId);
 
   print('Prepared SSH-over-relay session:');
@@ -118,13 +127,38 @@ async function startSshOverRelay({policyHost, relay, sessionId}) {
   print(`  target host:  ${policyHost.sshHost}:${policyHost.sshPort}`);
   print(`  relay URL:    ${relay.relayUrl}`);
   print(`  command:      ${command}`);
-  print('Browser OpenSSH/WASM is not started for externally launched production sessions yet.');
-  print('Use the local development stack for the browser relay prototype.');
 
-  // Example output parser check for local development.
-  const example = 'Submitted batch job 123456';
-  const jobId = parseSlurmJobId(example);
-  print(`Parser smoke test: ${example} → job id ${jobId}`);
+  logEl.hidden = true;
+  terminalEl.hidden = false;
+  capturedOutputEl.hidden = false;
+
+  const result = await startBrowserSshSession({
+    policyHost,
+    relay,
+    username,
+    sessionId,
+    terminalElement: terminalEl,
+    onStatus: setStatusState,
+    onOutput: appendCapturedOutput,
+  });
+
+  if (expectedOutput) {
+    const captured = normalizeTerminalText(capturedOutputEl.textContent);
+    if (!captured.includes(expectedOutput)) {
+      setStatusState('failed', 'Expected remote command output was not observed');
+      throw new Error(`expected output not observed: ${expectedOutput}`);
+    }
+  }
+
+  if (result.exitCode !== 0) {
+    setStatusState('failed', `OpenSSH/WASM exited with code ${result.exitCode}`);
+    throw new Error(`OpenSSH/WASM exited with code ${result.exitCode}`);
+  }
+
+  const jobId = parseSlurmJobId(capturedOutputEl.textContent);
+  if (jobId) {
+    print(`Parsed SLURM job id ${jobId}`);
+  }
 }
 
 async function startDevelopmentSession(runtimeConfig) {
@@ -191,23 +225,41 @@ async function main() {
     throw new Error('No pending SLAIF session found. Start from the SLAIF web page.');
   }
 
+  validateLaunchMessage(pending);
   validateSessionId(pending.sessionId);
 
-  setStatusState('loading-config', 'Loading HPC policy...');
-  const policy = await loadHpcPolicy();
-  const policyHost = requireKnownHpcAlias(policy, pending.hpc);
+  const devRuntimeConfig = isLocalDevOrigin(pending.origin) ?
+    await loadDevelopmentRuntimeConfig() :
+    null;
 
-  setStatusState('loading-config', `Preparing ${policyHost.displayName || pending.hpc}...`);
-  const descriptor = validateDescriptor(await fetchSessionDescriptor(policy, pending.sessionId), pending);
+  setStatusState('loading-config', 'Loading extension SSH policy...');
+  const policy = devRuntimeConfig ? buildDevelopmentPolicy(devRuntimeConfig) : await loadHpcPolicy();
+  const policyHost = requireKnownHpcAlias(policy, pending.hpc);
+  const apiBaseUrl = devRuntimeConfig?.apiBaseUrl || apiBaseUrlFromPolicy(policy);
+
+  setStatusState('loading-config', 'Fetching SLAIF session descriptor...');
+  const descriptor = validateSessionDescriptor(
+      await fetchSessionDescriptor(pending, apiBaseUrl),
+      pending,
+      policyHost,
+      {allowLocalDev: Boolean(devRuntimeConfig)},
+  );
 
   const relay = new SlaifRelay({
     policyHost,
-    relayUrl: policy.relay.url,
+    relayUrl: descriptor.relayUrl,
     relayToken: descriptor.relayToken,
+    onStatus: setStatusState,
   });
 
-  setStatusState('idle', 'Ready to start SSH over relay');
-  await startSshOverRelay({policyHost, relay, sessionId: pending.sessionId});
+  setStatusState('ssh-starting', `Starting browser OpenSSH/WASM for ${policyHost.hostKeyAlias}...`);
+  await startSshOverRelay({
+    policyHost,
+    relay,
+    sessionId: pending.sessionId,
+    username: descriptor.usernameHint || devRuntimeConfig?.username,
+    expectedOutput: devRuntimeConfig?.expectedOutput,
+  });
 }
 
 main().catch((error) => {

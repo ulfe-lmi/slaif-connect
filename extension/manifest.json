@@ -10,13 +10,15 @@
   ],
 
   "host_permissions": [
-    "https://connect.slaif.si/*"
+    "https://connect.slaif.si/*",
+    "http://127.0.0.1/*"
   ],
 
   "externally_connectable": {
     "matches": [
       "https://*.slaif.si/*",
-      "https://stare.lmi.link/*"
+      "https://stare.lmi.link/*",
+      "http://127.0.0.1/*"
     ]
   },
 
@@ -31,6 +33,6 @@
   },
 
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https://connect.slaif.si wss://connect.slaif.si ws://127.0.0.1:* ws://localhost:*"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https://connect.slaif.si http://127.0.0.1:* wss://connect.slaif.si ws://127.0.0.1:* ws://localhost:*"
   }
 }

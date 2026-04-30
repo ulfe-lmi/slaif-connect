@@ -6,6 +6,40 @@ export async function openDevSessionPage(extensionHarness) {
   return page;
 }
 
+export async function launchFromMockSlaifPage(extensionHarness, launcherUrl) {
+  const launcher = await extensionHarness.context.newPage();
+  const sessionPagePromise = extensionHarness.context.waitForEvent('page', {
+    timeout: 30000,
+    predicate: (page) => page.url().includes('/html/session.html'),
+  });
+  const url = new URL(launcherUrl);
+  url.searchParams.set('extensionId', extensionHarness.extensionId);
+  await launcher.goto(url.href);
+  await launcher.locator('#launch').click();
+  await expect(launcher.locator('[data-launch-result]')).toHaveAttribute(
+      'data-launch-result',
+      'accepted',
+      {timeout: 30000},
+  );
+  const sessionPage = await sessionPagePromise;
+  await sessionPage.waitForLoadState('domcontentloaded');
+  return {launcher, sessionPage};
+}
+
+export async function sendExternalLaunchMessage(page, extensionId, message) {
+  return page.evaluate(({extensionId: id, message: payload}) => {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(id, payload, (response) => {
+        if (chrome.runtime.lastError) {
+          resolve({ok: false, error: chrome.runtime.lastError.message});
+          return;
+        }
+        resolve(response);
+      });
+    });
+  }, {extensionId, message});
+}
+
 export async function waitForStatus(page, status, options = {}) {
   await expect(page.locator('body')).toHaveAttribute('data-slaif-status', status, options);
 }

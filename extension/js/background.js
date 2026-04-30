@@ -1,6 +1,8 @@
 // SLAIF Connect background service worker.
 // Receives launch requests from approved SLAIF web origins and opens a session page.
 
+import {validateLaunchMessage} from './slaif_session_descriptor.js';
+
 const ALLOWED_WEB_ORIGINS = new Set([
   'https://connect.slaif.si',
   'https://www.slaif.si',
@@ -11,7 +13,7 @@ function send(sendResponse, body) {
   sendResponse(body);
 }
 
-function originFromSender(sender) {
+export function originFromSender(sender) {
   if (!sender || !sender.url) {
     return null;
   }
@@ -22,43 +24,57 @@ function originFromSender(sender) {
   }
 }
 
-function isSafeAlias(value) {
-  return typeof value === 'string' && /^[a-z0-9_-]{1,64}$/i.test(value);
+export function isAllowedExternalOrigin(origin) {
+  if (ALLOWED_WEB_ORIGINS.has(origin)) {
+    return true;
+  }
+  try {
+    const url = new URL(origin);
+    // Local browser E2E launcher only. Production launch origins must remain HTTPS.
+    return url.protocol === 'http:' && url.hostname === '127.0.0.1';
+  } catch (_e) {
+    return false;
+  }
 }
 
-function isSafeSessionId(value) {
-  return typeof value === 'string' && /^sess_[A-Za-z0-9_-]{8,128}$/.test(value);
+function createLaunchId() {
+  const bytes = new Uint8Array(12);
+  crypto.getRandomValues(bytes);
+  return `launch_${Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
 }
 
-chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => {
+function errorResponse(error) {
+  return {
+    ok: false,
+    error: error.message || String(error),
+  };
+}
+
+export function buildPendingLaunch(message, sender, now = Date.now()) {
   const origin = originFromSender(sender);
 
-  if (!origin || !ALLOWED_WEB_ORIGINS.has(origin)) {
-    send(sendResponse, {ok: false, error: 'origin_not_allowed'});
-    return false;
+  if (!origin || !isAllowedExternalOrigin(origin)) {
+    throw new Error('origin_not_allowed');
   }
 
-  if (!message || message.type !== 'slaif.startSession') {
-    send(sendResponse, {ok: false, error: 'unknown_message'});
-    return false;
-  }
+  const launch = validateLaunchMessage(message);
 
-  if (!isSafeAlias(message.hpc)) {
-    send(sendResponse, {ok: false, error: 'invalid_hpc_alias'});
-    return false;
-  }
-
-  if (!isSafeSessionId(message.sessionId)) {
-    send(sendResponse, {ok: false, error: 'invalid_session_id'});
-    return false;
-  }
-
-  const pending = {
-    hpc: message.hpc,
-    sessionId: message.sessionId,
+  return {
+    ...launch,
+    launchId: createLaunchId(),
     origin,
-    createdAt: Date.now(),
+    createdAt: now,
   };
+}
+
+function handleExternalMessage(message, sender, sendResponse) {
+  let pending;
+  try {
+    pending = buildPendingLaunch(message, sender);
+  } catch (error) {
+    send(sendResponse, errorResponse(error));
+    return false;
+  }
 
   chrome.storage.session.set({pendingSlaifSession: pending}, () => {
     if (chrome.runtime.lastError) {
@@ -76,9 +92,13 @@ chrome.runtime.onMessageExternal.addListener((message, sender, sendResponse) => 
         send(sendResponse, {ok: false, error: chrome.runtime.lastError.message});
         return;
       }
-      send(sendResponse, {ok: true});
+      send(sendResponse, {ok: true, launchId: pending.launchId});
     });
   });
 
   return true;
-});
+}
+
+if (globalThis.chrome?.runtime?.onMessageExternal) {
+  chrome.runtime.onMessageExternal.addListener(handleExternalMessage);
+}

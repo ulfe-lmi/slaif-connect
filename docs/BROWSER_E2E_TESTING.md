@@ -24,6 +24,12 @@ slaif-browser-relay-ok
 
 Seeing the page load, plugin verification pass, or the relay connect is not enough. The test must observe the fixed command output produced by the sshd container.
 
+The web-launch E2E test additionally opens a mock SLAIF launcher page from
+`http://127.0.0.1`, sends `chrome.runtime.sendMessage(extensionId, {
+type: "slaif.startSession", ... })`, verifies the service worker accepts the
+external launch, fetches a server-issued session descriptor, and then observes
+the same real remote command output through browser-side OpenSSH/WASM.
+
 ## Host-Key Verification
 
 The dev stack writes a generated `known_hosts` line for `HostKeyAlias=test-sshd` into `build/extension/config/dev_runtime.local.json`.
@@ -38,9 +44,14 @@ npm run test:browser
 npm run test:browser:headed
 npm run test:browser:debug
 npm run test:browser:hostkey-negative
+npm run test:browser:launch-flow
 ```
 
 `npm test` intentionally does not require Playwright or Chromium. Browser validation is explicit because it needs Chromium, Docker, and the generated extension build.
+
+The Playwright config runs extension tests with one worker because the unpacked
+extension directory is shared generated state and each dev stack writes
+`build/extension/config/dev_runtime.local.json`.
 
 Before running the browser test, build the extension:
 
@@ -82,3 +93,7 @@ If Chromium cannot be installed or launched, keep the test code intact and repor
 The browser E2E uses a disposable local-only password for the test sshd container. That password is entered into the browser-side OpenSSH/WASM prompt. It is not sent in relay auth JSON and is not handled by the SLAIF relay server.
 
 This is not production credential storage and must not become one. Production SLAIF Connect still needs approved session descriptors, real HPC host-key or host-CA policy, short-lived relay tokens, and no server-side SSH client.
+
+The local mock SLAIF API returns only relay connection data. It does not return
+SSH host, SSH port, known_hosts, SSH options, or remote commands. Those stay in
+extension-side policy and are validated before OpenSSH/WASM starts.

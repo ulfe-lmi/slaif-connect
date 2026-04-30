@@ -2270,3 +2270,26 @@ Hard rules:
 - do not bypass host-key verification to make browser tests pass;
 - browser host-key mismatch tests must verify that the fixed command output is
   not observed.
+
+## SLAIF web launch protocol rules
+
+Future PRs must preserve the web launch/session descriptor boundary documented
+in `docs/SESSION_LAUNCH_PROTOCOL.md`.
+
+Hard rules:
+
+- the web launch message may provide only `type`, `version`, `hpc`,
+  `sessionId`, and `launchToken`;
+- the web page must not provide SSH host, SSH port, known_hosts, host key alias,
+  SSH options, or shell commands;
+- the session descriptor may provide relay URL/token and token expiry only; it
+  must not define SSH host, SSH port, known_hosts, host key alias, SSH options,
+  or remote command;
+- extension-side policy remains authoritative for SSH host identity, host-key
+  verification, and fixed command templates;
+- never put `launchToken` or `relayToken` in query strings;
+- never log launch tokens, relay tokens, SSH credentials, private keys, or raw
+  SSH payload bytes;
+- do not broaden `externally_connectable` beyond explicit production origins
+  and the narrow `http://127.0.0.1/*` local browser test allowance;
+- malicious launch/descriptor field rejection tests must not be weakened.
