@@ -75,10 +75,14 @@ async function startMockPilotWebApiServer({
   sessionId,
   launchToken,
   relayToken,
+  jobReportToken,
   relayUrl,
   usernameHint,
   relayTokenExpiresAt,
+  jobReportTokenExpiresAt,
+  logger = console,
 }) {
+  const jobReports = [];
   const server = http.createServer((req, res) => {
     const origin = `http://${host}:${server.address().port}`;
     const url = new URL(req.url, origin);
@@ -127,6 +131,16 @@ async function startMockPilotWebApiServer({
       return;
     }
 
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization,content-type',
+        'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+      });
+      res.end();
+      return;
+    }
+
     if (url.pathname === `/api/connect/session/${encodeURIComponent(sessionId)}`) {
       if (req.headers.authorization !== `Bearer ${launchToken}`) {
         res.writeHead(401, {'Content-Type': 'application/json'});
@@ -146,9 +160,67 @@ async function startMockPilotWebApiServer({
         relayUrl,
         relayToken,
         relayTokenExpiresAt,
+        jobReportToken,
+        jobReportTokenExpiresAt,
         usernameHint,
         mode: 'launch',
       }));
+      return;
+    }
+
+    if (url.pathname === `/api/connect/session/${encodeURIComponent(sessionId)}/job-report`) {
+      if (req.method !== 'POST') {
+        res.writeHead(405, {'Content-Type': 'application/json'});
+        res.end(JSON.stringify({error: 'method_not_allowed'}));
+        return;
+      }
+      if (req.headers.authorization !== `Bearer ${jobReportToken}`) {
+        res.writeHead(401, {'Content-Type': 'application/json'});
+        res.end(JSON.stringify({error: 'unauthorized'}));
+        return;
+      }
+      let body = '';
+      req.setEncoding('utf8');
+      req.on('data', (chunk) => {
+        body += chunk;
+        if (body.length > 16384) {
+          req.destroy();
+        }
+      });
+      req.on('end', () => {
+        try {
+          const report = JSON.parse(body);
+          if (report.type !== 'slaif.jobReport' ||
+              report.version !== 1 ||
+              report.sessionId !== sessionId ||
+              report.hpc !== hpc ||
+              !['submitted', 'job_id_not_found', 'ssh_failed'].includes(report.status)) {
+            throw new Error('invalid report');
+          }
+          for (const forbidden of [
+            'stdout',
+            'stderr',
+            'transcript',
+            'password',
+            'otp',
+            'privateKey',
+            'relayToken',
+            'launchToken',
+            'jobReportToken',
+          ]) {
+            if (Object.hasOwn(report, forbidden)) {
+              throw new Error(`forbidden report field ${forbidden}`);
+            }
+          }
+          jobReports.push(report);
+          logger.info(`received job metadata report for ${hpc}/${sessionId}: ${report.status}`);
+          res.writeHead(200, {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'});
+          res.end(JSON.stringify({ok: true}));
+        } catch (error) {
+          res.writeHead(400, {'Content-Type': 'application/json'});
+          res.end(JSON.stringify({error: error.message || 'invalid_report'}));
+        }
+      });
       return;
     }
 
@@ -163,6 +235,7 @@ async function startMockPilotWebApiServer({
     webOrigin,
     apiBaseUrl: webOrigin,
     launcherUrl: `${webOrigin}/launcher.html`,
+    jobReports,
     close: () => closeServer(server),
   };
 }
@@ -180,6 +253,7 @@ export async function startRealHpcPilotStack(options = {}) {
   const sessionId = options.sessionId || `sess_real_hpc_${crypto.randomBytes(8).toString('hex')}`;
   const launchToken = options.launchToken || `pilot-launch-${crypto.randomBytes(16).toString('hex')}`;
   const relayToken = options.relayToken || `pilot-relay-${crypto.randomBytes(16).toString('hex')}`;
+  const jobReportToken = options.jobReportToken || `pilot-job-report-${crypto.randomBytes(16).toString('hex')}`;
   const usernameHint = options.usernameHint;
   const expectedOutput = options.expectedOutput || 'slaif-pilot-ok';
   const logger = options.logger || defaultLogger(options.quiet);
@@ -251,6 +325,7 @@ export async function startRealHpcPilotStack(options = {}) {
     });
     await relay.listen({host, port: relayPort});
     const relayTokenExpiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    const jobReportTokenExpiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
     webApi = await startMockPilotWebApiServer({
       host,
@@ -259,9 +334,12 @@ export async function startRealHpcPilotStack(options = {}) {
       sessionId,
       launchToken,
       relayToken,
+      jobReportToken,
       relayUrl,
       usernameHint,
       relayTokenExpiresAt,
+      jobReportTokenExpiresAt,
+      logger,
     });
 
     const runtimeConfig = {
@@ -291,6 +369,7 @@ export async function startRealHpcPilotStack(options = {}) {
       sessionId,
       launchToken,
       relayToken,
+      jobReportToken,
       relay,
       relayUrl,
       relayPort,
@@ -360,6 +439,8 @@ async function main() {
   console.log(`5. Expected fixed command output: ${stack.expectedOutput}`);
   console.log('');
   console.log('The relay target came from the verified signed policy, not CLI host/port arguments.');
+  console.log('The mock API will accept one session-bound job metadata report and will not accept transcripts.');
+  console.log('When a job report arrives, the mock API prints its status without tokens or transcripts.');
   console.log('Press Ctrl-C to stop the mock API/relay and remove local generated extension config.');
 
   await new Promise(() => {});

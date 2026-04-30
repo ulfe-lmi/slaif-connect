@@ -154,12 +154,21 @@ export async function startBrowserSshSession({
   trace = false,
   onStatus = () => {},
   onOutput = () => {},
+  maxCapturedOutputBytes = 64 * 1024,
 }) {
   const knownHosts = requireLaunchableKnownHosts(policyHost);
   const command = buildRemoteCommand(policyHost, sessionId);
   const argv = buildSshArgs({policyHost, username, command});
   onStatus('ssh-starting', 'Initializing hterm and OpenSSH/WASM');
-  const terminal = await createTerminal(terminalElement, onOutput);
+  let capturedOutput = '';
+  const captureOutput = (text) => {
+    capturedOutput += String(text);
+    if (capturedOutput.length > maxCapturedOutputBytes) {
+      capturedOutput = capturedOutput.slice(capturedOutput.length - maxCapturedOutputBytes);
+    }
+    onOutput(text);
+  };
+  const terminal = await createTerminal(terminalElement, captureOutput);
 
   const {SshSubproc} = await import('../vendor/libapps/nassh/js/nassh_subproc_ssh.js');
 
@@ -201,5 +210,6 @@ export async function startBrowserSshSession({
     rawExitResult,
     argv,
     command,
+    output: capturedOutput,
   };
 }

@@ -24,6 +24,7 @@ Short version:
 - the product-shaped SLAIF web launch and session descriptor flow is validated locally;
 - signed HPC policy verification and host-key rotation foundations are present;
 - real-HPC pilot onboarding tooling and docs are present, but no real HPC target is validated yet;
+- fixed-command SLURM job metadata reporting is locally validated through browser-side output parsing and a session-bound API report token;
 - production deployment, real HPC integration, production trust-root operations, and release packaging are still pending.
 
 ## Architecture
@@ -115,6 +116,7 @@ Lightweight checks and unit tests:
 ```bash
 npm test
 npm run test:policy
+npm run test:jobs
 ```
 
 Relay auth/security tests:
@@ -137,6 +139,7 @@ npm run test:browser
 npm run test:browser:launch-flow
 npm run test:browser:hostkey-negative
 npm run test:browser:signed-policy
+npm run test:browser:job-reporting
 ```
 
 Browser and relay E2E tests require Docker, OpenSSH tooling, and Playwright Chromium. If Docker access fails with `/var/run/docker.sock: permission denied`, see [docs/BROWSER_E2E_TESTING.md](docs/BROWSER_E2E_TESTING.md) for the documented local passwordless-sudo wrapper.
@@ -164,6 +167,7 @@ npm run test:pilot
 - [docs/HPC_POLICY.md](docs/HPC_POLICY.md): signed HPC policy format and tools.
 - [docs/HOST_KEY_ROTATION.md](docs/HOST_KEY_ROTATION.md): host-key and host-CA rotation foundation.
 - [docs/REAL_HPC_PILOT.md](docs/REAL_HPC_PILOT.md): manual real-HPC pilot onboarding flow.
+- [docs/JOB_REPORTING.md](docs/JOB_REPORTING.md): fixed-command scheduler metadata reporting.
 - [docs/RELAY_E2E_TESTING.md](docs/RELAY_E2E_TESTING.md): local system-SSH relay tests.
 - [docs/BROWSER_E2E_TESTING.md](docs/BROWSER_E2E_TESTING.md): Playwright/Chromium extension tests.
 - [docs/BROWSER_WASSH_RELAY_PROTOTYPE.md](docs/BROWSER_WASSH_RELAY_PROTOTYPE.md): local browser prototype instructions.
@@ -174,4 +178,4 @@ npm run test:pilot
 
 SLAIF Connect is not production-ready yet. Local validation now covers real SSH traffic through the relay, browser-side OpenSSH/WASM startup, strict host-key negative cases, and the product-shaped web launch/session descriptor flow. That is still not the same as deployment against real HPC infrastructure.
 
-The next major security milestone is running a real HPC pilot with independently verified host-key or host-CA data, then operationalizing production SLAIF trust roots, production authentication UX, relay hardening, and release packaging.
+The next major security milestone is running a real HPC pilot with independently verified host-key or host-CA data and a site-approved launcher command, then operationalizing production SLAIF trust roots, production authentication UX, relay hardening, and release packaging.

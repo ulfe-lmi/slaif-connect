@@ -2345,3 +2345,26 @@ Hard rules:
 - pilot relay targets must come from verified signed policy only, not CLI
   host/port arguments, web launch messages, or session descriptors;
 - pilot tooling must not weaken browser/relay/signed-policy E2E tests.
+
+## Job metadata reporting rules
+
+Job reporting is metadata reporting only. It must not become terminal
+transcript upload.
+
+Hard rules:
+
+- signed HPC policy remains authoritative for the remote command template;
+- the web launch message and session descriptor must not provide command,
+  `jobCommand`, `schedulerCommand`, transcript upload URL, stdout upload URL, or
+  arbitrary report URL;
+- `jobReportToken` is not an SSH credential and must not be logged or placed in
+  a query string;
+- job reports must contain only safe metadata such as `sessionId`, HPC alias,
+  scheduler, job ID, status, SSH exit code, and timestamp;
+- job reports must not include raw stdout, stderr, terminal transcript,
+  passwords, OTPs, private keys, launch tokens, relay tokens, or job report
+  tokens;
+- parser tests and browser job-reporting E2E tests must not be weakened to
+  accept mocked SSH success;
+- update `STATUS.md` whenever job-reporting implementation or validation status
+  changes.

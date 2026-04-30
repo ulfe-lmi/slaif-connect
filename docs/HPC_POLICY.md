@@ -109,3 +109,15 @@ npm run test:pilot
 `pilot:collect-host-keys` uses `ssh-keyscan` only to collect candidate `known_hosts` lines. Candidate output is not trusted until an operator compares the fingerprint against an independent source. `pilot:create-policy` converts verified pilot input into an unsigned `slaif.hpcPolicy` payload, and the existing `policy:sign` / `policy:verify` tools sign and verify it.
 
 Pilot fixed-command mode is local/manual only and must be requested with `--pilot-fixed-command`. Production command templates should include `${SESSION_ID}`.
+
+## Job Reporting Boundary
+
+Signed policy remains the source of truth for the command whose output is
+parsed for scheduler metadata. The session descriptor may provide a
+short-lived `jobReportToken`, but it must not provide `jobCommand`,
+`schedulerCommand`, stdout/transcript upload URLs, or command templates.
+
+SLURM job reporting parses bounded output from the fixed command and reports
+only safe metadata such as session ID, HPC alias, scheduler, job ID, status,
+SSH exit code, and timestamp. Raw stdout/stderr and terminal transcripts are
+not part of the policy-driven report payload.

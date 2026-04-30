@@ -18,7 +18,8 @@ This document defines the product-shaped launch boundary for SLAIF Connect.
 12. Browser-side SSH verifies the HPC host key or host CA.
 13. The user authenticates to the SSH server.
 14. The extension runs the fixed remote command template from policy.
-15. Job/output metadata may be returned to SLAIF by explicit product design.
+15. The extension parses scheduler output from that fixed command.
+16. The extension reports safe job metadata to SLAIF by explicit product design.
 
 The SSH client is the extension. The SLAIF server provides orchestration and a byte relay; it does not become an SSH client.
 
@@ -71,6 +72,8 @@ The descriptor shape is:
   "relayUrl": "wss://connect.slaif.si/ssh-relay",
   "relayToken": "opaque-short-lived-relay-token",
   "relayTokenExpiresAt": "2026-04-30T12:00:00.000Z",
+  "jobReportToken": "opaque-short-lived-job-report-token",
+  "jobReportTokenExpiresAt": "2026-04-30T12:00:00.000Z",
   "usernameHint": "optional-user-name",
   "mode": "launch"
 }
@@ -82,6 +85,9 @@ Rules:
 - Descriptor `sessionId` must match the pending launch.
 - `relayToken` is not an SSH credential. It authorizes one relay connection.
 - `relayToken` must be short-lived and session-bound.
+- `jobReportToken` is not an SSH credential. It authorizes posting one session-bound job metadata report.
+- `jobReportToken` must be short-lived and session-bound.
+- `jobReportToken` is required for launch-flow job reporting.
 - Production `relayUrl` must use `wss://`.
 - Local browser E2E may use `ws://127.0.0.1:<port>` only with local-dev runtime config.
 - Descriptor `relayUrl` origin must be listed in signed policy `allowedRelayOrigins`.
@@ -92,7 +98,9 @@ The extension rejects these fields if present in the descriptor:
 
 ```text
 sshHost, sshPort, host, port, knownHosts, known_hosts, hostKey,
-hostKeyAlias, command, remoteCommand, sshOptions, relayHost, relayPort
+hostKeyAlias, command, remoteCommand, sshOptions, relayHost, relayPort,
+jobCommand, schedulerCommand, stdoutUploadUrl, transcriptUploadUrl,
+reportUrl, jobReportUrl
 ```
 
 Signed extension-side policy remains authoritative for:
@@ -106,6 +114,18 @@ allowed API origins
 allowed relay origins
 remote command template
 ```
+
+Job reports are posted to:
+
+```text
+POST <apiBaseUrl>/api/connect/session/<sessionId>/job-report
+Authorization: Bearer <jobReportToken>
+```
+
+The report endpoint is derived from the trusted API base and `sessionId`; the
+descriptor cannot provide arbitrary upload URLs. Report payloads contain
+scheduler metadata such as SLURM job ID and status, not raw terminal
+transcripts.
 
 The signed policy prevents a compromised web page or session descriptor API from
 silently changing the SSH target, host trust, relay origin, or command template.

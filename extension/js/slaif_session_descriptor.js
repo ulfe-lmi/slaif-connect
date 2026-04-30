@@ -18,6 +18,12 @@ export const FORBIDDEN_SSH_TARGET_FIELDS = Object.freeze([
   'sshOptions',
   'relayHost',
   'relayPort',
+  'jobCommand',
+  'schedulerCommand',
+  'stdoutUploadUrl',
+  'transcriptUploadUrl',
+  'reportUrl',
+  'jobReportUrl',
 ]);
 
 const LOCAL_DEV_HOSTS = new Set(['127.0.0.1', 'localhost']);
@@ -142,6 +148,23 @@ export function validateSessionDescriptor(descriptor, pendingLaunch, policyHost,
     relayTokenExpiresAt = new Date(expiresAtMs).toISOString();
   }
 
+  const jobReportToken = validateOpaqueToken(descriptor.jobReportToken, 'jobReportToken');
+  let jobReportTokenExpiresAt;
+  if (descriptor.jobReportTokenExpiresAt === undefined) {
+    throw new Error('jobReportTokenExpiresAt is required');
+  }
+  if (typeof descriptor.jobReportTokenExpiresAt !== 'string') {
+    throw new Error('jobReportTokenExpiresAt must be an ISO timestamp');
+  }
+  const jobReportExpiresAtMs = Date.parse(descriptor.jobReportTokenExpiresAt);
+  if (!Number.isFinite(jobReportExpiresAtMs)) {
+    throw new Error('jobReportTokenExpiresAt must be a valid timestamp');
+  }
+  if (jobReportExpiresAtMs <= Date.now()) {
+    throw new Error('jobReportToken has expired');
+  }
+  jobReportTokenExpiresAt = new Date(jobReportExpiresAtMs).toISOString();
+
   return {
     type: 'slaif.sessionDescriptor',
     version: 1,
@@ -150,6 +173,8 @@ export function validateSessionDescriptor(descriptor, pendingLaunch, policyHost,
     relayUrl,
     relayToken,
     relayTokenExpiresAt,
+    jobReportToken,
+    jobReportTokenExpiresAt,
     usernameHint: sanitizeUsernameHint(descriptor.usernameHint),
     mode: descriptor.mode === undefined ? 'launch' : descriptor.mode,
   };

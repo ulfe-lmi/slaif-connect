@@ -19,8 +19,10 @@ const defaultRoot = path.resolve(__dirname, '..');
 export const DEFAULT_DEV_TOKEN = 'dev-token-test-sshd';
 export const DEFAULT_DEV_HPC = 'test-sshd';
 export const DEFAULT_HOST_KEY_ALIAS = 'test-sshd';
-export const DEFAULT_EXPECTED_OUTPUT = 'slaif-browser-relay-ok';
+export const DEFAULT_EXPECTED_JOB_ID = '424242';
+export const DEFAULT_EXPECTED_OUTPUT = `Submitted batch job ${DEFAULT_EXPECTED_JOB_ID}`;
 export const DEFAULT_LAUNCH_TOKEN = 'dev-launch-token-test-sshd';
+export const DEFAULT_JOB_REPORT_TOKEN = 'dev-job-report-token-test-sshd';
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -172,10 +174,13 @@ async function startMockSlaifWebApiServer({
   sessionId,
   launchToken,
   relayToken,
+  jobReportToken,
   relayUrl,
   username,
   relayTokenExpiresAt,
+  jobReportTokenExpiresAt,
 }) {
+  const jobReports = [];
   const server = http.createServer((req, res) => {
     const origin = `http://${host}:${server.address().port}`;
     const url = new URL(req.url, origin);
@@ -228,6 +233,17 @@ async function startMockSlaifWebApiServer({
       return;
     }
 
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'authorization,content-type',
+        'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+        'Access-Control-Max-Age': '60',
+      });
+      res.end();
+      return;
+    }
+
     if (url.pathname === `/api/connect/session/${encodeURIComponent(sessionId)}`) {
       if (req.headers.authorization !== `Bearer ${launchToken}`) {
         res.writeHead(401, {'Content-Type': 'application/json'});
@@ -247,9 +263,84 @@ async function startMockSlaifWebApiServer({
         relayUrl,
         relayToken,
         relayTokenExpiresAt,
+        jobReportToken,
+        jobReportTokenExpiresAt,
         usernameHint: username,
         mode: 'launch',
       }));
+      return;
+    }
+
+    if (url.pathname === `/api/connect/session/${encodeURIComponent(sessionId)}/job-report`) {
+      if (req.method !== 'POST') {
+        res.writeHead(405, {'Content-Type': 'application/json'});
+        res.end(JSON.stringify({error: 'method_not_allowed'}));
+        return;
+      }
+      if (req.headers.authorization !== `Bearer ${jobReportToken}`) {
+        res.writeHead(401, {'Content-Type': 'application/json'});
+        res.end(JSON.stringify({error: 'unauthorized'}));
+        return;
+      }
+      let body = '';
+      req.setEncoding('utf8');
+      req.on('data', (chunk) => {
+        body += chunk;
+        if (body.length > 16384) {
+          req.destroy();
+        }
+      });
+      req.on('end', () => {
+        let report;
+        try {
+          report = JSON.parse(body);
+          if (report.type !== 'slaif.jobReport' ||
+              report.version !== 1 ||
+              report.sessionId !== sessionId ||
+              report.hpc !== hpc ||
+              !['submitted', 'job_id_not_found', 'ssh_failed'].includes(report.status)) {
+            throw new Error('invalid report');
+          }
+          if (report.status === 'submitted' &&
+              (report.scheduler !== 'slurm' || !/^[0-9]+$/.test(report.jobId))) {
+            throw new Error('invalid submitted report');
+          }
+          for (const forbidden of [
+            'stdout',
+            'stderr',
+            'transcript',
+            'password',
+            'otp',
+            'privateKey',
+            'relayToken',
+            'launchToken',
+            'jobReportToken',
+          ]) {
+            if (Object.hasOwn(report, forbidden)) {
+              throw new Error(`forbidden report field ${forbidden}`);
+            }
+          }
+        } catch (error) {
+          res.writeHead(400, {'Content-Type': 'application/json'});
+          res.end(JSON.stringify({error: error.message || 'invalid_report'}));
+          return;
+        }
+        jobReports.push(report);
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        });
+        res.end(JSON.stringify({ok: true}));
+      });
+      return;
+    }
+
+    if (url.pathname === '/api/test/job-reports') {
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
+      });
+      res.end(JSON.stringify({jobReports}));
       return;
     }
 
@@ -271,6 +362,7 @@ async function startMockSlaifWebApiServer({
     webOrigin,
     apiBaseUrl: webOrigin,
     launcherUrl: `${webOrigin}/launcher.html`,
+    jobReports,
     close: () => closeHttpServer(server),
   };
 }
@@ -282,9 +374,11 @@ export async function startExtensionDevStack(options = {}) {
   const hpc = options.hpc || DEFAULT_DEV_HPC;
   const hostKeyAlias = options.hostKeyAlias || DEFAULT_HOST_KEY_ALIAS;
   const expectedOutput = options.expectedOutput || DEFAULT_EXPECTED_OUTPUT;
+  const expectedJobId = options.expectedJobId || DEFAULT_EXPECTED_JOB_ID;
   const sessionId = options.sessionId || `sess_local_dev_${crypto.randomBytes(8).toString('hex')}`;
   const password = options.password || `slaif-${crypto.randomBytes(6).toString('base64url')}`;
   const launchToken = options.launchToken || `${DEFAULT_LAUNCH_TOKEN}-${crypto.randomBytes(8).toString('hex')}`;
+  const jobReportToken = options.jobReportToken || `${DEFAULT_JOB_REPORT_TOKEN}-${crypto.randomBytes(8).toString('hex')}`;
   const imageTag = options.imageTag || `slaif-extension-dev-sshd-${process.pid}-${Date.now()}`;
   const policyKeyId = options.policyKeyId || 'slaif-policy-local-dev';
   const logger = options.logger || defaultLogger(options.quiet);
@@ -374,15 +468,18 @@ export async function startExtensionDevStack(options = {}) {
     const relayPort = relay.address().port;
     const relayUrl = `ws://127.0.0.1:${relayPort}/ssh-relay`;
     const relayTokenExpiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    const jobReportTokenExpiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
     webApi = await startMockSlaifWebApiServer({
       hpc,
       sessionId,
       launchToken,
       relayToken: token,
+      jobReportToken,
       relayUrl,
       username: 'testuser',
       relayTokenExpiresAt,
+      jobReportTokenExpiresAt,
     });
 
     const runtimeConfig = {
@@ -399,6 +496,8 @@ export async function startExtensionDevStack(options = {}) {
       sessionId,
       hostKeyAlias,
       expectedOutput,
+      expectedJobId,
+      expectedScheduler: 'slurm',
     };
 
     const configPath = path.join(buildDir, 'config/dev_runtime.local.json');
@@ -430,7 +529,9 @@ export async function startExtensionDevStack(options = {}) {
           sshPort: 22,
           hostKeyAlias,
           knownHosts: [knownHostsLine],
-          remoteCommandTemplate: `SESSION_ID=\${SESSION_ID} printf ${expectedOutput}`,
+          remoteCommandTemplate: options.noSlurmJobOutput ?
+            '/bin/sh -lc "printf \'SLAIF session ${SESSION_ID}\\n\'"' :
+            `/bin/sh -lc "printf 'Submitted batch job ${expectedJobId}\\nSLAIF session \${SESSION_ID}\\n'"`,
           allowInteractiveTerminal: false,
           developmentOnly: true,
         },

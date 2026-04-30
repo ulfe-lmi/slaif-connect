@@ -14,7 +14,8 @@ import {
 } from './slaif_session_descriptor.js';
 import {SlaifRelay} from './slaif_relay.js';
 import {startBrowserSshSession} from './slaif_ssh_client.js';
-import {parseSlurmJobId} from './job_output_parser.js';
+import {parseSchedulerJobSubmission} from './job_output_parser.js';
+import {postJobReport} from './slaif_job_reporter.js';
 
 const statusEl = document.getElementById('status');
 const terminalEl = document.getElementById('terminal');
@@ -214,10 +215,47 @@ async function startSshOverRelay({policyHost, relay, sessionId, username, expect
     throw new Error(`OpenSSH/WASM exited with code ${result.exitCode}`);
   }
 
-  const jobId = parseSlurmJobId(capturedOutputEl.textContent);
-  if (jobId) {
-    print(`Parsed SLURM job id ${jobId}`);
+  return result;
+}
+
+async function reportSchedulerJob({apiBaseUrl, descriptor, policy, allowLocalDev, output, exitCode}) {
+  setStatusState('parsing-job-output', 'Parsing scheduler job output');
+  const parseResult = parseSchedulerJobSubmission(output, {scheduler: 'slurm'});
+  let report;
+  if (parseResult.ok) {
+    print(`Submitted SLURM job ${parseResult.jobId}`);
+    report = {
+      scheduler: parseResult.scheduler,
+      jobId: parseResult.jobId,
+      status: 'submitted',
+      sshExitCode: exitCode,
+    };
+  } else {
+    print('Remote command completed, but no SLURM job ID was found');
+    report = {
+      status: 'job_id_not_found',
+      sshExitCode: exitCode,
+    };
   }
+
+  setStatusState('reporting-job', 'Reporting job metadata to SLAIF');
+  await postJobReport({
+    apiBaseUrl,
+    sessionId: descriptor.sessionId,
+    hpc: descriptor.hpc,
+    jobReportToken: descriptor.jobReportToken,
+    jobReportTokenExpiresAt: descriptor.jobReportTokenExpiresAt,
+    policy,
+    allowLocalDev,
+    report,
+  });
+  print('Job report sent');
+  if (parseResult.ok) {
+    setStatusState('completed', `Submitted SLURM job ${parseResult.jobId}`);
+  } else {
+    setStatusState('completed', 'Command completed without a SLURM job ID');
+  }
+  return {parseResult, report};
 }
 
 async function startDevelopmentSession(runtimeConfig) {
@@ -317,12 +355,20 @@ async function main() {
   });
 
   setStatusState('ssh-starting', `Starting browser OpenSSH/WASM for ${policyHost.hostKeyAlias}...`);
-  await startSshOverRelay({
+  const sshResult = await startSshOverRelay({
     policyHost,
     relay,
     sessionId: pending.sessionId,
     username: descriptor.usernameHint || devRuntimeConfig?.username,
     expectedOutput: devRuntimeConfig?.expectedOutput,
+  });
+  await reportSchedulerJob({
+    apiBaseUrl,
+    descriptor,
+    policy,
+    allowLocalDev: Boolean(devRuntimeConfig),
+    output: sshResult.output || capturedOutputEl.textContent,
+    exitCode: sshResult.exitCode,
   });
 }
 
