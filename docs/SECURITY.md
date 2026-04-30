@@ -118,6 +118,8 @@ Signed HPC policy is now the authoritative source for:
 
 The web launch message and session descriptor cannot override those fields. A compromised web page or API can issue a launch request or descriptor only within the signed policy boundary.
 
+Real-HPC pilot onboarding uses the same boundary. `ssh-keyscan` output is candidate data only and must be verified out of band before a policy is signed. Pilot tooling must not store SSH credentials, automate password/OTP entry, or let the pilot descriptor define SSH host, host key, SSH options, or command.
+
 Recommended OpenSSH-style options:
 
 ```text

@@ -93,3 +93,19 @@ npm run policy:verify -- --policy signed.json --trust-roots trust-roots.json
 ```
 
 Local development uses generated temporary signing keys and signed policy files in `build/extension/config`. That still verifies signatures and must not become a production bypass.
+
+## Real-HPC Pilot Tooling
+
+Real-HPC pilots use the same signed policy format. Pilot helper scripts live under `scripts/pilot/`:
+
+```bash
+npm run pilot:collect-host-keys
+npm run pilot:verify-host-key
+npm run pilot:create-policy
+npm run pilot:stack
+npm run test:pilot
+```
+
+`pilot:collect-host-keys` uses `ssh-keyscan` only to collect candidate `known_hosts` lines. Candidate output is not trusted until an operator compares the fingerprint against an independent source. `pilot:create-policy` converts verified pilot input into an unsigned `slaif.hpcPolicy` payload, and the existing `policy:sign` / `policy:verify` tools sign and verify it.
+
+Pilot fixed-command mode is local/manual only and must be requested with `--pilot-fixed-command`. Production command templates should include `${SESSION_ID}`.

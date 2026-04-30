@@ -110,6 +110,12 @@ remote command template
 The signed policy prevents a compromised web page or session descriptor API from
 silently changing the SSH target, host trust, relay origin, or command template.
 
+The same boundary applies to real-HPC pilots. The mock pilot API may issue a
+session descriptor with `relayUrl`, `relayToken`, expiry, and optional
+`usernameHint`, but it must not define or override SSH target details. The
+pilot relay target is resolved from verified signed policy, not from the web
+launch message, descriptor, or CLI host/port arguments.
+
 ## Local Development Origin
 
 The manifest and service worker allow `http://127.0.0.1/*` only for Playwright and manual local launcher testing. `localhost` is intentionally not accepted by the runtime origin check, so tests can cover disallowed-origin behavior without broadening the manifest.

@@ -1,0 +1,20 @@
+{
+  "type": "slaif.hpcPilotInput",
+  "version": 1,
+  "alias": "examplehpc",
+  "displayName": "Example HPC",
+  "sshHost": "login.example.edu",
+  "sshPort": 22,
+  "hostKeyAlias": "examplehpc",
+  "verifiedKnownHosts": [
+    "examplehpc ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA..."
+  ],
+  "allowedApiOrigins": [
+    "http://127.0.0.1"
+  ],
+  "allowedRelayOrigins": [
+    "ws://127.0.0.1"
+  ],
+  "remoteCommandTemplate": "/bin/printf slaif-pilot-ok",
+  "notes": "Example only. Replace with independently verified host-key or host-CA data."
+}

@@ -44,7 +44,7 @@ Responsible for:
 
 - starting a SLAIF workflow;
 - asking the extension to connect to a named HPC alias;
-- providing a short-lived session id or relay token;
+- providing a short-lived session id or launch token;
 - receiving job metadata after job launch.
 
 Not trusted for:
@@ -116,15 +116,15 @@ chrome.runtime.sendMessage(EXTENSION_ID, {
 
 The extension validates the sender origin through `externally_connectable` and its own runtime checks.
 
-### Step 2 — extension resolves the HPC alias
+### Step 2 — extension verifies signed policy and resolves the HPC alias
 
-The extension loads `extension/config/hpc_hosts*.json` and resolves:
+The extension verifies a signed HPC policy and resolves:
 
 ```text
 vegahpc → login.vega.izum.si:22
 ```
 
-The web page and relay are not allowed to redefine this host.
+The web page, session descriptor, and relay are not allowed to redefine this host, port, host key, host CA, or command template. Real-HPC pilot onboarding uses the same signed-policy path; candidate host keys collected with `ssh-keyscan` must be verified out of band before signing.
 
 ### Step 3 — extension obtains relay session details
 

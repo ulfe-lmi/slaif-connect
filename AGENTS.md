@@ -2324,3 +2324,24 @@ Hard rules:
 - do not broaden `externally_connectable` beyond explicit production origins
   and the narrow `http://127.0.0.1/*` local browser test allowance;
 - malicious launch/descriptor field rejection tests must not be weakened.
+
+## Real-HPC pilot onboarding rules
+
+Real-HPC pilot work must remain explicit, manual, and signed-policy controlled.
+
+Hard rules:
+
+- never auto-trust `ssh-keyscan` output;
+- never sign a pilot policy until the host key or host CA is independently
+  verified out of band;
+- never commit real policy private keys, local trust roots, signed pilot
+  policies, candidate known_hosts files, fingerprint files, SSH credentials, or
+  generated pilot runtime config;
+- never introduce `sshpass`, password environment variables, scripted OTP entry,
+  or any mechanism that moves real SSH credentials into SLAIF tooling;
+- do not make real-HPC tests part of `npm test`;
+- keep real-HPC pilot tests behind explicit flags such as
+  `SLAIF_RUN_REAL_HPC_PILOT=1`;
+- pilot relay targets must come from verified signed policy only, not CLI
+  host/port arguments, web launch messages, or session descriptors;
+- pilot tooling must not weaken browser/relay/signed-policy E2E tests.

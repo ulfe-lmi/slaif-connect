@@ -48,6 +48,11 @@ The relay adapter only allows the exact `sshHost` and `sshPort` from signed exte
 
 For relay mode, SSH uses `HostKeyAlias=<alias>` and `CheckHostIP=no`. The expected host-key identity is the HPC alias, not the relay hostname.
 
+Real-HPC pilot runs use the same path. The signed policy must contain the
+verified host key or host-CA entry before browser-side OpenSSH/WASM starts. The
+pilot stack supplies relay/session metadata only; it never supplies SSH host
+keys or credentials.
+
 ## Plugin Artifacts
 
 Generated plugin artifacts are expected under:

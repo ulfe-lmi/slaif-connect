@@ -249,11 +249,13 @@ export function validateSignedPolicyPayload(policy, {allowLocalDev = false, now 
 
   for (const [alias, host] of Object.entries(policy.hosts)) {
     validateAlias(alias);
-    validatePolicyHost(alias, host);
+    validatePolicyHost(alias, host, {
+      allowPilotFixedCommand: allowLocalDev && policy.pilot === true,
+    });
   }
 }
 
-export function validatePolicyHost(alias, host) {
+export function validatePolicyHost(alias, host, {allowPilotFixedCommand = false} = {}) {
   if (!host || typeof host !== 'object') {
     throw new Error(`policy host ${alias} must be an object`);
   }
@@ -265,6 +267,7 @@ export function validatePolicyHost(alias, host) {
     'StrictHostKeyChecking',
     'strictHostKeyChecking',
     'sshOptions',
+    'commandFromWeb',
   ]) {
     if (Object.hasOwn(host, forbidden)) {
       throw new Error(`policy host ${alias} contains forbidden field ${forbidden}`);
@@ -296,10 +299,16 @@ export function validatePolicyHost(alias, host) {
   if (host.knownHosts.every((line) => line.trim().startsWith('#'))) {
     console.warn(`policy host ${alias} contains placeholder known_hosts entries only`);
   }
-  if (typeof host.remoteCommandTemplate !== 'string' || !host.remoteCommandTemplate.includes('${SESSION_ID}')) {
+  if (typeof host.remoteCommandTemplate !== 'string') {
+    throw new Error(`policy host ${alias} missing remoteCommandTemplate`);
+  }
+  const pilotFixedCommand = allowPilotFixedCommand &&
+      host.pilotFixedCommand === true &&
+      host.developmentOnly === true;
+  if (!pilotFixedCommand && !host.remoteCommandTemplate.includes('${SESSION_ID}')) {
     throw new Error(`policy host ${alias} missing remoteCommandTemplate with \\${SESSION_ID}`);
   }
-  validateRemoteCommandTemplate(host.remoteCommandTemplate, alias);
+  validateRemoteCommandTemplate(host.remoteCommandTemplate, alias, {allowPilotFixedCommand: pilotFixedCommand});
 
   // Normalize as a smoke check.
   normalizeHostLike(host.sshHost);
@@ -336,11 +345,11 @@ export function validateKnownHostsLine(line, alias = 'host') {
   return trimmed;
 }
 
-export function validateRemoteCommandTemplate(template, alias = 'host') {
+export function validateRemoteCommandTemplate(template, alias = 'host', {allowPilotFixedCommand = false} = {}) {
   if (typeof template !== 'string' || !template.trim()) {
     throw new Error(`policy host ${alias} has empty remoteCommandTemplate`);
   }
-  if (!template.includes('${SESSION_ID}')) {
+  if (!allowPilotFixedCommand && !template.includes('${SESSION_ID}')) {
     throw new Error(`policy host ${alias} command template must include \\${SESSION_ID}`);
   }
   if (/\$\{(?!SESSION_ID\})/.test(template)) {
