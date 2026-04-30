@@ -1,6 +1,7 @@
 import {spawnSync} from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import http from 'node:http';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
@@ -15,6 +16,7 @@ export const DEFAULT_DEV_TOKEN = 'dev-token-test-sshd';
 export const DEFAULT_DEV_HPC = 'test-sshd';
 export const DEFAULT_HOST_KEY_ALIAS = 'test-sshd';
 export const DEFAULT_EXPECTED_OUTPUT = 'slaif-browser-relay-ok';
+export const DEFAULT_LAUNCH_TOKEN = 'dev-launch-token-test-sshd';
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -106,6 +108,127 @@ function defaultLogger(quiet) {
   };
 }
 
+function closeHttpServer(server) {
+  return new Promise((resolve, reject) => {
+    server.close((error) => {
+      if (error && error.code !== 'ERR_SERVER_NOT_RUNNING') {
+        reject(error);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+async function startMockSlaifWebApiServer({
+  host = '127.0.0.1',
+  hpc,
+  sessionId,
+  launchToken,
+  relayToken,
+  relayUrl,
+  username,
+  relayTokenExpiresAt,
+}) {
+  const server = http.createServer((req, res) => {
+    const origin = `http://${host}:${server.address().port}`;
+    const url = new URL(req.url, origin);
+
+    if (url.pathname === '/launcher.html') {
+      const extensionId = url.searchParams.get('extensionId') || '';
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-store',
+      });
+      res.end(`<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>SLAIF Connect local launcher</title></head>
+<body>
+  <button id="launch">Launch SLAIF Connect</button>
+  <pre id="result" data-launch-result="idle"></pre>
+  <script>
+    const extensionId = ${JSON.stringify(extensionId)};
+    const message = {
+      type: 'slaif.startSession',
+      version: 1,
+      hpc: ${JSON.stringify(hpc)},
+      sessionId: ${JSON.stringify(sessionId)},
+      launchToken: ${JSON.stringify(launchToken)}
+    };
+    async function sendLaunch() {
+      const result = document.getElementById('result');
+      try {
+        if (!extensionId) {
+          throw new Error('extensionId query parameter missing');
+        }
+        chrome.runtime.sendMessage(extensionId, message, (response) => {
+          if (chrome.runtime.lastError) {
+            result.dataset.launchResult = 'failed';
+            result.textContent = chrome.runtime.lastError.message;
+            return;
+          }
+          result.dataset.launchResult = response && response.ok ? 'accepted' : 'rejected';
+          result.textContent = JSON.stringify(response);
+        });
+      } catch (error) {
+        result.dataset.launchResult = 'failed';
+        result.textContent = error.message || String(error);
+      }
+    }
+    document.getElementById('launch').addEventListener('click', sendLaunch);
+  </script>
+</body>
+</html>`);
+      return;
+    }
+
+    if (url.pathname === `/api/connect/session/${encodeURIComponent(sessionId)}`) {
+      if (req.headers.authorization !== `Bearer ${launchToken}`) {
+        res.writeHead(401, {'Content-Type': 'application/json'});
+        res.end(JSON.stringify({error: 'unauthorized'}));
+        return;
+      }
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
+        'Access-Control-Allow-Origin': '*',
+      });
+      res.end(JSON.stringify({
+        type: 'slaif.sessionDescriptor',
+        version: 1,
+        sessionId,
+        hpc,
+        relayUrl,
+        relayToken,
+        relayTokenExpiresAt,
+        usernameHint: username,
+        mode: 'launch',
+      }));
+      return;
+    }
+
+    res.writeHead(404, {'Content-Type': 'text/plain'});
+    res.end('not found\n');
+  });
+
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, host, () => {
+      server.off('error', reject);
+      resolve();
+    });
+  });
+
+  const webOrigin = `http://${host}:${server.address().port}`;
+  return {
+    server,
+    webOrigin,
+    apiBaseUrl: webOrigin,
+    launcherUrl: `${webOrigin}/launcher.html`,
+    close: () => closeHttpServer(server),
+  };
+}
+
 export async function startExtensionDevStack(options = {}) {
   const root = options.root || defaultRoot;
   const buildDir = options.buildDir || path.join(root, 'build/extension');
@@ -115,6 +238,7 @@ export async function startExtensionDevStack(options = {}) {
   const expectedOutput = options.expectedOutput || DEFAULT_EXPECTED_OUTPUT;
   const sessionId = options.sessionId || `sess_local_dev_${crypto.randomBytes(8).toString('hex')}`;
   const password = options.password || `slaif-${crypto.randomBytes(6).toString('base64url')}`;
+  const launchToken = options.launchToken || `${DEFAULT_LAUNCH_TOKEN}-${crypto.randomBytes(8).toString('hex')}`;
   const imageTag = options.imageTag || `slaif-extension-dev-sshd-${process.pid}-${Date.now()}`;
   const logger = options.logger || defaultLogger(options.quiet);
 
@@ -129,6 +253,7 @@ export async function startExtensionDevStack(options = {}) {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'slaif-extension-dev-'));
   let containerId = null;
   let relay = null;
+  let webApi = null;
   let stopped = false;
 
   async function stop() {
@@ -139,6 +264,10 @@ export async function startExtensionDevStack(options = {}) {
     if (relay) {
       await relay.close().catch(() => {});
       relay = null;
+    }
+    if (webApi) {
+      await webApi.close().catch(() => {});
+      webApi = null;
     }
     if (containerId) {
       runQuiet('docker', ['rm', '-f', containerId], {cwd: root});
@@ -194,11 +323,27 @@ export async function startExtensionDevStack(options = {}) {
     });
     await relay.listen({host: '127.0.0.1', port: 0});
     const relayPort = relay.address().port;
+    const relayUrl = `ws://127.0.0.1:${relayPort}/ssh-relay`;
+    const relayTokenExpiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
+    webApi = await startMockSlaifWebApiServer({
+      hpc,
+      sessionId,
+      launchToken,
+      relayToken: token,
+      relayUrl,
+      username: 'testuser',
+      relayTokenExpiresAt,
+    });
 
     const runtimeConfig = {
       mode: 'local-dev',
       hpc,
-      relayUrl: `ws://127.0.0.1:${relayPort}/ssh-relay`,
+      apiBaseUrl: webApi.apiBaseUrl,
+      launcherUrl: webApi.launcherUrl,
+      webOrigin: webApi.webOrigin,
+      launchToken,
+      relayUrl,
       relayToken: token,
       username: 'testuser',
       password,
@@ -226,8 +371,13 @@ export async function startExtensionDevStack(options = {}) {
       sshdPort,
       relay,
       relayPort,
+      webApi,
+      webOrigin: webApi.webOrigin,
+      apiBaseUrl: webApi.apiBaseUrl,
+      launcherUrl: webApi.launcherUrl,
       configPath,
       runtimeConfig,
+      launchToken,
       password,
       expectedOutput,
       stop,
@@ -263,14 +413,16 @@ async function main() {
 
   console.log('SLAIF extension development stack is running.');
   console.log(`Relay URL: ${stack.runtimeConfig.relayUrl}`);
+  console.log(`Mock SLAIF launcher: ${stack.launcherUrl}?extensionId=<extension-id>`);
+  console.log(`Mock SLAIF API base: ${stack.apiBaseUrl}`);
   console.log(`Test sshd container: ${stack.containerId}`);
   console.log(`Generated extension config: ${stack.configPath}`);
   console.log(`Development password for testuser: ${stack.password}`);
   console.log('');
   console.log('Manual browser steps:');
   console.log('1. Load build/extension as an unpacked Chrome extension.');
-  console.log('2. Open the extension popup.');
-  console.log('3. Click "Open local dev session".');
+  console.log('2. Open the mock launcher URL with ?extensionId=<extension-id>.');
+  console.log('3. Click "Launch SLAIF Connect".');
   console.log(`4. When OpenSSH asks for testuser password, enter: ${stack.password}`);
   console.log(`5. Expected command output: ${stack.expectedOutput}`);
   console.log('');

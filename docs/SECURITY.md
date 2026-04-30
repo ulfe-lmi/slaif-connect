@@ -185,6 +185,38 @@ Example:
 
 Session ids must be validated with a strict allowlist pattern before being placed into a command.
 
+## Launch and descriptor boundary
+
+The SLAIF web page may launch the extension with only:
+
+```text
+type, version, hpc alias, sessionId, launchToken
+```
+
+The launch token is not an SSH credential. It lets the extension fetch a
+server-issued session descriptor and must not be placed in URLs or logged.
+
+The session descriptor may provide:
+
+```text
+relayUrl, relayToken, relayTokenExpiresAt, optional usernameHint
+```
+
+The descriptor must not provide or override:
+
+```text
+SSH host
+SSH port
+known_hosts
+host key alias
+SSH options
+remote command
+```
+
+This boundary protects against a compromised web page or API trying to redirect
+SSH to a fake server or run an arbitrary shell command. Extension-side policy
+and strict host-key verification remain authoritative.
+
 ## Compromised component analysis
 
 ### Compromised SLAIF web page
@@ -202,6 +234,7 @@ Mitigations:
 - extension-side alias allowlist;
 - strict session id validation;
 - no arbitrary command strings accepted.
+- launch messages with SSH host/port/known_hosts/command fields rejected.
 
 ### Compromised SLAIF relay/web server
 
@@ -216,6 +249,7 @@ Mitigations:
 
 - extension-side host-key verification;
 - extension-side command templates;
+- descriptor rejection when it tries to define SSH target identity or command;
 - no trust in server-provided host keys unless signed by trusted admin key;
 - relay egress firewall;
 - short-lived relay tokens.

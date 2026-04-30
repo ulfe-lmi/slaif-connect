@@ -40,17 +40,25 @@ The stack starts:
 
 - a local OpenSSH test container;
 - the SLAIF relay server on `127.0.0.1`;
+- a mock SLAIF launcher/API server on `127.0.0.1`;
 - a generated `build/extension/config/dev_runtime.local.json`.
 
-It also prints the throwaway local password for `testuser`.
+It also prints the mock launcher URL and the throwaway local password for
+`testuser`.
+
+The mock SLAIF API returns only session descriptor data: `relayUrl`,
+`relayToken`, token expiry, and a local username hint. It does not return SSH
+host, SSH port, known_hosts entries, SSH options, or remote commands. Those stay
+in extension-side policy.
 
 ## Manual Chrome Test
 
 1. Open Chrome extensions.
 2. Enable developer mode.
 3. Load `build/extension` as an unpacked extension.
-4. Open the SLAIF Connect popup.
-5. Click **Open local dev session**.
+4. Open the mock launcher URL printed by `npm run dev:extension-stack` with
+   `?extensionId=<your-extension-id>`.
+5. Click **Launch SLAIF Connect**.
 6. When OpenSSH prompts for the `testuser` password, enter the password printed by `npm run dev:extension-stack`.
 7. Expected command output is:
 
@@ -80,7 +88,9 @@ See `docs/BROWSER_E2E_TESTING.md` for the automated Chromium harness.
 
 ## Limitations
 
-This PR does not make SLAIF Connect a general SSH terminal and does not wire real SLAIF production sessions to OpenSSH/WASM yet.
+This prototype now exercises the product-shaped web launch/session descriptor
+flow locally, but it still does not make SLAIF Connect a general SSH terminal or
+wire real SLAIF production sessions.
 
 The local dev stack may use password authentication for manual browser testing because browser-side private-key provisioning is not implemented yet. The existing Docker E2E test remains public-key-only.
 

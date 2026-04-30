@@ -43,7 +43,8 @@ It contains the amended project documents, the converted allowlist/policy shape,
 - Node-based WebSocket-to-TCP relay;
 - SLURM job-id parsing;
 - upstream `libapps` vendoring scripts;
-- development-only browser OpenSSH/WASM relay prototype boundaries.
+- development-only browser OpenSSH/WASM relay prototype boundaries;
+- production-style SLAIF web launch and session descriptor validation.
 
 The browser prototype installs bundled OpenSSH/WASM plugin artifacts and attempts to start upstream `SshSubproc` from the extension session page in local development mode. It is not production-ready SLAIF session support yet.
 
@@ -168,6 +169,12 @@ Automated Chromium validation is documented in `docs/BROWSER_E2E_TESTING.md`:
 npm run browser:install
 npm run test:browser
 ```
+
+The product-shaped web launch protocol is documented in
+`docs/SESSION_LAUNCH_PROTOCOL.md`. The web page may request only an approved HPC
+alias/session and provide a short-lived launch token. The session descriptor may
+provide relay connection data, but extension-side policy remains authoritative
+for SSH host, host key, and command.
 
 ## Important production rules
 
