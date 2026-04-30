@@ -6,6 +6,9 @@ extension/plugin/
 extension/wassh/
 extension/wasi-js-bindings/
 extension/config/dev_runtime.local.json
+extension/config/hpc_policy.local.json
+extension/config/policy_trust_roots.local.json
+*.private-key.json
 server/relay/allowed_hpc_hosts.json
 .DS_Store
 *.log

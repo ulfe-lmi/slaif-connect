@@ -8,6 +8,10 @@ import path from 'node:path';
 import process from 'node:process';
 import {fileURLToPath} from 'node:url';
 import {createRelayServer} from '../server/relay/relay.js';
+import {
+  base64urlEncode,
+  canonicalPolicySigningInput,
+} from '../extension/js/slaif_policy_signature.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const defaultRoot = path.resolve(__dirname, '..');
@@ -94,6 +98,48 @@ async function waitForPort(port) {
 function publicKeyLine(filePath, alias) {
   const parts = fs.readFileSync(filePath, 'utf8').trim().split(/\s+/);
   return `${alias} ${parts[0]} ${parts[1]}`;
+}
+
+async function createPolicyKeyMaterial(keyId) {
+  const keyPair = await crypto.webcrypto.subtle.generateKey(
+      {name: 'ECDSA', namedCurve: 'P-256'},
+      true,
+      ['sign', 'verify'],
+  );
+  const publicSpki = await crypto.webcrypto.subtle.exportKey('spki', keyPair.publicKey);
+  return {
+    keyId,
+    privateKey: keyPair.privateKey,
+    trustRoots: {
+      type: 'slaif.policyTrustRoots',
+      version: 1,
+      keys: [
+        {
+          keyId,
+          algorithm: 'ECDSA-P256-SHA256',
+          publicKeySpkiBase64: Buffer.from(publicSpki).toString('base64'),
+        },
+      ],
+    },
+  };
+}
+
+async function signPolicyPayload(payload, {keyId, privateKey, signedAt = new Date().toISOString()}) {
+  const envelope = {
+    type: 'slaif.signedHpcPolicy',
+    version: 1,
+    algorithm: 'ECDSA-P256-SHA256',
+    keyId,
+    signedAt,
+    payload,
+  };
+  const signature = await crypto.webcrypto.subtle.sign(
+      {name: 'ECDSA', hash: 'SHA-256'},
+      privateKey,
+      new TextEncoder().encode(canonicalPolicySigningInput(envelope)),
+  );
+  envelope.signature = base64urlEncode(signature);
+  return envelope;
 }
 
 function defaultLogger(quiet) {
@@ -240,6 +286,7 @@ export async function startExtensionDevStack(options = {}) {
   const password = options.password || `slaif-${crypto.randomBytes(6).toString('base64url')}`;
   const launchToken = options.launchToken || `${DEFAULT_LAUNCH_TOKEN}-${crypto.randomBytes(8).toString('hex')}`;
   const imageTag = options.imageTag || `slaif-extension-dev-sshd-${process.pid}-${Date.now()}`;
+  const policyKeyId = options.policyKeyId || 'slaif-policy-local-dev';
   const logger = options.logger || defaultLogger(options.quiet);
 
   for (const command of ['docker', 'ssh-keygen']) {
@@ -276,6 +323,8 @@ export async function startExtensionDevStack(options = {}) {
     runQuiet('docker', ['rmi', '-f', imageTag], {cwd: root});
     const configPath = path.join(buildDir, 'config/dev_runtime.local.json');
     fs.rmSync(configPath, {force: true});
+    fs.rmSync(path.join(buildDir, 'config/hpc_policy.local.json'), {force: true});
+    fs.rmSync(path.join(buildDir, 'config/policy_trust_roots.local.json'), {force: true});
     fs.rmSync(tempDir, {recursive: true, force: true});
   }
 
@@ -348,19 +397,58 @@ export async function startExtensionDevStack(options = {}) {
       username: 'testuser',
       password,
       sessionId,
-      sshHost: '127.0.0.1',
-      sshPort: 22,
       hostKeyAlias,
-      knownHosts: [
-        publicKeyLine(options.wrongKnownHost ? `${wrongHostKey}.pub` : `${hostKey}.pub`, hostKeyAlias),
-      ],
-      remoteCommandTemplate: `SESSION_ID=\${SESSION_ID} printf ${expectedOutput}`,
       expectedOutput,
     };
 
     const configPath = path.join(buildDir, 'config/dev_runtime.local.json');
+    const signedPolicyPath = path.join(buildDir, 'config/hpc_policy.local.json');
+    const trustRootsPath = path.join(buildDir, 'config/policy_trust_roots.local.json');
+    const knownHostsLine = publicKeyLine(
+        options.wrongKnownHost ? `${wrongHostKey}.pub` : `${hostKey}.pub`,
+        hostKeyAlias,
+    );
+    const policyKeyMaterial = await createPolicyKeyMaterial(policyKeyId);
+    const trustRoots = options.wrongPolicySigner ?
+      (await createPolicyKeyMaterial(`${policyKeyId}-untrusted`)).trustRoots :
+      policyKeyMaterial.trustRoots;
+    const policyPayload = {
+      type: 'slaif.hpcPolicy',
+      version: 1,
+      policyId: 'slaif-hpc-policy-local-dev',
+      sequence: 1,
+      validFrom: new Date(Date.now() - 60000).toISOString(),
+      validUntil: new Date(Date.now() + 10 * 60000).toISOString(),
+      allowedApiOrigins: [webApi.webOrigin],
+      allowedRelayOrigins: [
+        options.relayOriginMismatch ? 'ws://127.0.0.1:1' : new URL(relayUrl).origin,
+      ],
+      hosts: {
+        [hpc]: {
+          displayName: 'Local development test sshd',
+          sshHost: '127.0.0.1',
+          sshPort: 22,
+          hostKeyAlias,
+          knownHosts: [knownHostsLine],
+          remoteCommandTemplate: `SESSION_ID=\${SESSION_ID} printf ${expectedOutput}`,
+          allowInteractiveTerminal: false,
+          developmentOnly: true,
+        },
+      },
+    };
+    if (options.expiredPolicy) {
+      policyPayload.validFrom = new Date(Date.now() - 10 * 60000).toISOString();
+      policyPayload.validUntil = new Date(Date.now() - 60000).toISOString();
+    }
+    const signedPolicy = await signPolicyPayload(policyPayload, policyKeyMaterial);
+    if (options.tamperSignedPolicy) {
+      signedPolicy.payload.hosts[hpc].remoteCommandTemplate = 'printf tampered-policy';
+    }
+
     fs.mkdirSync(path.dirname(configPath), {recursive: true});
     fs.writeFileSync(configPath, `${JSON.stringify(runtimeConfig, null, 2)}\n`);
+    fs.writeFileSync(signedPolicyPath, `${JSON.stringify(signedPolicy, null, 2)}\n`);
+    fs.writeFileSync(trustRootsPath, `${JSON.stringify(trustRoots, null, 2)}\n`);
 
     return {
       root,
@@ -376,6 +464,8 @@ export async function startExtensionDevStack(options = {}) {
       apiBaseUrl: webApi.apiBaseUrl,
       launcherUrl: webApi.launcherUrl,
       configPath,
+      signedPolicyPath,
+      trustRootsPath,
       runtimeConfig,
       launchToken,
       password,

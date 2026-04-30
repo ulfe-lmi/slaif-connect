@@ -1,0 +1,34 @@
+{
+  "type": "slaif.signedHpcPolicy",
+  "version": 1,
+  "algorithm": "ECDSA-P256-SHA256",
+  "keyId": "slaif-policy-dev-2026-04",
+  "signedAt": "2026-04-30T12:00:00.000Z",
+  "payload": {
+    "type": "slaif.hpcPolicy",
+    "version": 1,
+    "policyId": "slaif-hpc-policy-dev-example",
+    "sequence": 1,
+    "validFrom": "2026-04-30T00:00:00.000Z",
+    "validUntil": "2027-12-31T23:59:59.000Z",
+    "allowedApiOrigins": [
+      "https://connect.slaif.si"
+    ],
+    "allowedRelayOrigins": [
+      "wss://connect.slaif.si"
+    ],
+    "hosts": {
+      "vegahpc": {
+        "displayName": "Vega HPC",
+        "sshHost": "login.vega.izum.si",
+        "sshPort": 22,
+        "hostKeyAlias": "vegahpc",
+        "knownHosts": [
+          "vegahpc ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAplaceholder"
+        ],
+        "remoteCommandTemplate": "/opt/slaif/bin/slaif-launch --session ${SESSION_ID}"
+      }
+    }
+  },
+  "signature": "U8hBRGX-rlBV2pnJgfw2GKQ0vP71i1UQF2WzAlwIj2k48vs7oKiqkFOnNPVz__u8cDWg1l0CS2NM9bVpg6lMAg"
+}

@@ -58,7 +58,7 @@ Not trusted for:
 Responsible for:
 
 - enforcing approved HPC aliases;
-- loading the local/signed HPC policy;
+- loading and verifying signed HPC policy;
 - verifying the SSH host key or host CA for the selected HPC alias;
 - opening the SSH client runtime;
 - authenticating the user through normal SSH flows;
@@ -234,10 +234,11 @@ The extension must package all JavaScript and WASM locally. Runtime loading of u
 
 ## Policy files
 
-New policy shape:
+Signed policy shape:
 
 ```text
-extension/config/hpc_hosts.example.json
+extension/config/hpc_policy.signed.example.json
+extension/config/policy_trust_roots.example.json
 ```
 
 Each host entry contains:
@@ -249,6 +250,8 @@ Each host entry contains:
 - pinned known-hosts entries or host CA;
 - fixed command template;
 - relay policy metadata.
+
+`hpc_hosts.example.json` remains documentation/example fallback data. Production-directed launch flow must use signed policy. The session descriptor may provide relay URL and relay token only within signed policy origin constraints.
 
 ## Security boundary
 

@@ -9,13 +9,13 @@ Chrome extension session page
   -> local test sshd container
 ```
 
-It is development-only. The production extension must still use approved SLAIF sessions, strict extension policy, WSS, and real HPC host keys or host CA policy.
+It is development-only. The production extension must still use approved SLAIF sessions, signed extension policy, WSS, and real HPC host keys or host CA policy.
 
 ## What It Proves
 
 The prototype attempts to start upstream OpenSSH/WASM inside the extension and gives it a TCP-like relay object backed by the SLAIF WebSocket relay. The relay remains a byte forwarder and does not ask for SSH passwords, OTPs, private keys, or decrypted terminal output.
 
-Strict host-key verification is still required. The local dev stack generates a host key and writes the matching known_hosts line into `build/extension/config/dev_runtime.local.json`.
+Strict host-key verification is still required. The local dev stack generates a host key and writes the matching `known_hosts` line into a signed local policy under `build/extension/config/hpc_policy.local.json`.
 
 ## Setup
 
@@ -41,7 +41,8 @@ The stack starts:
 - a local OpenSSH test container;
 - the SLAIF relay server on `127.0.0.1`;
 - a mock SLAIF launcher/API server on `127.0.0.1`;
-- a generated `build/extension/config/dev_runtime.local.json`.
+- a generated `build/extension/config/dev_runtime.local.json`;
+- a generated signed local policy and trust root under `build/extension/config`.
 
 It also prints the mock launcher URL and the throwaway local password for
 `testuser`.
@@ -49,7 +50,7 @@ It also prints the mock launcher URL and the throwaway local password for
 The mock SLAIF API returns only session descriptor data: `relayUrl`,
 `relayToken`, token expiry, and a local username hint. It does not return SSH
 host, SSH port, known_hosts entries, SSH options, or remote commands. Those stay
-in extension-side policy.
+in signed extension-side policy.
 
 ## Manual Chrome Test
 
@@ -82,7 +83,7 @@ The browser E2E suite also includes a browser-side host-key negative case:
 npm run test:browser:hostkey-negative
 ```
 
-For manual browser testing, changing the generated `knownHosts` line in `build/extension/config/dev_runtime.local.json` should cause OpenSSH/WASM to reject the server before trusting it.
+For manual browser testing, changing the generated signed policy payload after signing should make policy verification fail before SSH starts. Running the automated host-key negative test generates a wrong signed `known_hosts` entry and OpenSSH/WASM rejects the server before trusting it.
 
 See `docs/BROWSER_E2E_TESTING.md` for the automated Chromium harness.
 

@@ -1,7 +1,9 @@
 import {
-  buildDevelopmentPolicy,
+  evaluateAcceptedPolicyRollback,
   buildRemoteCommand,
-  loadHpcPolicy,
+  loadVerifiedHpcPolicy,
+  policyAllowsApiBaseUrl,
+  policyAllowsRelayUrl,
   requireKnownHpcAlias,
   validateSessionId,
 } from './slaif_policy.js';
@@ -92,6 +94,9 @@ function isLocalDevOrigin(origin) {
 }
 
 function apiBaseUrlFromPolicy(policy) {
+  if (Array.isArray(policy.allowedApiOrigins) && policy.allowedApiOrigins.length > 0) {
+    return `${policy.allowedApiOrigins[0]}/`;
+  }
   if (policy.relay?.apiBaseUrl) {
     return policy.relay.apiBaseUrl;
   }
@@ -106,6 +111,60 @@ function apiBaseUrlFromPolicy(policy) {
     }
   }
   throw new Error('SLAIF API base URL is not configured');
+}
+
+function extensionConfigUrl(path) {
+  return chrome.runtime.getURL(`config/${path}`);
+}
+
+async function loadPolicyForContext({allowLocalDev = false} = {}) {
+  if (allowLocalDev) {
+    return loadVerifiedHpcPolicy({
+      policyUrl: extensionConfigUrl('hpc_policy.local.json'),
+      trustRootsUrl: extensionConfigUrl('policy_trust_roots.local.json'),
+      allowLocalDev: true,
+    });
+  }
+  return loadVerifiedHpcPolicy();
+}
+
+function getAcceptedPolicyState() {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get('acceptedSignedHpcPolicy', (items) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      resolve(items.acceptedSignedHpcPolicy || null);
+    });
+  });
+}
+
+function setAcceptedPolicyState(record) {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.set({acceptedSignedHpcPolicy: record}, () => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+async function rememberProductionPolicy({policy, envelope, fingerprint}, {allowLocalDev = false} = {}) {
+  if (allowLocalDev) {
+    return;
+  }
+  const record = {
+    policyId: policy.policyId,
+    sequence: policy.sequence,
+    keyId: envelope.keyId,
+    fingerprint,
+    acceptedAt: new Date().toISOString(),
+  };
+  evaluateAcceptedPolicyRollback(record, await getAcceptedPolicyState());
+  await setAcceptedPolicyState(record);
 }
 
 async function fetchSessionDescriptor(pending, apiBaseUrl) {
@@ -162,9 +221,11 @@ async function startSshOverRelay({policyHost, relay, sessionId, username, expect
 }
 
 async function startDevelopmentSession(runtimeConfig) {
-  setStatusState('loading-config', 'Loading local development SSH policy...');
-  const policy = buildDevelopmentPolicy(runtimeConfig);
+  setStatusState('loading-config', 'Loading signed local development SSH policy...');
+  const {policy} = await loadPolicyForContext({allowLocalDev: true});
   const policyHost = requireKnownHpcAlias(policy, runtimeConfig.hpc);
+  policyAllowsApiBaseUrl(policy, runtimeConfig.apiBaseUrl, {allowLocalDev: true});
+  policyAllowsRelayUrl(policy, runtimeConfig.relayUrl, {allowLocalDev: true});
   const relay = new SlaifRelay({
     policyHost,
     relayUrl: runtimeConfig.relayUrl,
@@ -233,16 +294,19 @@ async function main() {
     null;
 
   setStatusState('loading-config', 'Loading extension SSH policy...');
-  const policy = devRuntimeConfig ? buildDevelopmentPolicy(devRuntimeConfig) : await loadHpcPolicy();
+  const verifiedPolicy = await loadPolicyForContext({allowLocalDev: Boolean(devRuntimeConfig)});
+  const policy = verifiedPolicy.policy;
+  await rememberProductionPolicy(verifiedPolicy, {allowLocalDev: Boolean(devRuntimeConfig)});
   const policyHost = requireKnownHpcAlias(policy, pending.hpc);
   const apiBaseUrl = devRuntimeConfig?.apiBaseUrl || apiBaseUrlFromPolicy(policy);
+  policyAllowsApiBaseUrl(policy, apiBaseUrl, {allowLocalDev: Boolean(devRuntimeConfig)});
 
   setStatusState('loading-config', 'Fetching SLAIF session descriptor...');
   const descriptor = validateSessionDescriptor(
       await fetchSessionDescriptor(pending, apiBaseUrl),
       pending,
       policyHost,
-      {allowLocalDev: Boolean(devRuntimeConfig)},
+      {allowLocalDev: Boolean(devRuntimeConfig), policy},
   );
 
   const relay = new SlaifRelay({

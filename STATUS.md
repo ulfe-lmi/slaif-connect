@@ -232,6 +232,28 @@ npm run test:browser:launch-flow
 npm test
 ```
 
+### 12. Signed HPC policy verification and rotation foundation
+
+The extension can verify signed HPC policy envelopes with bundled trust roots. Signed policy is now the authority for SSH host, port, host-key alias, known hosts / host CA, allowed API/relay origins, and fixed command templates.
+
+Main files and docs:
+
+- [extension/js/slaif_policy_signature.js](extension/js/slaif_policy_signature.js)
+- [extension/js/slaif_policy.js](extension/js/slaif_policy.js)
+- [scripts/policy/](scripts/policy)
+- [tests/policy/](tests/policy)
+- [tests/browser/extension-signed-policy.spec.mjs](tests/browser/extension-signed-policy.spec.mjs)
+- [docs/HPC_POLICY.md](docs/HPC_POLICY.md)
+- [docs/HOST_KEY_ROTATION.md](docs/HOST_KEY_ROTATION.md)
+
+Validation:
+
+```bash
+npm run policy:verify
+npm run test:policy
+npm run test:browser:signed-policy
+```
+
 ## What Is Validated
 
 | Capability | Status | Evidence / command |
@@ -243,8 +265,12 @@ npm test
 | Web launch/session descriptor flow | Working locally | `npm run test:browser:launch-flow` |
 | Malicious launch fields are rejected | Working locally | `tests/session_descriptor.test.mjs`, browser launch-flow test |
 | Malicious descriptor SSH-target fields are rejected | Working locally | `tests/session_descriptor.test.mjs` |
+| Signed HPC policy verification | Working locally | `npm run policy:verify`, `npm run test:policy` |
+| Tampered/wrong-signer/expired policy rejection | Working locally | policy unit tests and signed-policy browser tests |
+| Relay origin constrained by signed policy | Working locally | signed-policy browser tests |
 | Production HPC integration | Pending | not yet validated against real HPC |
-| Signed HPC policy / host-key rotation | Pending | next security milestone |
+| Production signed policy operations | Pending | real trust root and operational signing process not deployed |
+| Production host-key rotation | Pending | foundation exists; real HPC rotation process not deployed |
 | Production credential UX | Pending | browser E2E currently uses a disposable local-only dev password |
 | Chrome Web Store packaging/release | Pending | no release workflow yet |
 
@@ -260,7 +286,7 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 - upstream `libapps` is pinned and bundled at build time;
 - files under `third_party/libapps` are upstream-owned and must stay untouched;
 - the relay must not accept arbitrary client-supplied host/port;
-- extension-side policy is authoritative for SSH host, port, host-key alias, known hosts / host CA, and command template;
+- signed extension-side policy is authoritative for SSH host, port, host-key alias, known hosts / host CA, allowed API/relay origins, and command template;
 - host-key verification must happen before user authentication;
 - changed host keys must not be accepted silently;
 - no production trust-on-first-use unless explicitly approved later;
@@ -274,8 +300,8 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 
 - SLAIF Connect is not production-ready.
 - Real HPC hosts are not integrated or validated yet.
-- Signed HPC policy and host-key / host-CA trust distribution are not implemented yet.
-- Production host-key rotation and emergency revocation processes are not implemented yet.
+- Signed policy verification exists, but production trust-root operations are not deployed.
+- Production host-key rotation and emergency revocation procedures are documented as foundations, not operated against real HPC yet.
 - Browser E2E uses a disposable local-only password for the test sshd container; this is not production credential storage.
 - Chrome Web Store packaging and release workflow are not implemented.
 - User-facing UX is still prototype-level.
@@ -286,7 +312,7 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 ## Next Milestones
 
 1. Documentation/status refresh. This PR.
-2. Signed HPC policy and host-key or host-CA trust/rotation.
+2. Real SLAIF policy signing operations and production trust-root handling.
 3. Real HPC pilot target with pinned host key or host CA.
 4. Production authentication UX.
 5. Fixed SLAIF remote launcher and SLURM job-id reporting integration.
@@ -318,6 +344,8 @@ Merged PRs visible from GitHub at the time of this update:
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): relay-only architecture.
 - [docs/SECURITY.md](docs/SECURITY.md): security model and boundaries.
 - [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md): threat table.
+- [docs/HPC_POLICY.md](docs/HPC_POLICY.md): signed HPC policy format and tooling.
+- [docs/HOST_KEY_ROTATION.md](docs/HOST_KEY_ROTATION.md): host-key and host-CA rotation foundation.
 - [docs/UPSTREAM_LINKING.md](docs/UPSTREAM_LINKING.md): upstream `libapps` vendoring.
 - [docs/RELAY_E2E_TESTING.md](docs/RELAY_E2E_TESTING.md): system SSH relay tests.
 - [docs/BROWSER_E2E_TESTING.md](docs/BROWSER_E2E_TESTING.md): browser E2E tests.

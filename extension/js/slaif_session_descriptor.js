@@ -1,4 +1,5 @@
 import {
+  policyAllowsRelayUrl,
   validateAlias,
   validateSessionId,
 } from './slaif_policy.js';
@@ -121,6 +122,9 @@ export function validateSessionDescriptor(descriptor, pendingLaunch, policyHost,
   }
 
   const relayUrl = validateRelayUrl(descriptor.relayUrl, options);
+  if (options.policy) {
+    policyAllowsRelayUrl(options.policy, relayUrl, {allowLocalDev: Boolean(options.allowLocalDev)});
+  }
   const relayToken = validateOpaqueToken(descriptor.relayToken, 'relayToken');
 
   let relayTokenExpiresAt;

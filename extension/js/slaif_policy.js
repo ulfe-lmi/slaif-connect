@@ -1,11 +1,30 @@
 // SLAIF Connect policy helpers.
 // This module keeps the old fork's allowlist idea but moves it out of nassh.
+import {
+  evaluatePolicyRollback,
+  policyFingerprint,
+  verifySignedPolicyEnvelope,
+} from './slaif_policy_signature.js';
 
 function defaultPolicyUrl() {
   if (globalThis.chrome?.runtime?.getURL) {
     return chrome.runtime.getURL('config/hpc_hosts.example.json');
   }
   return new URL('../config/hpc_hosts.example.json', import.meta.url).href;
+}
+
+function defaultSignedPolicyUrl() {
+  if (globalThis.chrome?.runtime?.getURL) {
+    return chrome.runtime.getURL('config/hpc_policy.signed.example.json');
+  }
+  return new URL('../config/hpc_policy.signed.example.json', import.meta.url).href;
+}
+
+function defaultTrustRootsUrl() {
+  if (globalThis.chrome?.runtime?.getURL) {
+    return chrome.runtime.getURL('config/policy_trust_roots.example.json');
+  }
+  return new URL('../config/policy_trust_roots.example.json', import.meta.url).href;
 }
 
 export function normalizeHostLike(value) {
@@ -57,15 +76,47 @@ export async function loadHpcPolicy(url = defaultPolicyUrl()) {
   return policy;
 }
 
+export async function loadVerifiedHpcPolicy({
+  policyUrl = defaultSignedPolicyUrl(),
+  trustRootsUrl = defaultTrustRootsUrl(),
+  allowLocalDev = false,
+  now = new Date(),
+} = {}) {
+  const [policyResponse, trustRootsResponse] = await Promise.all([
+    fetch(policyUrl, {cache: 'no-store'}),
+    fetch(trustRootsUrl, {cache: 'no-store'}),
+  ]);
+  if (!policyResponse.ok) {
+    throw new Error(`failed to load signed HPC policy: ${policyResponse.status}`);
+  }
+  if (!trustRootsResponse.ok) {
+    throw new Error(`failed to load policy trust roots: ${trustRootsResponse.status}`);
+  }
+  const envelope = await policyResponse.json();
+  const trustRoots = await trustRootsResponse.json();
+  const policy = await verifySignedPolicyEnvelope(envelope, trustRoots);
+  validatePolicy(policy, {allowLocalDev, now});
+  return {
+    envelope,
+    policy,
+    fingerprint: await policyFingerprint(envelope),
+  };
+}
+
 export function buildDevelopmentPolicy(runtimeConfig) {
   validateDevelopmentRuntimeConfig(runtimeConfig);
   return {
+    type: 'slaif.hpcPolicy',
     version: 1,
-    description: 'Local development policy generated for browser relay testing.',
+    policyId: 'slaif-hpc-policy-local-dev',
+    sequence: 1,
+    validFrom: new Date(Date.now() - 60000).toISOString(),
+    validUntil: new Date(Date.now() + 10 * 60000).toISOString(),
     development: true,
-    relay: {
-      url: runtimeConfig.relayUrl,
-    },
+    allowedApiOrigins: [runtimeConfig.apiBaseUrl ?
+      new URL(runtimeConfig.apiBaseUrl).origin :
+      'http://127.0.0.1'],
+    allowedRelayOrigins: [new URL(runtimeConfig.relayUrl).origin],
     hosts: {
       [runtimeConfig.hpc]: {
         displayName: 'Local test sshd',
@@ -82,9 +133,13 @@ export function buildDevelopmentPolicy(runtimeConfig) {
   };
 }
 
-export function validatePolicy(policy) {
+export function validatePolicy(policy, {allowLocalDev = false, now = new Date()} = {}) {
   if (!policy || typeof policy !== 'object') {
     throw new Error('policy must be an object');
+  }
+  if (policy.type === 'slaif.hpcPolicy') {
+    validateSignedPolicyPayload(policy, {allowLocalDev: allowLocalDev || policy.development === true, now});
+    return;
   }
   if (!policy.hosts || typeof policy.hosts !== 'object') {
     throw new Error('policy.hosts missing');
@@ -107,12 +162,119 @@ export function validatePolicy(policy) {
   }
 }
 
+function parseTimestamp(value, name) {
+  if (typeof value !== 'string') {
+    throw new Error(`${name} must be an ISO timestamp`);
+  }
+  const ms = Date.parse(value);
+  if (!Number.isFinite(ms)) {
+    throw new Error(`${name} must be a valid timestamp`);
+  }
+  return ms;
+}
+
+function assertOrigin(value, name, {secureProtocol, localDevProtocol, allowLocalDev}) {
+  if (typeof value !== 'string') {
+    throw new Error(`${name} must be a string`);
+  }
+  const parsed = new URL(value);
+  if (parsed.href !== parsed.origin + '/' && parsed.pathname !== '/' ||
+      parsed.search || parsed.hash || parsed.username || parsed.password) {
+    throw new Error(`${name} must be an origin`);
+  }
+  if (parsed.protocol === secureProtocol) {
+    return parsed.origin;
+  }
+  if (allowLocalDev && parsed.protocol === localDevProtocol &&
+      parsed.hostname === '127.0.0.1') {
+    return parsed.origin;
+  }
+  throw new Error(`${name} must use ${secureProtocol} outside local development`);
+}
+
+export function validateSignedPolicyPayload(policy, {allowLocalDev = false, now = new Date()} = {}) {
+  if (policy.type !== 'slaif.hpcPolicy') {
+    throw new Error('policy type must be slaif.hpcPolicy');
+  }
+  if (policy.version !== 1) {
+    throw new Error('unsupported HPC policy version');
+  }
+  if (typeof policy.policyId !== 'string' || !/^[A-Za-z0-9_.-]{1,128}$/.test(policy.policyId)) {
+    throw new Error('policyId is invalid');
+  }
+  if (!Number.isSafeInteger(policy.sequence) || policy.sequence <= 0) {
+    throw new Error('policy sequence must be a positive integer');
+  }
+
+  const validFromMs = parseTimestamp(policy.validFrom, 'validFrom');
+  const validUntilMs = parseTimestamp(policy.validUntil, 'validUntil');
+  const nowMs = now instanceof Date ? now.getTime() : Date.parse(now);
+  if (!Number.isFinite(nowMs)) {
+    throw new Error('policy validation clock is invalid');
+  }
+  if (validUntilMs <= validFromMs) {
+    throw new Error('policy validUntil must be after validFrom');
+  }
+  if (nowMs < validFromMs) {
+    throw new Error('signed HPC policy is not yet valid');
+  }
+  if (nowMs >= validUntilMs) {
+    throw new Error('signed HPC policy has expired');
+  }
+
+  if (!Array.isArray(policy.allowedApiOrigins) || policy.allowedApiOrigins.length === 0) {
+    throw new Error('policy allowedApiOrigins missing');
+  }
+  if (!Array.isArray(policy.allowedRelayOrigins) || policy.allowedRelayOrigins.length === 0) {
+    throw new Error('policy allowedRelayOrigins missing');
+  }
+  for (const origin of policy.allowedApiOrigins) {
+    assertOrigin(origin, 'allowedApiOrigins entry', {
+      secureProtocol: 'https:',
+      localDevProtocol: 'http:',
+      allowLocalDev,
+    });
+  }
+  for (const origin of policy.allowedRelayOrigins) {
+    assertOrigin(origin, 'allowedRelayOrigins entry', {
+      secureProtocol: 'wss:',
+      localDevProtocol: 'ws:',
+      allowLocalDev,
+    });
+  }
+  if (!policy.hosts || typeof policy.hosts !== 'object' || Array.isArray(policy.hosts) ||
+      Object.keys(policy.hosts).length === 0) {
+    throw new Error('policy.hosts missing');
+  }
+
+  for (const [alias, host] of Object.entries(policy.hosts)) {
+    validateAlias(alias);
+    validatePolicyHost(alias, host);
+  }
+}
+
 export function validatePolicyHost(alias, host) {
   if (!host || typeof host !== 'object') {
     throw new Error(`policy host ${alias} must be an object`);
   }
+  for (const forbidden of [
+    'commandFromDescriptor',
+    'allowArbitraryCommand',
+    'disableHostKeyChecking',
+    'disableStrictHostKeyChecking',
+    'StrictHostKeyChecking',
+    'strictHostKeyChecking',
+    'sshOptions',
+  ]) {
+    if (Object.hasOwn(host, forbidden)) {
+      throw new Error(`policy host ${alias} contains forbidden field ${forbidden}`);
+    }
+  }
   if (typeof host.sshHost !== 'string') {
     throw new Error(`policy host ${alias} missing sshHost`);
+  }
+  if (host.sshHost.includes('://') || /[/?#@]/.test(host.sshHost)) {
+    throw new Error(`policy host ${alias} sshHost must be a hostname, not a URL`);
   }
   if (!Number.isInteger(host.sshPort) || host.sshPort <= 0 || host.sshPort > 65535) {
     throw new Error(`policy host ${alias} has invalid sshPort`);
@@ -196,6 +358,53 @@ export function requireKnownHpcAlias(policy, alias) {
     throw new Error(`unknown or disallowed HPC alias: ${alias}`);
   }
   return host;
+}
+
+export function policyAllowsApiBaseUrl(policy, apiBaseUrl, {allowLocalDev = false} = {}) {
+  const base = new URL(apiBaseUrl);
+  const origin = base.origin;
+  if (policy.type === 'slaif.hpcPolicy') {
+    if (!policy.allowedApiOrigins.includes(origin)) {
+      throw new Error('SLAIF API origin is not allowed by signed HPC policy');
+    }
+    assertOrigin(origin, 'apiBaseUrl origin', {
+      secureProtocol: 'https:',
+      localDevProtocol: 'http:',
+      allowLocalDev,
+    });
+    return origin;
+  }
+  if (allowLocalDev && base.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(base.hostname)) {
+    return origin;
+  }
+  if (base.protocol === 'https:') {
+    return origin;
+  }
+  throw new Error('SLAIF API origin is not allowed');
+}
+
+export function policyAllowsRelayUrl(policy, relayUrl, {allowLocalDev = false} = {}) {
+  const relay = new URL(relayUrl);
+  const origin = relay.origin;
+  if (policy.type === 'slaif.hpcPolicy') {
+    if (!policy.allowedRelayOrigins.includes(origin)) {
+      throw new Error('relay origin is not allowed by signed HPC policy');
+    }
+    assertOrigin(origin, 'relayUrl origin', {
+      secureProtocol: 'wss:',
+      localDevProtocol: 'ws:',
+      allowLocalDev,
+    });
+    return origin;
+  }
+  if (policy.relay?.url && new URL(policy.relay.url).origin === origin) {
+    return origin;
+  }
+  throw new Error('relay origin is not allowed');
+}
+
+export function evaluateAcceptedPolicyRollback(policyRecord, previousRecord) {
+  evaluatePolicyRollback(policyRecord, previousRecord);
 }
 
 export function buildRemoteCommand(policyHost, sessionId) {

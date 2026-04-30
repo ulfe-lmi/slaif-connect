@@ -22,7 +22,8 @@ Short version:
 - the WebSocket-to-TCP relay has local system-SSH E2E coverage;
 - browser-side OpenSSH/WASM through the relay is validated locally with Playwright/Chromium;
 - the product-shaped SLAIF web launch and session descriptor flow is validated locally;
-- production deployment, real HPC integration, signed host policy, and release packaging are still pending.
+- signed HPC policy verification and host-key rotation foundations are present;
+- production deployment, real HPC integration, production trust-root operations, and release packaging are still pending.
 
 ## Architecture
 
@@ -53,7 +54,7 @@ Key rules:
 
 - the relay does not terminate SSH;
 - the extension verifies the HPC host key or host CA before user authentication;
-- extension-side policy controls approved HPC aliases, SSH host, SSH port, host-key alias, known hosts / host CA, and fixed remote command template;
+- signed extension-side policy controls approved HPC aliases, SSH host, SSH port, host-key alias, known hosts / host CA, allowed API/relay origins, and fixed remote command template;
 - the SLAIF web page cannot provide arbitrary SSH target details or arbitrary shell commands;
 - session descriptors can provide relay connection data, but cannot override SSH host identity or command policy;
 - there is no server-side SSH client;
@@ -112,6 +113,7 @@ Lightweight checks and unit tests:
 
 ```bash
 npm test
+npm run test:policy
 ```
 
 Relay auth/security tests:
@@ -133,6 +135,7 @@ npm run browser:install
 npm run test:browser
 npm run test:browser:launch-flow
 npm run test:browser:hostkey-negative
+npm run test:browser:signed-policy
 ```
 
 Browser and relay E2E tests require Docker, OpenSSH tooling, and Playwright Chromium. If Docker access fails with `/var/run/docker.sock: permission denied`, see [docs/BROWSER_E2E_TESTING.md](docs/BROWSER_E2E_TESTING.md) for the documented local passwordless-sudo wrapper.
@@ -145,6 +148,8 @@ Browser and relay E2E tests require Docker, OpenSSH tooling, and Playwright Chro
 - [docs/SECURITY.md](docs/SECURITY.md): security model and boundaries.
 - [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md): practical threat table.
 - [docs/UPSTREAM_LINKING.md](docs/UPSTREAM_LINKING.md): upstream `libapps` vendoring model.
+- [docs/HPC_POLICY.md](docs/HPC_POLICY.md): signed HPC policy format and tools.
+- [docs/HOST_KEY_ROTATION.md](docs/HOST_KEY_ROTATION.md): host-key and host-CA rotation foundation.
 - [docs/RELAY_E2E_TESTING.md](docs/RELAY_E2E_TESTING.md): local system-SSH relay tests.
 - [docs/BROWSER_E2E_TESTING.md](docs/BROWSER_E2E_TESTING.md): Playwright/Chromium extension tests.
 - [docs/BROWSER_WASSH_RELAY_PROTOTYPE.md](docs/BROWSER_WASSH_RELAY_PROTOTYPE.md): local browser prototype instructions.
@@ -155,4 +160,4 @@ Browser and relay E2E tests require Docker, OpenSSH tooling, and Playwright Chro
 
 SLAIF Connect is not production-ready yet. Local validation now covers real SSH traffic through the relay, browser-side OpenSSH/WASM startup, strict host-key negative cases, and the product-shaped web launch/session descriptor flow. That is still not the same as deployment against real HPC infrastructure.
 
-The next major security milestone is signed HPC policy and host-key or host-CA trust/rotation, followed by a real HPC pilot target, production authentication UX, relay hardening, and release packaging.
+The next major security milestone is operationalizing signed policy with real SLAIF trust roots and real HPC host keys or host CAs, followed by a real HPC pilot target, production authentication UX, relay hardening, and release packaging.
