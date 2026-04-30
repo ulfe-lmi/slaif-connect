@@ -40,6 +40,18 @@ it. Distinguish local prototype validation from production readiness, and do
 not let `README.md` drift back into starter-skeleton language now that the
 project has progressed.
 
+## README branding invariant
+
+`README.md` contains a SLAIF logo and link block at the very top. Agents must
+preserve this block whenever `README.md` is edited. Do not remove it, move it
+below other content, replace it with plain text, or change the linked target
+unless the user explicitly requests that exact branding change. If `README.md`
+is rewritten, the SLAIF logo/link block must remain the first visible content.
+Before committing any `README.md` change, inspect the first lines of
+`README.md` and confirm the logo/link block is still present. If a future task
+appears to conflict with this rule, stop and ask for explicit user direction
+rather than removing the logo/link block.
+
 ## Signed HPC policy rules
 
 Production-directed code must load and verify signed HPC policy before using
