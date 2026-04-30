@@ -162,6 +162,13 @@ npm run plugin:verify
 npm run dev:extension-stack
 ```
 
+Automated Chromium validation is documented in `docs/BROWSER_E2E_TESTING.md`:
+
+```bash
+npm run browser:install
+npm run test:browser
+```
+
 ## Important production rules
 
 1. Do not load executable JavaScript or WASM from the web at runtime. Vendor upstream code at build time.

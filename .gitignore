@@ -3,8 +3,12 @@ dist/
 build/
 extension/vendor/
 extension/plugin/
+extension/wassh/
+extension/wasi-js-bindings/
 extension/config/dev_runtime.local.json
 server/relay/allowed_hpc_hosts.json
 .DS_Store
 *.log
 *.zip
+test-results/
+playwright-report/

@@ -2251,3 +2251,22 @@ npm run plugin:verify
 Manual browser development uses `tools/start-extension-dev-stack.mjs` and
 `build/extension/config/dev_runtime.local.json`. That generated config is local
 development state only.
+
+## Browser E2E validation rules
+
+Automated browser validation must not be faked. A passing browser relay test
+must load the built extension in Chromium and observe real command output from
+the test sshd container.
+
+Hard rules:
+
+- do not mark browser validation successful based only on extension load,
+  plugin verification, relay connection, or mocked output;
+- keep dev password authentication local-only and do not turn it into
+  production credential storage;
+- do not send the dev password in relay auth JSON or to the SLAIF relay server;
+- Playwright tests must not weaken manifest security, broaden external origins,
+  add `chrome.sockets`, or enable direct TCP from the extension;
+- do not bypass host-key verification to make browser tests pass;
+- browser host-key mismatch tests must verify that the fixed command output is
+  not observed.

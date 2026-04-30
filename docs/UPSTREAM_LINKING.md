@@ -55,6 +55,8 @@ The generated local dependency model is:
 third_party/libapps        upstream submodule, pinned, untouched
 extension/vendor/libapps   generated copy used for local development/builds
 extension/plugin           generated/copied OpenSSH/WASM plugin artifacts, if available
+extension/wassh            generated compatibility copy for the WASSH worker
+extension/wasi-js-bindings generated compatibility copy for worker imports
 build/extension            packaged unpacked extension directory
 ```
 
@@ -70,6 +72,8 @@ wassh
 wasi-js-bindings
 nassh/js
 nassh/wassh   generated compatibility copy for pinned nassh imports
+nassh/wasi-js-bindings generated compatibility copy for pinned worker imports
+hterm and libdot resource/dependency shims
 nassh/js/deps_*.rollup.js minimal generated local bundles for the prototype
 ```
 

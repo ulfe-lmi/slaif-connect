@@ -12,6 +12,11 @@
     "plugin:install": "./scripts/install-plugin.sh",
     "plugin:verify": "node scripts/verify-plugin.js",
     "dev:extension-stack": "node tools/start-extension-dev-stack.mjs",
+    "browser:install": "playwright install chromium",
+    "test:browser": "playwright test",
+    "test:browser:headed": "SLAIF_BROWSER_HEADED=1 playwright test --headed",
+    "test:browser:debug": "SLAIF_BROWSER_HEADED=1 PWDEBUG=1 playwright test --headed --timeout=0",
+    "test:browser:hostkey-negative": "playwright test -g \"rejects a changed host key\"",
     "test:relay": "node tests/relay/relay-auth.test.mjs",
     "test:relay:e2e": "node tests/relay/e2e-relay-ssh.mjs",
     "upstream:init": "./scripts/init-upstream.sh",
@@ -20,5 +25,8 @@
   },
   "dependencies": {
     "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
   }
 }

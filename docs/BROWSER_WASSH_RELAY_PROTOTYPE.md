@@ -68,7 +68,15 @@ The automated Docker/OpenSSH relay test still includes a strict host-key negativ
 npm run test:relay:e2e
 ```
 
+The browser E2E suite also includes a browser-side host-key negative case:
+
+```bash
+npm run test:browser:hostkey-negative
+```
+
 For manual browser testing, changing the generated `knownHosts` line in `build/extension/config/dev_runtime.local.json` should cause OpenSSH/WASM to reject the server before trusting it.
+
+See `docs/BROWSER_E2E_TESTING.md` for the automated Chromium harness.
 
 ## Limitations
 
@@ -76,4 +84,4 @@ This PR does not make SLAIF Connect a general SSH terminal and does not wire rea
 
 The local dev stack may use password authentication for manual browser testing because browser-side private-key provisioning is not implemented yet. The existing Docker E2E test remains public-key-only.
 
-If Chrome reports missing upstream generated `*.rollup.js` modules, a later PR should add a deterministic build-time generation step for those upstream dependency bundles without editing `third_party/libapps`.
+The browser validation path currently uses deterministic generated compatibility files for the low-level upstream modules needed by this prototype. A later PR may replace those shims with a fuller upstream build step without editing `third_party/libapps`.
