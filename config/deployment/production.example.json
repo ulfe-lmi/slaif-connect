@@ -1,0 +1,21 @@
+{
+  "env": "production",
+  "apiBaseUrl": "https://connect.slaif.si",
+  "relayPublicUrl": "wss://connect.slaif.si/ssh-relay",
+  "allowedWebOrigins": [
+    "https://connect.slaif.si",
+    "https://stare.lmi.link"
+  ],
+  "allowedRelayTargetsFile": "/etc/slaif/allowed-relay-targets.json",
+  "tokenStore": "redis",
+  "tokenStoreUrl": "redis://TOKEN_STORE_HOST:6379/0",
+  "auditLogMode": "external",
+  "relayMaxAuthBytes": 4096,
+  "relayUnauthTimeoutMs": 10000,
+  "relayIdleTimeoutMs": 300000,
+  "relayAbsoluteTimeoutMs": 3600000,
+  "jobReportMaxBytes": 16384,
+  "rateLimitMode": "external",
+  "policyTrustRootsFile": "/etc/slaif/policy-trust-roots.json",
+  "signedPolicyFile": "/etc/slaif/hpc-policy.signed.json"
+}

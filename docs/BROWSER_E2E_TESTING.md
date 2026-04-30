@@ -133,3 +133,9 @@ not an SSH credential and must not be logged or placed in URLs.
 See [TOKEN_LIFECYCLE.md](TOKEN_LIFECYCLE.md) and
 [RELAY_HARDENING.md](RELAY_HARDENING.md) for the token and relay controls
 validated outside the browser suite.
+
+Browser E2E proves local product-path behavior. Production API/relay deployment
+still requires the contract and checklist in
+[PRODUCTION_DEPLOYMENT_CONTRACT.md](PRODUCTION_DEPLOYMENT_CONTRACT.md) and
+[PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md), including durable shared
+token storage and production readiness checks.

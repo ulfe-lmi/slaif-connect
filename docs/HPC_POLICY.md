@@ -129,3 +129,10 @@ SLURM job reporting parses bounded output from the fixed command and reports
 only safe metadata such as session ID, HPC alias, scheduler, job ID, status,
 SSH exit code, and timestamp. Raw stdout/stderr and terminal transcripts are
 not part of the policy-driven report payload.
+
+## Deployment Contract Boundary
+
+Signed policy defines what the extension trusts. The production API/relay
+deployment must still enforce durable token storage, distributed replay
+prevention, relay egress controls, rate limits, and readiness checks as defined
+in [PRODUCTION_DEPLOYMENT_CONTRACT.md](PRODUCTION_DEPLOYMENT_CONTRACT.md).

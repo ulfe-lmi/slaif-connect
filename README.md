@@ -127,6 +127,7 @@ npm run test:policy
 npm run test:jobs
 npm run test:remote-launcher
 npm run test:tokens
+npm run test:deployment
 ```
 
 Relay auth/security tests:
@@ -183,6 +184,8 @@ npm run test:pilot
 - [docs/REMOTE_LAUNCHER_CONTRACT.md](docs/REMOTE_LAUNCHER_CONTRACT.md): HPC-side launcher CLI, output, and deployment contract.
 - [docs/TOKEN_LIFECYCLE.md](docs/TOKEN_LIFECYCLE.md): launch, relay, and job-report token scope, expiry, replay, and logging rules.
 - [docs/RELAY_HARDENING.md](docs/RELAY_HARDENING.md): relay timeout, allowlist, token, and audit controls.
+- [docs/PRODUCTION_DEPLOYMENT_CONTRACT.md](docs/PRODUCTION_DEPLOYMENT_CONTRACT.md): API/relay deployment contract, durable token-store requirements, readiness, and unsafe-config rejection.
+- [docs/PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md): production readiness checklist.
 - [docs/RELAY_E2E_TESTING.md](docs/RELAY_E2E_TESTING.md): local system-SSH relay tests.
 - [docs/BROWSER_E2E_TESTING.md](docs/BROWSER_E2E_TESTING.md): Playwright/Chromium extension tests.
 - [docs/BROWSER_WASSH_RELAY_PROTOTYPE.md](docs/BROWSER_WASSH_RELAY_PROTOTYPE.md): local browser prototype instructions.
@@ -193,4 +196,4 @@ npm run test:pilot
 
 SLAIF Connect is not production-ready yet. Local validation now covers real SSH traffic through the relay, browser-side OpenSSH/WASM startup, strict host-key negative cases, and the product-shaped web launch/session descriptor flow. That is still not the same as deployment against real HPC infrastructure.
 
-The next major security milestone is running a real HPC pilot with independently verified host-key or host-CA data and a site-approved installed launcher command, then operationalizing production SLAIF trust roots, durable token storage and distributed replay prevention, production authentication UX, relay deployment hardening, and release packaging.
+The next major security milestone is running a real HPC pilot with independently verified host-key or host-CA data and a site-approved installed launcher command, then operationalizing production SLAIF trust roots, durable token storage and distributed replay prevention, production authentication UX, production API/relay deployment, and release packaging.

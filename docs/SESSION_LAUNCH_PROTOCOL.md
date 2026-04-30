@@ -164,3 +164,14 @@ launch message, descriptor, or CLI host/port arguments.
 The manifest and service worker allow `http://127.0.0.1/*` only for Playwright and manual local launcher testing. `localhost` is intentionally not accepted by the runtime origin check, so tests can cover disallowed-origin behavior without broadening the manifest.
 
 Production launch origins must be HTTPS and listed narrowly in `externally_connectable`.
+
+## Production API / Relay Deployment
+
+Production API and relay services must follow
+[PRODUCTION_DEPLOYMENT_CONTRACT.md](PRODUCTION_DEPLOYMENT_CONTRACT.md). The
+descriptor endpoint, relay endpoint, and job-report endpoint require durable
+token storage, distributed replay prevention, rate limits, audit-safe logging,
+and readiness checks in production.
+
+The in-memory token registry used by local development is not sufficient for a
+multi-instance production deployment.

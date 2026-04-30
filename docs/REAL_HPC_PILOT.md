@@ -196,6 +196,12 @@ short-lived scoped launch, relay, and job-report tokens are issued for the
 session; relay and job-report tokens are one-use by default; full token values
 must not be logged or placed in URLs.
 
+Production API/relay deployment is a separate milestone from the manual pilot
+stack. A real deployment must satisfy
+[PRODUCTION_DEPLOYMENT_CONTRACT.md](PRODUCTION_DEPLOYMENT_CONTRACT.md),
+including durable shared token state, distributed replay prevention, rate
+limits, readiness checks, audit retention, and network egress controls.
+
 For a real SLURM pilot, use a harmless site-approved launcher command first.
 After that, a policy command may call a site-approved launcher that eventually
 runs `sbatch` and prints the canonical SLURM line:
