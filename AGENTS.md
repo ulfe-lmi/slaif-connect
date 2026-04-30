@@ -29,6 +29,17 @@ this starter repository, run:
 npm test
 ```
 
+## Project status documentation
+
+`README.md` is the public project overview. `STATUS.md` is the current
+progress and roadmap document.
+
+Agents must update `STATUS.md` when a PR materially changes project state. Do
+not claim a feature is working unless tests or explicit manual validation prove
+it. Distinguish local prototype validation from production readiness, and do
+not let `README.md` drift back into starter-skeleton language now that the
+project has progressed.
+
 ---
 
 ## 0. One-sentence mission
