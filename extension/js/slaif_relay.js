@@ -2,10 +2,11 @@
 // This is the boundary between upstream wassh/nassh runtime and the SLAIF relay.
 
 export class SlaifRelayStream {
-  constructor({relayUrl, relayToken, WebSocketImpl = globalThis.WebSocket}) {
+  constructor({relayUrl, relayToken, WebSocketImpl = globalThis.WebSocket, onStatus = () => {}}) {
     this.relayUrl = relayUrl;
     this.relayToken = relayToken;
     this.WebSocketImpl = WebSocketImpl;
+    this.onStatus = onStatus;
     this.ws = null;
     this.onDataAvailable = null;
     this.onClose = null;
@@ -57,6 +58,7 @@ export class SlaifRelayStream {
             return;
           }
           this.authenticated = true;
+          this.onStatus('relay-connected', 'Relay connected');
           resolve(msg);
         } catch (e) {
           reject(e);
@@ -110,12 +112,13 @@ export class SlaifRelayStream {
 }
 
 export class SlaifRelay {
-  constructor({policyHost, relayUrl, relayToken, WebSocketImpl = globalThis.WebSocket, logger = console}) {
+  constructor({policyHost, relayUrl, relayToken, WebSocketImpl = globalThis.WebSocket, logger = console, onStatus = () => {}}) {
     this.policyHost = policyHost;
     this.relayUrl = relayUrl;
     this.relayToken = relayToken;
     this.WebSocketImpl = WebSocketImpl;
     this.logger = logger;
+    this.onStatus = onStatus;
   }
 
   async init() {
@@ -135,6 +138,7 @@ export class SlaifRelay {
       relayUrl: this.relayUrl,
       relayToken: this.relayToken,
       WebSocketImpl: this.WebSocketImpl,
+      onStatus: this.onStatus,
     });
 
     await stream.open();

@@ -50,15 +50,98 @@ function createMemoryStorage(initial = {}) {
   };
 }
 
-async function createTerminal(container) {
+async function createTerminal(container, onOutput) {
   const {hterm} = await import('../vendor/libapps/hterm/index.js');
   await hterm.initPromise;
 
   const terminal = new hterm.Terminal();
   terminal.decorate(container);
   terminal.installKeyboard();
+
+  if (onOutput) {
+    const originalPrint = terminal.io.print.bind(terminal.io);
+    terminal.io.print = (string) => {
+      onOutput(String(string));
+      return originalPrint(string);
+    };
+  }
+
+  terminal.io.secureInput = (prompt, maxLength, echo) => {
+    return new Promise((resolve) => {
+      const panel = document.createElement('div');
+      panel.dataset.slaifSecureInput = 'true';
+      panel.style.padding = '12px 16px';
+      panel.style.borderTop = '1px solid #333';
+      panel.style.background = '#181818';
+
+      const label = document.createElement('label');
+      label.textContent = String(prompt || '').trim() || 'SSH authentication';
+      label.style.display = 'block';
+      label.style.marginBottom = '8px';
+
+      const input = document.createElement('input');
+      input.type = echo ? 'text' : 'password';
+      input.autocomplete = 'off';
+      input.spellcheck = false;
+      input.maxLength = Math.max(1, Number(maxLength || 1024) - 1);
+      input.ariaLabel = label.textContent;
+      input.style.width = 'min(420px, 90vw)';
+
+      panel.append(label, input);
+      container.after(panel);
+
+      const cleanup = (value) => {
+        panel.remove();
+        terminal.focus();
+        resolve(value);
+      };
+      input.addEventListener('keydown', (event) => {
+        event.stopPropagation();
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          cleanup(input.value);
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          cleanup('');
+        }
+      }, true);
+      setTimeout(() => input.focus());
+    });
+  };
+
   terminal.io.println('SLAIF Connect browser OpenSSH/WASM prototype');
   return terminal;
+}
+
+function normalizeExitResult(result) {
+  if (typeof result === 'number') {
+    return {
+      exitCode: result,
+      message: '',
+    };
+  }
+  if (result && typeof result === 'object') {
+    if (typeof result.status === 'number') {
+      return {
+        exitCode: result.status,
+        message: result.message || '',
+      };
+    }
+    if (typeof result.signal === 'number') {
+      return {
+        exitCode: 128 + result.signal,
+        message: result.message || `terminated by signal ${result.signal}`,
+      };
+    }
+    return {
+      exitCode: typeof result.exitCode === 'number' ? result.exitCode : 1,
+      message: result.message || JSON.stringify(result),
+    };
+  }
+  return {
+    exitCode: 1,
+    message: String(result),
+  };
 }
 
 export async function startBrowserSshSession({
@@ -69,14 +152,18 @@ export async function startBrowserSshSession({
   terminalElement,
   executable = defaultPluginExecutable(),
   trace = false,
+  onStatus = () => {},
+  onOutput = () => {},
 }) {
   const knownHosts = requireLaunchableKnownHosts(policyHost);
   const command = buildRemoteCommand(policyHost, sessionId);
   const argv = buildSshArgs({policyHost, username, command});
-  const terminal = await createTerminal(terminalElement);
+  onStatus('ssh-starting', 'Initializing hterm and OpenSSH/WASM');
+  const terminal = await createTerminal(terminalElement, onOutput);
 
   const {SshSubproc} = await import('../vendor/libapps/nassh/js/nassh_subproc_ssh.js');
 
+  onStatus('ssh-starting', 'SSH process started');
   const program = new SshSubproc({
     executable,
     argv,
@@ -97,12 +184,21 @@ export async function startBrowserSshSession({
   });
 
   terminal.io.println(`Connecting to ${policyHost.hostKeyAlias} through SLAIF relay...`);
+  onStatus('relay-connecting', 'Relay connecting');
   await program.init();
-  const exitCode = await program.run();
+  onStatus('authenticating', 'Host key verification and authentication in progress');
+  const rawExitResult = await program.run();
+  const {exitCode, message} = normalizeExitResult(rawExitResult);
   terminal.io.println(`OpenSSH/WASM exited with code ${exitCode}`);
+  if (message) {
+    terminal.io.println(`OpenSSH/WASM message: ${message}`);
+  }
+  onStatus(exitCode === 0 ? 'completed' : 'failed',
+      exitCode === 0 ? 'Command completed' : `OpenSSH/WASM exited with code ${exitCode}`);
 
   return {
     exitCode,
+    rawExitResult,
     argv,
     command,
   };

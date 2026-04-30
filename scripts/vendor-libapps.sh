@@ -6,6 +6,8 @@ ROOT="$(git -C "$(dirname "$0")/.." rev-parse --show-toplevel)"
 UPSTREAM="$ROOT/third_party/libapps"
 OUT="$ROOT/extension/vendor/libapps"
 PLUGIN_OUT="$ROOT/extension/plugin"
+ROOT_WASSH_OUT="$ROOT/extension/wassh"
+ROOT_WASI_OUT="$ROOT/extension/wasi-js-bindings"
 
 if [ ! -d "$UPSTREAM" ]; then
   echo "Missing $UPSTREAM. Run npm run upstream:init first." >&2
@@ -29,6 +31,7 @@ printf '%s\n' "$commit" > "$ROOT/UPSTREAM_LIBAPPS_COMMIT"
 printf '%s\n' "$UPSTREAM_URL" > "$ROOT/UPSTREAM_LIBAPPS_URL"
 
 rm -rf "$OUT"
+rm -rf "$ROOT_WASSH_OUT" "$ROOT_WASI_OUT"
 mkdir -p "$OUT"
 
 copy_dir() {
@@ -42,6 +45,55 @@ copy_dir libdot
 copy_dir wassh
 copy_dir wasi-js-bindings
 
+# Pinned upstream nassh_subproc_wasm.js currently starts the WASSH worker with
+# a relative URL of ../wassh/js/worker.js from the extension session page.
+# Generate root-level compatibility copies so the worker and its relative
+# imports resolve in the packaged extension without editing upstream code.
+mkdir -p "$ROOT_WASSH_OUT" "$ROOT_WASI_OUT"
+rsync -a --delete "$UPSTREAM/wassh/" "$ROOT_WASSH_OUT/"
+rsync -a --delete "$UPSTREAM/wasi-js-bindings/" "$ROOT_WASI_OUT/"
+
+mkdir -p "$OUT/hterm/dist/js"
+cat > "$OUT/hterm/dist/js/hterm_resources.js" <<'JS'
+const blankSvg = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>';
+
+export const AU_BELL = '';
+export const GIT_COMMIT = 'generated-slaif-vendor';
+export const GIT_DATE = 'generated-slaif-vendor';
+export const HTML_FIND_BAR = `
+  <input type="text">
+  <div id="hterm:find-bar-count">0/0</div>
+  <div id="hterm:find-bar-up" class="button" role="button"></div>
+  <div id="hterm:find-bar-down" class="button" role="button"></div>
+  <div id="hterm:find-bar-close" class="button enabled" role="button"></div>
+`;
+export const HTML_FIND_SCREEN = '';
+export const IMG_CLOSE = blankSvg;
+export const IMG_COPY = blankSvg;
+export const IMG_KEYBOARD_ARROW_DOWN = blankSvg;
+export const IMG_KEYBOARD_ARROW_UP = blankSvg;
+export const IMG_ICON_96 = blankSvg;
+export const VERSION = 'SLAIF Connect prototype';
+JS
+
+cat > "$OUT/hterm/js/deps_punycode.rollup.js" <<'JS'
+export const punycode = {
+  toASCII(value) {
+    try {
+      return new URL(`https://${value}`).hostname;
+    } catch (_error) {
+      return String(value);
+    }
+  },
+};
+JS
+
+mkdir -p "$OUT/libdot/dist/js"
+cat > "$OUT/libdot/dist/js/libdot_resources.js" <<'JS'
+export const gitDate = 'generated-slaif-vendor';
+export const version = 'SLAIF Connect prototype';
+JS
+
 mkdir -p "$OUT/nassh/js"
 rsync -a --delete "$UPSTREAM/nassh/js/" "$OUT/nassh/js/"
 
@@ -50,6 +102,8 @@ rsync -a --delete "$UPSTREAM/nassh/js/" "$OUT/nassh/js/"
 # third_party/libapps.
 mkdir -p "$OUT/nassh/wassh"
 rsync -a --delete "$UPSTREAM/wassh/" "$OUT/nassh/wassh/"
+mkdir -p "$OUT/nassh/wasi-js-bindings"
+rsync -a --delete "$UPSTREAM/wasi-js-bindings/" "$OUT/nassh/wasi-js-bindings/"
 
 # The upstream source tree expects generated rollup bundles. For the low-level
 # SLAIF prototype we provide minimal generated local bundles rather than
@@ -168,6 +222,22 @@ export function createFs() {
 }
 JS
 
+cat > "$OUT/nassh/js/deps_pkijs.rollup.js" <<'JS'
+export const asn1js = {};
+export const pkijs = {};
+JS
+
+mkdir -p "$OUT/nassh/third_party/google-smart-card"
+cat > "$OUT/nassh/third_party/google-smart-card/google-smart-card-client-library.js" <<'JS'
+export const GoogleSmartCard = {
+  PcscLiteCommon: {
+    Constants: {
+      SERVER_OFFICIAL_APP_ID: 'generated-slaif-vendor',
+    },
+  },
+};
+JS
+
 if [ -d "$UPSTREAM/nassh/plugin" ]; then
   rm -rf "$PLUGIN_OUT"
   mkdir -p "$PLUGIN_OUT"
@@ -197,8 +267,14 @@ cat > "$OUT/VENDORED_FROM.json" <<JSON
     "wasi-js-bindings",
     "nassh/js",
     "nassh/wassh",
+    "nassh/wasi-js-bindings",
+    "hterm/dist/js/hterm_resources.js",
+    "hterm/js/deps_punycode.rollup.js",
+    "libdot/dist/js/libdot_resources.js",
     "nassh/js/deps_resources.rollup.js",
-    "nassh/js/deps_indexeddb-fs.rollup.js"
+    "nassh/js/deps_indexeddb-fs.rollup.js",
+    "nassh/js/deps_pkijs.rollup.js",
+    "nassh/third_party/google-smart-card/google-smart-card-client-library.js"
   ]
 }
 JSON

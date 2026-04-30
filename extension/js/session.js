@@ -12,14 +12,31 @@ import {parseSlurmJobId} from './job_output_parser.js';
 const statusEl = document.getElementById('status');
 const terminalEl = document.getElementById('terminal');
 const logEl = document.getElementById('log');
+const capturedOutputEl = document.getElementById('captured-output');
+
+function setStatusState(state, text) {
+  document.body.dataset.slaifStatus = state;
+  statusEl.textContent = text;
+  console.info(`SLAIF status: ${state}: ${text}`);
+}
 
 function status(text) {
-  statusEl.textContent = text;
+  setStatusState('working', text);
 }
 
 function print(text) {
   logEl.textContent += `${text}\n`;
   logEl.scrollTop = logEl.scrollHeight;
+}
+
+function appendCapturedOutput(text) {
+  capturedOutputEl.hidden = false;
+  capturedOutputEl.textContent += text;
+  capturedOutputEl.scrollTop = capturedOutputEl.scrollHeight;
+}
+
+function normalizeTerminalText(text) {
+  return String(text).replace(/\r/g, '');
 }
 
 function getPendingSession() {
@@ -111,18 +128,21 @@ async function startSshOverRelay({policyHost, relay, sessionId}) {
 }
 
 async function startDevelopmentSession(runtimeConfig) {
-  status('Loading local development SSH policy...');
+  setStatusState('loading-config', 'Loading local development SSH policy...');
   const policy = buildDevelopmentPolicy(runtimeConfig);
   const policyHost = requireKnownHpcAlias(policy, runtimeConfig.hpc);
   const relay = new SlaifRelay({
     policyHost,
     relayUrl: runtimeConfig.relayUrl,
     relayToken: runtimeConfig.relayToken,
+    onStatus: setStatusState,
   });
 
   logEl.hidden = true;
   terminalEl.hidden = false;
-  status(`Starting browser OpenSSH/WASM prototype for ${policyHost.hostKeyAlias}...`);
+  capturedOutputEl.hidden = false;
+  setStatusState('ssh-starting',
+      `Starting browser OpenSSH/WASM prototype for ${policyHost.hostKeyAlias}...`);
 
   const result = await startBrowserSshSession({
     policyHost,
@@ -130,22 +150,34 @@ async function startDevelopmentSession(runtimeConfig) {
     username: runtimeConfig.username,
     sessionId: runtimeConfig.sessionId,
     terminalElement: terminalEl,
+    onStatus: setStatusState,
+    onOutput: appendCapturedOutput,
   });
 
   if (runtimeConfig.expectedOutput) {
-    console.info('Expected local development output:', runtimeConfig.expectedOutput);
+    const captured = normalizeTerminalText(capturedOutputEl.textContent);
+    if (captured.includes(runtimeConfig.expectedOutput)) {
+      setStatusState('completed', 'Command completed');
+      console.info('Observed expected local development output.');
+    } else {
+      setStatusState('failed', 'Expected remote command output was not observed');
+      throw new Error(`expected output not observed: ${runtimeConfig.expectedOutput}`);
+    }
   }
 
-  status(`OpenSSH/WASM exited with code ${result.exitCode}`);
+  if (result.exitCode !== 0) {
+    setStatusState('failed', `OpenSSH/WASM exited with code ${result.exitCode}`);
+    throw new Error(`OpenSSH/WASM exited with code ${result.exitCode}`);
+  }
 }
 
 async function main() {
   const url = new URL(globalThis.location.href);
   if (url.searchParams.get('dev') === '1') {
-    status('Loading local development runtime config...');
+    setStatusState('loading-config', 'Loading local development runtime config...');
     const runtimeConfig = await loadDevelopmentRuntimeConfig();
     if (!runtimeConfig) {
-      status('Local development config not found');
+      setStatusState('failed', 'Local development config not found');
       print('Run npm run build:extension and npm run dev:extension-stack, then open this page again.');
       return;
     }
@@ -153,7 +185,7 @@ async function main() {
     return;
   }
 
-  status('Loading pending SLAIF session…');
+  setStatusState('loading-config', 'Loading pending SLAIF session...');
   const pending = await getPendingSession();
   if (!pending) {
     throw new Error('No pending SLAIF session found. Start from the SLAIF web page.');
@@ -161,11 +193,11 @@ async function main() {
 
   validateSessionId(pending.sessionId);
 
-  status('Loading HPC policy…');
+  setStatusState('loading-config', 'Loading HPC policy...');
   const policy = await loadHpcPolicy();
   const policyHost = requireKnownHpcAlias(policy, pending.hpc);
 
-  status(`Preparing ${policyHost.displayName || pending.hpc}…`);
+  setStatusState('loading-config', `Preparing ${policyHost.displayName || pending.hpc}...`);
   const descriptor = validateDescriptor(await fetchSessionDescriptor(policy, pending.sessionId), pending);
 
   const relay = new SlaifRelay({
@@ -174,12 +206,12 @@ async function main() {
     relayToken: descriptor.relayToken,
   });
 
-  status('Ready to start SSH over relay');
+  setStatusState('idle', 'Ready to start SSH over relay');
   await startSshOverRelay({policyHost, relay, sessionId: pending.sessionId});
 }
 
 main().catch((error) => {
   console.error(error);
-  status('SLAIF Connect failed');
+  setStatusState('failed', 'SLAIF Connect failed');
   print(`ERROR: ${error.message || error}`);
 });

@@ -65,15 +65,26 @@ npm run plugin:verify
 
 `extension/plugin` is ignored by git. `npm run build:extension` copies it into `build/extension/plugin` when present.
 
+## Browser Validation
+
+`docs/BROWSER_E2E_TESTING.md` documents the automated Chromium harness. It loads `build/extension`, starts the local sshd/relay stack, enters the disposable local test password in the extension page, and requires the real remote output `slaif-browser-relay-ok`.
+
+The browser suite also runs a wrong-host-key case and verifies the command output is not observed.
+
 ## Current Uncertainties
 
 This PR creates the first browser-side prototype path, but full manual Chrome validation depends on loading `build/extension` in Chrome with installed plugin artifacts and the local dev stack running.
 
-The pinned upstream source imports generated `*.rollup.js` dependency bundles. The vendoring script currently creates minimal generated local bundles for the low-level prototype paths needed by `SshSubproc`:
+The pinned upstream source imports generated dependency/resource bundles and starts the WASSH worker through a relative `../wassh/js/worker.js` path. The vendoring script currently creates deterministic generated local bundles and compatibility copies for the low-level prototype paths needed by `SshSubproc`:
 
 - `deps_resources.rollup.js`;
-- `deps_indexeddb-fs.rollup.js`.
+- `deps_indexeddb-fs.rollup.js`;
+- `deps_pkijs.rollup.js`;
+- `hterm/dist/js/hterm_resources.js`;
+- `hterm/js/deps_punycode.rollup.js`;
+- `libdot/dist/js/libdot_resources.js`;
+- root-level generated `extension/wassh` and `extension/wasi-js-bindings` compatibility copies.
 
-A later PR may replace these with a fuller deterministic upstream `nassh` dependency bundling step if manual Chrome testing shows more upstream-generated bundles are required.
+A later PR may replace these with a fuller deterministic upstream dependency bundling step.
 
 The relay and server still do not terminate SSH, parse SSH credentials, or inspect decrypted terminal data.

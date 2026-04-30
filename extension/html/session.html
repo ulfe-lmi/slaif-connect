@@ -15,19 +15,27 @@
         border-bottom: 1px solid #333;
         background: #181818;
       }
-      #terminal, #log {
-        height: calc(100vh - 48px);
+      #terminal, #log, #captured-output {
         padding: 12px 16px;
         white-space: pre-wrap;
         overflow: auto;
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       }
+      #terminal, #log {
+        height: calc(100vh - 48px);
+      }
+      #captured-output {
+        max-height: 30vh;
+        border-top: 1px solid #333;
+        background: #0b0b0b;
+      }
     </style>
   </head>
-  <body>
+  <body data-slaif-status="idle">
     <div id="status">SLAIF Connect: initializing…</div>
     <pre id="log"></pre>
     <div id="terminal" hidden></div>
+    <pre id="captured-output" aria-label="Captured terminal output" hidden></pre>
     <script type="module" src="../js/session.js"></script>
   </body>
 </html>
