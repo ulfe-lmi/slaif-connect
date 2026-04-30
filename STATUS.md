@@ -274,6 +274,26 @@ npm run test:pilot
 
 This is onboarding support only. No real HPC host has been validated in this repository, and no real credentials or unverified host keys should be committed.
 
+### 14. Fixed-command SLURM job metadata reporting
+
+The browser launch path now parses bounded output from the signed-policy fixed remote command, extracts SLURM job IDs, and posts safe job metadata to the SLAIF API with a session-bound job report token. This is metadata reporting, not terminal transcript upload.
+
+Main files and docs:
+
+- [extension/js/job_output_parser.js](extension/js/job_output_parser.js)
+- [extension/js/slaif_job_reporter.js](extension/js/slaif_job_reporter.js)
+- [extension/js/session.js](extension/js/session.js)
+- [tests/jobs/](tests/jobs)
+- [tests/browser/extension-job-reporting.spec.mjs](tests/browser/extension-job-reporting.spec.mjs)
+- [docs/JOB_REPORTING.md](docs/JOB_REPORTING.md)
+
+Validation:
+
+```bash
+npm run test:jobs
+npm run test:browser:job-reporting
+```
+
 ## What Is Validated
 
 | Capability | Status | Evidence / command |
@@ -281,7 +301,9 @@ This is onboarding support only. No real HPC host has been validated in this rep
 | Relay forwards real SSH bytes | Working locally | `npm run test:relay:e2e` |
 | Strict host-key failure blocks fake/rerouted SSH | Working locally | relay and browser host-key negative tests |
 | Browser-side OpenSSH/WASM starts | Working locally | `npm run test:browser` |
-| Browser observes real remote command output | Working locally | expected output: `slaif-browser-relay-ok` |
+| Browser observes real remote command output | Working locally | expected output includes `Submitted batch job 424242` |
+| SLURM job ID parsing | Working locally | `npm run test:jobs` |
+| Mock SLAIF API receives safe job metadata report | Working locally | `npm run test:browser:job-reporting` |
 | Web launch/session descriptor flow | Working locally | `npm run test:browser:launch-flow` |
 | Malicious launch fields are rejected | Working locally | `tests/session_descriptor.test.mjs`, browser launch-flow test |
 | Malicious descriptor SSH-target fields are rejected | Working locally | `tests/session_descriptor.test.mjs` |
@@ -289,6 +311,7 @@ This is onboarding support only. No real HPC host has been validated in this rep
 | Tampered/wrong-signer/expired policy rejection | Working locally | policy unit tests and signed-policy browser tests |
 | Relay origin constrained by signed policy | Working locally | signed-policy browser tests |
 | Real-HPC pilot onboarding tooling | Scaffolded | `npm run test:pilot`; manual real-HPC run requires verified host data |
+| Real-HPC SLURM job reporting | Pending | requires verified host data, real user authentication, and site-approved launcher |
 | Production HPC integration | Pending | not yet validated against real HPC |
 | Production signed policy operations | Pending | real trust root and operational signing process not deployed |
 | Production host-key rotation | Pending | foundation exists; real HPC rotation process not deployed |
@@ -312,7 +335,8 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 - changed host keys must not be accepted silently;
 - no production trust-on-first-use unless explicitly approved later;
 - no arbitrary web-supplied shell commands;
-- no launch-token, relay-token, password, OTP, private-key, or raw SSH payload logging;
+- no launch-token, relay-token, job-report-token, password, OTP, private-key, or raw SSH payload logging;
+- no terminal transcript upload through job reporting without explicit review;
 - no SSH agent forwarding;
 - no X11 forwarding;
 - no local, remote, or dynamic port forwarding unless explicitly justified later.
@@ -326,17 +350,18 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 - Browser E2E uses a disposable local-only password for the test sshd container; this is not production credential storage.
 - Chrome Web Store packaging and release workflow are not implemented.
 - User-facing UX is still prototype-level.
-- Job submission, job-id reporting, and result reporting are not production-integrated.
+- Local SLURM job metadata reporting is implemented and validated against the local test sshd; real HPC SLURM reporting is not validated yet.
+- Broader result reporting beyond initial scheduler metadata is not production-integrated.
 - Relay deployment hardening, observability, audit logging, rate limiting, and token lifecycle controls remain production work.
 - The current browser prototype includes deterministic generated compatibility files for pinned upstream modules; a later build-system pass may replace these with a fuller upstream build flow.
 
 ## Next Milestones
 
-1. Documentation/status refresh. This PR.
+1. Fixed-command SLURM job metadata reporting. This PR.
 2. Real HPC pilot target with independently verified pinned host key or host CA.
 3. Real SLAIF policy signing operations and production trust-root handling.
 4. Production authentication UX.
-5. Fixed SLAIF remote launcher and SLURM job-id reporting integration.
+5. Site-approved production SLAIF remote launcher deployment.
 6. Relay deployment hardening.
 7. Chrome extension packaging and release workflow.
 8. Security review.
@@ -358,6 +383,7 @@ Merged PRs visible from GitHub at the time of this update:
 | [#7 Add SLAIF web launch session flow](https://github.com/ulfe-lmi/slaif-connect/pull/7) | 2026-04-30 | Added external web launch validation, session descriptor validation, mock SLAIF launcher/API, and browser E2E coverage for the product-shaped flow. |
 | [#8 Update README and project status documentation](https://github.com/ulfe-lmi/slaif-connect/pull/8) | 2026-04-30 | Rewrote the project README and added this status/roadmap document. |
 | [#9 Add signed HPC policy verification](https://github.com/ulfe-lmi/slaif-connect/pull/9) | 2026-04-30 | Added signed policy verification, policy tooling, rollback foundations, signed local-dev policy, and signed-policy browser validation. |
+| [#10 Add real HPC pilot onboarding tooling](https://github.com/ulfe-lmi/slaif-connect/pull/10) | 2026-04-30 | Added real-HPC pilot documentation, host-key collection/verification tools, pilot policy creation, and manual pilot stack. |
 
 ## How To Read The Repository
 

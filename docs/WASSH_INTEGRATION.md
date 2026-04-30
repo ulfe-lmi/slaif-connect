@@ -72,7 +72,7 @@ npm run plugin:verify
 
 ## Browser Validation
 
-`docs/BROWSER_E2E_TESTING.md` documents the automated Chromium harness. It loads `build/extension`, starts the local sshd/relay stack, enters the disposable local test password in the extension page, and requires the real remote output `slaif-browser-relay-ok`.
+`docs/BROWSER_E2E_TESTING.md` documents the automated Chromium harness. It loads `build/extension`, starts the local sshd/relay stack, enters the disposable local test password in the extension page, and requires real remote output from the fixed command.
 
 The browser suite also runs a wrong-host-key case and verifies the command output is not observed. The web-launch browser test starts a mock SLAIF launcher/API, sends the external `slaif.startSession` message, fetches the descriptor from `/api/connect/session/<sessionId>`, and then starts the same OpenSSH/WASM relay path.
 
@@ -81,6 +81,11 @@ Session descriptors are intentionally narrow. They supply relay connection data 
 The local browser dev stack now generates a signed local policy and trust root
 for `test-sshd`. Tampered policy, wrong signer, expired policy, and relay-origin
 mismatch are rejected before OpenSSH/WASM starts.
+
+The job-reporting browser test also verifies the OpenSSH/WASM command path can
+emit SLURM-style output, parse job ID `424242`, and POST a minimal
+`slaif.jobReport` payload to the mock SLAIF API. The WASSH integration still
+does not upload raw stdout, stderr, terminal transcripts, or credentials.
 
 ## Current Uncertainties
 

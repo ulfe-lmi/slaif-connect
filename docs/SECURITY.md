@@ -120,6 +120,14 @@ The web launch message and session descriptor cannot override those fields. A co
 
 Real-HPC pilot onboarding uses the same boundary. `ssh-keyscan` output is candidate data only and must be verified out of band before a policy is signed. Pilot tooling must not store SSH credentials, automate password/OTP entry, or let the pilot descriptor define SSH host, host key, SSH options, or command.
 
+Job reporting follows the same least-data rule. The extension may parse bounded
+remote command output locally to extract scheduler metadata such as a SLURM job
+ID, then POST a minimal `slaif.jobReport` payload to the SLAIF API. The report
+token is not an SSH credential and must not be logged or placed in URLs. Raw
+stdout, stderr, terminal transcript, passwords, OTPs, private keys, launch
+tokens, relay tokens, and job report tokens must not be included in the report
+payload.
+
 Recommended OpenSSH-style options:
 
 ```text
@@ -197,6 +205,10 @@ Example:
 ```
 
 Session ids must be validated with a strict allowlist pattern before being placed into a command.
+
+The session descriptor must not provide `jobCommand`, `schedulerCommand`,
+`stdoutUploadUrl`, `transcriptUploadUrl`, or arbitrary report URLs. The report
+endpoint is derived from a trusted API base allowed by signed policy.
 
 ## Launch and descriptor boundary
 

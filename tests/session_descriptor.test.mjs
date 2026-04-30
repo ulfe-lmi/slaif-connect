@@ -41,6 +41,8 @@ function descriptor(overrides = {}) {
     relayUrl: 'wss://connect.slaif.si/ssh-relay',
     relayToken: 'relay-token-123456',
     relayTokenExpiresAt: new Date(Date.now() + 60000).toISOString(),
+    jobReportToken: 'job-report-token-123456',
+    jobReportTokenExpiresAt: new Date(Date.now() + 60000).toISOString(),
     usernameHint: 'testuser',
     mode: 'launch',
     ...overrides,
@@ -76,6 +78,10 @@ assert.throws(() => validateSessionDescriptor(
 assert.throws(() => validateSessionDescriptor(
     descriptor({remoteCommand: 'evil'}), pending, policyHost), /remoteCommand/);
 assert.throws(() => validateSessionDescriptor(
+    descriptor({jobCommand: 'evil'}), pending, policyHost), /jobCommand/);
+assert.throws(() => validateSessionDescriptor(
+    descriptor({stdoutUploadUrl: 'https://attacker.example/upload'}), pending, policyHost), /stdoutUploadUrl/);
+assert.throws(() => validateSessionDescriptor(
     descriptor({relayUrl: 'http://127.0.0.1:1234/ssh-relay'}), pending, policyHost), /relayUrl/);
 assert.throws(() => validateSessionDescriptor(
     descriptor({relayUrl: 'ws://example.com:1234/ssh-relay'}), pending, policyHost, {allowLocalDev: true}), /relayUrl/);
@@ -93,6 +99,16 @@ assert.throws(() => validateSessionDescriptor(
     pending,
     policyHost,
 ), /expired/);
+assert.throws(() => validateSessionDescriptor(
+    descriptor({jobReportToken: undefined}),
+    pending,
+    policyHost,
+), /jobReportToken/);
+assert.throws(() => validateSessionDescriptor(
+    descriptor({jobReportTokenExpiresAt: new Date(Date.now() - 1000).toISOString()}),
+    pending,
+    policyHost,
+), /jobReportToken has expired/);
 
 assert.equal(sanitizeUsernameHint('test.user-1'), 'test.user-1');
 assert.equal(sanitizeUsernameHint(undefined), undefined);

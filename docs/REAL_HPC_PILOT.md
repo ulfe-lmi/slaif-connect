@@ -154,8 +154,22 @@ Pilot tooling supports a fixed no-session command only when `--pilot-fixed-comma
 10. Open the printed launcher URL with `?extensionId=<extension-id>`.
 11. Authenticate directly to the real HPC `sshd` inside the extension window.
 12. Confirm the fixed command output appears.
+13. If the command emits SLURM submission output, confirm the mock SLAIF API
+    receives a safe job metadata report.
 
 The pilot stack does not accept a host or port through CLI arguments. It resolves the SSH target from the verified signed policy.
+
+For a real SLURM pilot, use a harmless site-approved launcher command first.
+After that, a policy command may call a site-approved launcher that eventually
+runs `sbatch` and prints the canonical SLURM line:
+
+```text
+Submitted batch job 12345
+```
+
+SLAIF Connect parses that line and reports scheduler metadata only. It does not
+upload raw terminal output. Verify the reported job ID manually with HPC tooling
+during the pilot.
 
 ## What This PR Does Not Solve
 
@@ -165,4 +179,6 @@ The pilot stack does not accept a host or port through CLI arguments. It resolve
 - no real HPC credentials stored or automated;
 - no automatic host-key trust;
 - no production job launcher deployment;
+- no real-HPC SLURM job reporting validation without operator-provided verified
+  host trust and manual user authentication;
 - no institutional approval workflow.

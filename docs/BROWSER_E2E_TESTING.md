@@ -16,10 +16,10 @@ The relay remains a byte-forwarder. It does not terminate SSH, ask for SSH crede
 
 ## What Success Means
 
-The Playwright test loads `build/extension` as an unpacked MV3 extension in Chromium, starts the local dev relay stack, opens `html/session.html?dev=1`, enters the throwaway local test password into the extension page, and requires the real remote command output:
+The Playwright test loads `build/extension` as an unpacked MV3 extension in Chromium, starts the local dev relay stack, opens `html/session.html?dev=1`, enters the throwaway local test password into the extension page, and requires real remote command output such as:
 
 ```text
-slaif-browser-relay-ok
+Submitted batch job 424242
 ```
 
 Seeing the page load, plugin verification pass, or the relay connect is not enough. The test must observe the fixed command output produced by the sshd container.
@@ -47,6 +47,11 @@ The browser test also includes a negative case with an intentionally wrong known
 The signed-policy browser tests also reject tampered policy, wrong signer,
 expired policy, and relay-origin mismatch before SSH starts.
 
+The browser job-reporting test also verifies that the extension parses the
+SLURM job ID from real remote output and that the mock SLAIF API receives one
+safe metadata report. That report must not include stdout, stderr, terminal
+transcript, tokens, passwords, OTPs, or private keys.
+
 ## Commands
 
 ```bash
@@ -57,6 +62,7 @@ npm run test:browser:debug
 npm run test:browser:hostkey-negative
 npm run test:browser:launch-flow
 npm run test:browser:signed-policy
+npm run test:browser:job-reporting
 ```
 
 `npm test` intentionally does not require Playwright or Chromium. Browser validation is explicit because it needs Chromium, Docker, and the generated extension build.
@@ -111,3 +117,7 @@ This is not production credential storage and must not become one. Production SL
 The local mock SLAIF API returns only relay connection data. It does not return
 SSH host, SSH port, known_hosts, SSH options, or remote commands. Those stay in
 extension-side policy and are validated before OpenSSH/WASM starts.
+
+For launch-flow job reporting, the descriptor also returns a short-lived
+`jobReportToken`. That token authorizes posting scheduler metadata only; it is
+not an SSH credential and must not be logged or placed in URLs.
