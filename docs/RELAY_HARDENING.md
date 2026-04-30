@@ -72,4 +72,6 @@ npm run test:relay-hardening
 The local development implementation is a reference foundation. Production
 deployment still needs durable token state, distributed replay prevention when
 running multiple instances, rate limits, WSS/TLS hardening, firewall egress
-rules, and operational logging review.
+rules, readiness checks, and operational logging review. See
+[PRODUCTION_DEPLOYMENT_CONTRACT.md](PRODUCTION_DEPLOYMENT_CONTRACT.md) and
+[PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md).

@@ -96,6 +96,12 @@ Logs must not include:
 issuing, validating, consuming, revoking, and cleaning up scoped tokens. It is
 used by the local browser dev stack and real-HPC pilot stack.
 
+`server/tokens/token_store.js` defines the production-facing token-store
+contract and wraps the in-memory registry for development/test. Redis and
+Postgres modes are explicit not-implemented placeholders in this repository so
+they cannot be mistaken for production-ready adapters.
+
 This is not production key custody or a distributed token store. Production
 deployment still needs durable storage, distributed replay prevention, key
-management, rate limits, and operational audit policy.
+management, rate limits, and operational audit policy. See
+[PRODUCTION_DEPLOYMENT_CONTRACT.md](PRODUCTION_DEPLOYMENT_CONTRACT.md).

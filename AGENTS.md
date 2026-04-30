@@ -2425,3 +2425,24 @@ Hard rules:
   lifecycle tests passing when touching token or relay code;
 - update `STATUS.md`, `docs/TOKEN_LIFECYCLE.md`, and
   `docs/RELAY_HARDENING.md` when token or relay hardening behavior changes.
+
+## Production deployment contract rules
+
+Production API/relay deployment work must distinguish reference validation from
+actual deployment.
+
+Hard rules:
+
+- do not claim production readiness based only on local dev/reference config;
+- do not enable production with an in-memory token store except an explicitly
+  labeled single-instance pilot mode;
+- do not add Redis/Postgres token-store placeholders that silently succeed;
+- production multi-instance deployments require durable shared token state and
+  distributed replay prevention;
+- keep readiness checks strict and make them fail on unsafe production config;
+- do not disable production rate limiting, audit logging, or relay allowlist
+  validation for convenience;
+- keep token values out of URLs and logs;
+- keep relay clients unable to supply host or port;
+- update `STATUS.md`, `docs/PRODUCTION_DEPLOYMENT_CONTRACT.md`, and
+  `docs/PRODUCTION_CHECKLIST.md` when deployment readiness changes.

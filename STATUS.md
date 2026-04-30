@@ -340,6 +340,31 @@ npm run test:relay-hardening
 npm run test:browser:tokens
 ```
 
+### 17. Production API/relay deployment contract
+
+The repository now defines the production-side API/relay deployment contract:
+durable token-store expectations, distributed replay prevention requirements,
+runtime deployment config validation, rate-limit and readiness foundations, and
+unsafe production configuration rejection tests. This is contract/reference
+validation only, not production deployment.
+
+Main files and docs:
+
+- [docs/PRODUCTION_DEPLOYMENT_CONTRACT.md](docs/PRODUCTION_DEPLOYMENT_CONTRACT.md)
+- [docs/PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md)
+- [server/config/deployment_config.js](server/config/deployment_config.js)
+- [server/tokens/token_store.js](server/tokens/token_store.js)
+- [server/rate_limit/rate_limiter.js](server/rate_limit/rate_limiter.js)
+- [server/health/health_checks.js](server/health/health_checks.js)
+- [tests/deployment/](tests/deployment)
+- [config/deployment/](config/deployment)
+
+Validation:
+
+```bash
+npm run test:deployment
+```
+
 ## What Is Validated
 
 | Capability | Status | Evidence / command |
@@ -353,6 +378,8 @@ npm run test:browser:tokens
 | Remote launcher contract/reference implementation | Working locally | `npm run test:remote-launcher`; browser job-reporting E2E mounts the reference launcher |
 | Scoped token lifecycle and replay rejection | Working locally | `npm run test:tokens`, `npm run test:browser:tokens` |
 | Relay timeouts and audit-safe hardening controls | Working locally | `npm run test:relay-hardening` |
+| Unsafe production deployment config rejection | Working locally | `npm run test:deployment` |
+| Production API/relay deployment | Pending | contract/reference validation exists; real deployment is not complete |
 | Web launch/session descriptor flow | Working locally | `npm run test:browser:launch-flow` |
 | Malicious launch fields are rejected | Working locally | `tests/session_descriptor.test.mjs`, browser launch-flow test |
 | Malicious descriptor SSH-target fields are rejected | Working locally | `tests/session_descriptor.test.mjs` |
@@ -403,18 +430,20 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 - User-facing UX is still prototype-level.
 - Local SLURM job metadata reporting is implemented and validated against the local test sshd; real HPC SLURM reporting is not validated yet.
 - Broader result reporting beyond initial scheduler metadata is not production-integrated.
-- Durable production token storage, distributed replay prevention, infrastructure rate limits, and production audit-log operations remain production work.
+- Durable production token storage, distributed replay prevention, infrastructure rate limits, and production audit-log operations have documented contracts and reference validation, but remain production deployment work.
+- Redis/Postgres token-store adapters are explicit placeholders and are not implemented yet.
+- Production metrics/audit sink integration, infrastructure rate limits, and readiness wiring into a deployed service are not implemented yet.
 - The current browser prototype includes deterministic generated compatibility files for pinned upstream modules; a later build-system pass may replace these with a fuller upstream build flow.
 
 ## Next Milestones
 
-1. Token lifecycle and relay hardening foundations. This PR.
+1. Production API/relay deployment contract and unsafe-config validation. This PR.
 2. Real HPC pilot target with independently verified pinned host key or host CA.
 3. Site-approved production SLAIF remote launcher deployment.
-4. Durable production token store and distributed replay prevention.
+4. Durable production token-store adapter and distributed replay prevention deployment.
 5. Real SLAIF policy signing operations and production trust-root handling.
 6. Production authentication UX.
-7. Relay deployment hardening and infrastructure rate limiting.
+7. Production audit/metrics integration and infrastructure rate limiting.
 8. Chrome extension packaging and release workflow.
 9. Security review.
 
@@ -453,6 +482,8 @@ Merged PRs visible from GitHub at the time of this update:
 - [docs/REMOTE_LAUNCHER_CONTRACT.md](docs/REMOTE_LAUNCHER_CONTRACT.md): HPC-side launcher contract.
 - [docs/TOKEN_LIFECYCLE.md](docs/TOKEN_LIFECYCLE.md): token scopes, expiry, replay, and logging.
 - [docs/RELAY_HARDENING.md](docs/RELAY_HARDENING.md): relay timeout, allowlist, token, and audit controls.
+- [docs/PRODUCTION_DEPLOYMENT_CONTRACT.md](docs/PRODUCTION_DEPLOYMENT_CONTRACT.md): production API/relay deployment contract.
+- [docs/PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md): production readiness checklist.
 - [docs/UPSTREAM_LINKING.md](docs/UPSTREAM_LINKING.md): upstream `libapps` vendoring.
 - [docs/RELAY_E2E_TESTING.md](docs/RELAY_E2E_TESTING.md): system SSH relay tests.
 - [docs/BROWSER_E2E_TESTING.md](docs/BROWSER_E2E_TESTING.md): browser E2E tests.

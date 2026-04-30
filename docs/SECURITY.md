@@ -353,6 +353,8 @@ Before real HPC testing, implement these:
 8. Relay logs do not include SSH binary payloads.
 9. Agent forwarding is disabled.
 10. X11 and port forwarding are disabled.
+11. Unsafe production deployment config is rejected.
+12. Production multi-instance deployments use durable shared token state.
 
 ## Security review rule
 
@@ -366,3 +368,16 @@ only approved aliases are reachable
 server cannot send arbitrary shell
 relay is not an open TCP proxy
 ```
+
+## Production deployment boundary
+
+The development token registry and memory rate limiter are reference
+implementations only. Production API/relay deployments must satisfy
+[PRODUCTION_DEPLOYMENT_CONTRACT.md](PRODUCTION_DEPLOYMENT_CONTRACT.md):
+durable token storage, distributed replay prevention, strict runtime config,
+rate limits, audit-safe logging, health/readiness checks, and relay egress
+controls.
+
+Do not claim production readiness from local browser, relay, or deployment
+validator tests alone. Those tests prove contract behavior and unsafe-config
+rejection, not real production deployment.

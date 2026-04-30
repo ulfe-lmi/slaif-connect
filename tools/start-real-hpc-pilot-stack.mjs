@@ -362,6 +362,12 @@ export async function startRealHpcPilotStack(options = {}) {
         devMode: false,
         tokenRegistry,
       },
+      ...(options.deploymentConfig ? {
+        maxAuthMessageBytes: options.deploymentConfig.relayMaxAuthBytes,
+        unauthenticatedTimeoutMs: options.deploymentConfig.relayUnauthTimeoutMs,
+        idleTimeoutMs: options.deploymentConfig.relayIdleTimeoutMs,
+        maxConnectionMs: options.deploymentConfig.relayAbsoluteTimeoutMs,
+      } : {}),
       logger,
     });
     await relay.listen({host, port: relayPort});

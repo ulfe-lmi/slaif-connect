@@ -1,0 +1,19 @@
+{
+  "env": "development",
+  "apiBaseUrl": "http://127.0.0.1:3000",
+  "relayPublicUrl": "ws://127.0.0.1:3001/ssh-relay",
+  "allowedWebOrigins": [
+    "http://127.0.0.1:3000"
+  ],
+  "allowedRelayTargetsFile": "server/relay/allowed_hpc_hosts.example.json",
+  "tokenStore": "memory",
+  "auditLogMode": "stdout",
+  "relayMaxAuthBytes": 4096,
+  "relayUnauthTimeoutMs": 10000,
+  "relayIdleTimeoutMs": 300000,
+  "relayAbsoluteTimeoutMs": 3600000,
+  "jobReportMaxBytes": 16384,
+  "rateLimitMode": "memory",
+  "policyTrustRootsFile": "build/extension/config/policy_trust_roots.local.json",
+  "signedPolicyFile": "build/extension/config/hpc_policy.local.json"
+}

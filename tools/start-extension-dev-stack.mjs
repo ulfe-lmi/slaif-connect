@@ -512,6 +512,12 @@ export async function startExtensionDevStack(options = {}) {
         devMode: false,
         tokenRegistry,
       },
+      ...(options.deploymentConfig ? {
+        maxAuthMessageBytes: options.deploymentConfig.relayMaxAuthBytes,
+        unauthenticatedTimeoutMs: options.deploymentConfig.relayUnauthTimeoutMs,
+        idleTimeoutMs: options.deploymentConfig.relayIdleTimeoutMs,
+        maxConnectionMs: options.deploymentConfig.relayAbsoluteTimeoutMs,
+      } : {}),
       logger,
     });
     await relay.listen({host: '127.0.0.1', port: 0});

@@ -8,7 +8,7 @@
     "check:vendor": "node scripts/check-vendor.mjs",
     "check:js": "node scripts/checks/check-js.mjs",
     "check:json": "node scripts/checks/check-json.mjs",
-    "test": "npm run check:json && npm run check:js && npm run check:vendor && npm run test:policy && npm run test:pilot && npm run test:jobs && npm run test:remote-launcher && npm run test:tokens && node tests/policy.test.mjs && node tests/session_descriptor.test.mjs && node tests/ssh_client_args.test.mjs && node tests/relay_adapter.test.mjs && npm run test:relay",
+    "test": "npm run check:json && npm run check:js && npm run check:vendor && npm run test:policy && npm run test:pilot && npm run test:jobs && npm run test:remote-launcher && npm run test:tokens && npm run test:deployment && node tests/policy.test.mjs && node tests/session_descriptor.test.mjs && node tests/ssh_client_args.test.mjs && node tests/relay_adapter.test.mjs && npm run test:relay",
     "plugin:install": "./scripts/install-plugin.sh",
     "plugin:verify": "node scripts/verify-plugin.js",
     "dev:extension-stack": "node tools/start-extension-dev-stack.mjs",
@@ -36,6 +36,7 @@
     "test:jobs": "node tests/jobs/job-output-parser.test.mjs && node tests/jobs/job-reporter.test.mjs",
     "test:remote-launcher": "node tests/remote/launcher.test.mjs",
     "test:tokens": "node tests/tokens/token-registry.test.mjs && node tests/tokens/audit-log.test.mjs",
+    "test:deployment": "node tests/deployment/deployment-config.test.mjs && node tests/deployment/token-store-contract.test.mjs && node tests/deployment/rate-limiter.test.mjs && node tests/deployment/health-checks.test.mjs",
     "upstream:init": "./scripts/init-upstream.sh",
     "vendor:libapps": "./scripts/vendor-libapps.sh",
     "start:relay": "npm --prefix server/relay start"

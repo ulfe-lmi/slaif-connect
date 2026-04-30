@@ -152,3 +152,7 @@ Run:
 npm run test:jobs
 npm run test:browser:job-reporting
 ```
+
+Production deployment requirements for the job-report endpoint, job report
+token consumption, body-size limits, and audit logging are defined in
+[PRODUCTION_DEPLOYMENT_CONTRACT.md](PRODUCTION_DEPLOYMENT_CONTRACT.md).
