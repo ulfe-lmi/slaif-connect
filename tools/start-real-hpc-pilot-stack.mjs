@@ -6,6 +6,7 @@ import path from 'node:path';
 import process from 'node:process';
 import {fileURLToPath} from 'node:url';
 import {createRelayServer} from '../server/relay/relay.js';
+import {createTokenRegistry, TOKEN_SCOPES} from '../server/tokens/token_registry.js';
 import {
   policyAllowsApiBaseUrl,
   policyAllowsRelayUrl,
@@ -76,6 +77,7 @@ async function startMockPilotWebApiServer({
   launchToken,
   relayToken,
   jobReportToken,
+  tokenRegistry,
   relayUrl,
   usernameHint,
   relayTokenExpiresAt,
@@ -142,7 +144,14 @@ async function startMockPilotWebApiServer({
     }
 
     if (url.pathname === `/api/connect/session/${encodeURIComponent(sessionId)}`) {
-      if (req.headers.authorization !== `Bearer ${launchToken}`) {
+      const bearer = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
+      try {
+        tokenRegistry.consumeToken(bearer, {
+          scope: TOKEN_SCOPES.LAUNCH,
+          sessionId,
+          hpc,
+        });
+      } catch (_error) {
         res.writeHead(401, {'Content-Type': 'application/json'});
         res.end(JSON.stringify({error: 'unauthorized'}));
         return;
@@ -174,7 +183,14 @@ async function startMockPilotWebApiServer({
         res.end(JSON.stringify({error: 'method_not_allowed'}));
         return;
       }
-      if (req.headers.authorization !== `Bearer ${jobReportToken}`) {
+      const bearer = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
+      try {
+        tokenRegistry.validateToken(bearer, {
+          scope: TOKEN_SCOPES.JOB_REPORT,
+          sessionId,
+          hpc,
+        });
+      } catch (_error) {
         res.writeHead(401, {'Content-Type': 'application/json'});
         res.end(JSON.stringify({error: 'unauthorized'}));
         return;
@@ -212,6 +228,11 @@ async function startMockPilotWebApiServer({
               throw new Error(`forbidden report field ${forbidden}`);
             }
           }
+          tokenRegistry.consumeToken(bearer, {
+            scope: TOKEN_SCOPES.JOB_REPORT,
+            sessionId,
+            hpc,
+          });
           jobReports.push(report);
           logger.info(`received job metadata report for ${hpc}/${sessionId}: ${report.status}`);
           res.writeHead(200, {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'});
@@ -251,12 +272,11 @@ export async function startRealHpcPilotStack(options = {}) {
   const webPort = Number(options.webPort || 18180);
   const hpc = options.alias;
   const sessionId = options.sessionId || `sess_real_hpc_${crypto.randomBytes(8).toString('hex')}`;
-  const launchToken = options.launchToken || `pilot-launch-${crypto.randomBytes(16).toString('hex')}`;
-  const relayToken = options.relayToken || `pilot-relay-${crypto.randomBytes(16).toString('hex')}`;
-  const jobReportToken = options.jobReportToken || `pilot-job-report-${crypto.randomBytes(16).toString('hex')}`;
   const usernameHint = options.usernameHint;
   const expectedOutput = options.expectedOutput || 'slaif-pilot-ok';
   const logger = options.logger || defaultLogger(options.quiet);
+  const tokenRegistry = options.tokenRegistry || createTokenRegistry();
+  const tokenTtlMs = options.tokenTtlMs || 5 * 60 * 1000;
 
   if (!hpc) {
     throw new Error('--alias is required');
@@ -277,6 +297,33 @@ export async function startRealHpcPilotStack(options = {}) {
   const webOrigin = `http://${host}:${webPort}`;
   policyAllowsRelayUrl(verified.policy, relayUrl, {allowLocalDev: true});
   policyAllowsApiBaseUrl(verified.policy, webOrigin, {allowLocalDev: true});
+  const launchTokenRecord = tokenRegistry.issueToken({
+    token: options.launchToken,
+    scope: TOKEN_SCOPES.LAUNCH,
+    sessionId,
+    hpc,
+    ttlMs: tokenTtlMs,
+    maxUses: 1,
+  });
+  const relayTokenRecord = tokenRegistry.issueToken({
+    token: options.relayToken,
+    scope: TOKEN_SCOPES.RELAY,
+    sessionId,
+    hpc,
+    ttlMs: tokenTtlMs,
+    maxUses: 1,
+    metadata: {
+      userId: 'real-hpc-pilot-user',
+    },
+  });
+  const jobReportTokenRecord = tokenRegistry.issueToken({
+    token: options.jobReportToken,
+    scope: TOKEN_SCOPES.JOB_REPORT,
+    sessionId,
+    hpc,
+    ttlMs: tokenTtlMs,
+    maxUses: 1,
+  });
 
   let relay = null;
   let webApi = null;
@@ -312,33 +359,26 @@ export async function startRealHpcPilotStack(options = {}) {
         },
       },
       tokenOptions: {
-        devMode: true,
-        devTokenMap: {
-          [relayToken]: {
-            hpc,
-            sessionId,
-            userId: 'real-hpc-pilot-user',
-          },
-        },
+        devMode: false,
+        tokenRegistry,
       },
       logger,
     });
     await relay.listen({host, port: relayPort});
-    const relayTokenExpiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-    const jobReportTokenExpiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
     webApi = await startMockPilotWebApiServer({
       host,
       port: webPort,
       hpc,
       sessionId,
-      launchToken,
-      relayToken,
-      jobReportToken,
+      launchToken: launchTokenRecord.token,
+      relayToken: relayTokenRecord.token,
+      jobReportToken: jobReportTokenRecord.token,
+      tokenRegistry,
       relayUrl,
       usernameHint,
-      relayTokenExpiresAt,
-      jobReportTokenExpiresAt,
+      relayTokenExpiresAt: relayTokenRecord.expiresAt,
+      jobReportTokenExpiresAt: jobReportTokenRecord.expiresAt,
       logger,
     });
 
@@ -367,9 +407,10 @@ export async function startRealHpcPilotStack(options = {}) {
       policyHost,
       hpc,
       sessionId,
-      launchToken,
-      relayToken,
-      jobReportToken,
+      launchToken: launchTokenRecord.token,
+      relayToken: relayTokenRecord.token,
+      jobReportToken: jobReportTokenRecord.token,
+      tokenRegistry,
       relay,
       relayUrl,
       relayPort,

@@ -124,6 +124,8 @@ Rules:
 
 - `jobReportToken` is not an SSH credential.
 - `jobReportToken` must be short-lived and session-bound.
+- `jobReportToken` has scope `slaif.jobReport`.
+- `jobReportToken` is one-use by default for the final accepted report.
 - `jobReportToken` must not be logged.
 - `jobReportToken` must not be placed in query strings.
 - The report endpoint is derived from trusted API base and session ID.
@@ -140,6 +142,9 @@ Submitted batch job 424242
 ```
 
 and verifies the mock SLAIF API receives exactly one metadata report without stdout, stderr, transcript, tokens, passwords, OTPs, or private keys.
+
+The token lifecycle browser test also verifies that a consumed job-report token
+cannot be replayed for a second accepted report.
 
 Run:
 

@@ -134,19 +134,20 @@ export function validateSessionDescriptor(descriptor, pendingLaunch, policyHost,
   const relayToken = validateOpaqueToken(descriptor.relayToken, 'relayToken');
 
   let relayTokenExpiresAt;
-  if (descriptor.relayTokenExpiresAt !== undefined) {
-    if (typeof descriptor.relayTokenExpiresAt !== 'string') {
-      throw new Error('relayTokenExpiresAt must be an ISO timestamp');
-    }
-    const expiresAtMs = Date.parse(descriptor.relayTokenExpiresAt);
-    if (!Number.isFinite(expiresAtMs)) {
-      throw new Error('relayTokenExpiresAt must be a valid timestamp');
-    }
-    if (expiresAtMs <= Date.now()) {
-      throw new Error('relayToken has expired');
-    }
-    relayTokenExpiresAt = new Date(expiresAtMs).toISOString();
+  if (descriptor.relayTokenExpiresAt === undefined) {
+    throw new Error('relayTokenExpiresAt is required');
   }
+  if (typeof descriptor.relayTokenExpiresAt !== 'string') {
+    throw new Error('relayTokenExpiresAt must be an ISO timestamp');
+  }
+  const relayExpiresAtMs = Date.parse(descriptor.relayTokenExpiresAt);
+  if (!Number.isFinite(relayExpiresAtMs)) {
+    throw new Error('relayTokenExpiresAt must be a valid timestamp');
+  }
+  if (relayExpiresAtMs <= Date.now()) {
+    throw new Error('relayToken has expired');
+  }
+  relayTokenExpiresAt = new Date(relayExpiresAtMs).toISOString();
 
   const jobReportToken = validateOpaqueToken(descriptor.jobReportToken, 'jobReportToken');
   let jobReportTokenExpiresAt;

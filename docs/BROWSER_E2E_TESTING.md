@@ -63,9 +63,15 @@ npm run test:browser:hostkey-negative
 npm run test:browser:launch-flow
 npm run test:browser:signed-policy
 npm run test:browser:job-reporting
+npm run test:browser:tokens
 ```
 
 The job-reporting browser test uses the generated signed local-dev policy to run the reference remote launcher mounted into the test sshd container. Success requires both real browser-side SSH output and a received metadata report at the mock SLAIF API.
+
+The token lifecycle browser test uses the same real browser-side SSH path and
+then verifies one-use behavior for launch, relay, and job-report tokens. It also
+covers expired relay-token and wrong-scope relay-token rejection without
+accepting mocked SSH success.
 
 `npm test` intentionally does not require Playwright or Chromium. Browser validation is explicit because it needs Chromium, Docker, and the generated extension build.
 
@@ -123,3 +129,7 @@ extension-side policy and are validated before OpenSSH/WASM starts.
 For launch-flow job reporting, the descriptor also returns a short-lived
 `jobReportToken`. That token authorizes posting scheduler metadata only; it is
 not an SSH credential and must not be logged or placed in URLs.
+
+See [TOKEN_LIFECYCLE.md](TOKEN_LIFECYCLE.md) and
+[RELAY_HARDENING.md](RELAY_HARDENING.md) for the token and relay controls
+validated outside the browser suite.

@@ -32,6 +32,7 @@ Short version:
 - real-HPC pilot onboarding tooling and docs are present, but no real HPC target is validated yet;
 - fixed-command SLURM job metadata reporting is locally validated through browser-side output parsing and a session-bound API report token;
 - the remote launcher contract and a safe local/test reference launcher are present;
+- token lifecycle and relay hardening foundations are present for short-lived scoped tokens, replay rejection, relay timeouts, and audit-safe logging;
 - production deployment, real HPC integration, production trust-root operations, and release packaging are still pending.
 
 ## Architecture
@@ -125,12 +126,14 @@ npm test
 npm run test:policy
 npm run test:jobs
 npm run test:remote-launcher
+npm run test:tokens
 ```
 
 Relay auth/security tests:
 
 ```bash
 npm run test:relay
+npm run test:relay-hardening
 ```
 
 Docker/OpenSSH relay E2E test:
@@ -148,6 +151,7 @@ npm run test:browser:launch-flow
 npm run test:browser:hostkey-negative
 npm run test:browser:signed-policy
 npm run test:browser:job-reporting
+npm run test:browser:tokens
 ```
 
 Browser and relay E2E tests require Docker, OpenSSH tooling, and Playwright Chromium. If Docker access fails with `/var/run/docker.sock: permission denied`, see [docs/BROWSER_E2E_TESTING.md](docs/BROWSER_E2E_TESTING.md) for the documented local passwordless-sudo wrapper.
@@ -177,6 +181,8 @@ npm run test:pilot
 - [docs/REAL_HPC_PILOT.md](docs/REAL_HPC_PILOT.md): manual real-HPC pilot onboarding flow.
 - [docs/JOB_REPORTING.md](docs/JOB_REPORTING.md): fixed-command scheduler metadata reporting.
 - [docs/REMOTE_LAUNCHER_CONTRACT.md](docs/REMOTE_LAUNCHER_CONTRACT.md): HPC-side launcher CLI, output, and deployment contract.
+- [docs/TOKEN_LIFECYCLE.md](docs/TOKEN_LIFECYCLE.md): launch, relay, and job-report token scope, expiry, replay, and logging rules.
+- [docs/RELAY_HARDENING.md](docs/RELAY_HARDENING.md): relay timeout, allowlist, token, and audit controls.
 - [docs/RELAY_E2E_TESTING.md](docs/RELAY_E2E_TESTING.md): local system-SSH relay tests.
 - [docs/BROWSER_E2E_TESTING.md](docs/BROWSER_E2E_TESTING.md): Playwright/Chromium extension tests.
 - [docs/BROWSER_WASSH_RELAY_PROTOTYPE.md](docs/BROWSER_WASSH_RELAY_PROTOTYPE.md): local browser prototype instructions.
@@ -187,4 +193,4 @@ npm run test:pilot
 
 SLAIF Connect is not production-ready yet. Local validation now covers real SSH traffic through the relay, browser-side OpenSSH/WASM startup, strict host-key negative cases, and the product-shaped web launch/session descriptor flow. That is still not the same as deployment against real HPC infrastructure.
 
-The next major security milestone is running a real HPC pilot with independently verified host-key or host-CA data and a site-approved installed launcher command, then operationalizing production SLAIF trust roots, production authentication UX, relay hardening, and release packaging.
+The next major security milestone is running a real HPC pilot with independently verified host-key or host-CA data and a site-approved installed launcher command, then operationalizing production SLAIF trust roots, durable token storage and distributed replay prevention, production authentication UX, relay deployment hardening, and release packaging.
