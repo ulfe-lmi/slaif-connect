@@ -1,109 +1,91 @@
-<div style="text-align: center;">
-  <a href="https://www.slaif.si">
-    <img src="https://slaif.si/img/logos/SLAIF_logo_ANG_barve.svg" width="400" height="400">
-  </a>
-</div>
-
 # SLAIF Connect
 
-This is the clean, non-fork direction for **SLAIF Connect**.
+SLAIF Connect is a Chrome-compatible extension for launching approved SLAIF/HPC workflows through browser-side SSH. The SSH client runs in the extension, SSH credentials stay between the user's browser-side SSH client and the real HPC SSH server, and the SLAIF web server may act only as a WebSocket-to-TCP relay for encrypted SSH bytes.
 
-The [previous prototype](https://github.com/ulfe-lmi/slaif-connect-nassh-prototype) started inside a fork of Chromium `libapps` / Secure Shell (`nassh`). This starter keeps the same product reasoning but changes the implementation model:
+The project currently has a locally validated browser-side OpenSSH/WASM relay prototype. It is not production-ready HPC integration yet.
 
-- no permanent `nassh` fork;
-- upstream `libapps` will be used only as a pinned build-time dependency;
-- the browser extension always speaks SSH over a WebSocket-to-TCP relay;
-- SSH credentials stay inside the browser-side SSH client;
-- the SLAIF web server may relay encrypted SSH bytes, but it must not terminate SSH or receive passwords, OTPs, passphrases, or private keys;
-- only SLAIF-approved HPC aliases are reachable.
+## Why This Exists
 
-The core runtime path is:
+SLAIF needs to initiate and track HPC workloads without becoming the user's SSH client or credential holder. Direct Chrome TCP sockets are not a reliable foundation for a new extension identity, so SLAIF Connect uses browser-side SSH over a mandatory WebSocket-to-TCP relay.
+
+The project also avoids maintaining a long-lived fork of Chromium Secure Shell / `nassh`. Upstream Chromium `libapps` is pinned as a build-time dependency, selected runtime pieces are generated into the extension package, and SLAIF-specific behavior lives in this repository's own extension, relay, tooling, and tests.
+
+## Current Status
+
+See [STATUS.md](STATUS.md) for the detailed current state, completed milestones, validation evidence, known limitations, and roadmap.
+
+Short version:
+
+- the no-fork, relay-only architecture is established;
+- upstream Chromium `libapps` is pinned at a known commit;
+- vendoring, plugin installation, and unpacked-extension build flows exist;
+- the WebSocket-to-TCP relay has local system-SSH E2E coverage;
+- browser-side OpenSSH/WASM through the relay is validated locally with Playwright/Chromium;
+- the product-shaped SLAIF web launch and session descriptor flow is validated locally;
+- production deployment, real HPC integration, signed host policy, and release packaging are still pending.
+
+## Architecture
 
 ```text
-SLAIF web page
-   ↓ chrome.runtime.sendMessage(...)
+SLAIF web app
+    |
+    | chrome.runtime.sendMessage(...)
+    v
 SLAIF Connect extension
-   ↓ WSS carrying encrypted SSH bytes
-SLAIF relay endpoint on the web server
-   ↓ TCP
+    |
+    | browser-side OpenSSH/WASM
+    | WSS carrying encrypted SSH bytes
+    v
+SLAIF relay endpoint
+    |
+    | TCP
+    v
 HPC sshd
 ```
 
-The relay is mandatory in this architecture. That avoids relying on Chrome raw TCP socket permissions for a new extension ID.
+The extension is the SSH client. The relay is a byte forwarder. The HPC login node is the SSH server.
 
-## Status
+The relay does not terminate SSH, does not ask for SSH credentials, and must not receive passwords, OTPs, private keys, passphrases, decrypted terminal output, or arbitrary user shell access.
 
-This package is a starter repository skeleton, not a finished extension.
+## Security Model
 
-It contains the amended project documents, the converted allowlist/policy shape, and implementation boundaries for:
+Key rules:
 
-- external web-page-to-extension launch;
-- extension-side HPC policy validation;
-- WebSocket relay transport;
-- Node-based WebSocket-to-TCP relay;
-- SLURM job-id parsing;
-- upstream `libapps` vendoring scripts;
-- development-only browser OpenSSH/WASM relay prototype boundaries;
-- production-style SLAIF web launch and session descriptor validation.
+- the relay does not terminate SSH;
+- the extension verifies the HPC host key or host CA before user authentication;
+- extension-side policy controls approved HPC aliases, SSH host, SSH port, host-key alias, known hosts / host CA, and fixed remote command template;
+- the SLAIF web page cannot provide arbitrary SSH target details or arbitrary shell commands;
+- session descriptors can provide relay connection data, but cannot override SSH host identity or command policy;
+- there is no server-side SSH client;
+- there is no direct TCP dependency or `chrome.sockets` permission;
+- executable JavaScript and WebAssembly are bundled into the extension package, not loaded remotely at runtime.
 
-The browser prototype installs bundled OpenSSH/WASM plugin artifacts and attempts to start upstream `SshSubproc` from the extension session page in local development mode. It is not production-ready SLAIF session support yet.
+For details, read [docs/SECURITY.md](docs/SECURITY.md) and [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md).
 
-## What changed from the old fork
-
-Old prototype:
+## Repository Layout
 
 ```text
-forked libapps/nassh repository
-SLAIF logic patched into nassh_command_instance.js
-optional direct TCP or relay behavior
-allowlist in nassh/config/SLAIF.conf
+extension/             MV3 extension shell, session UI, policy, relay, SSH client adapter
+server/relay/          Node WebSocket-to-TCP relay skeleton and allowlist model
+tools/                 development-only relay/browser stack helpers
+tests/                 unit, relay, Docker/OpenSSH, and Playwright browser tests
+docs/                  architecture, security, integration, and testing documents
+scripts/               upstream init, vendoring, plugin, build, and validation scripts
+third_party/libapps/   pinned upstream Chromium libapps submodule, untouched
 ```
 
-New direction:
+Generated output is intentionally ignored by git:
 
 ```text
-clean SLAIF-owned extension repository
-upstream libapps pinned as third_party/libapps
-SLAIF logic lives in extension/js/*
-mandatory WSS relay
-allowlist and host keys live in extension/config/hpc_hosts*.json
+extension/vendor/
+extension/plugin/
+extension/wassh/
+extension/wasi-js-bindings/
+build/
+dist/
 ```
 
-## Repository layout
-
-```text
-extension/
-  manifest.json
-  html/session.html
-  js/background.js
-  js/session.js
-  js/slaif_policy.js
-  js/slaif_relay.js
-  js/job_output_parser.js
-  config/hpc_hosts.example.json
-
-server/relay/
-  relay.js
-  allowed_hpc_hosts.example.json
-  package.json
-
-scripts/
-  init-upstream.sh
-  vendor-libapps.sh
-  build-extension.sh
-
-docs/
-  ARCHITECTURE.md
-  SECURITY.md
-  UPSTREAM_LINKING.md
-  MIGRATION.md
-  PROTOTYPE_SNIPPETS.md
-```
-
-## Development setup
-
-Initialize the pinned upstream dependency, generate the local vendored copy, and
-build the unpacked extension directory:
+## Development Setup
 
 ```bash
 git submodule update --init --recursive
@@ -111,88 +93,66 @@ npm install
 npm run upstream:init
 npm run vendor:libapps
 npm run plugin:install
-npm run build:extension
 npm run plugin:verify
+npm run build:extension
 npm test
 ```
 
-The generated extension can be inspected at:
+The unpacked extension build is generated at:
 
 ```text
 build/extension
 ```
 
-Browser-side SSH remains prototype-only. Manual local testing is documented in
-`docs/BROWSER_WASSH_RELAY_PROTOTYPE.md`.
+All executable JS/WASM used by the extension must be bundled into that package. Do not load remote executable code at runtime.
 
-For local relay testing:
+## Test Commands
 
-```bash
-cd server/relay
-npm install
-cp allowed_hpc_hosts.example.json allowed_hpc_hosts.json
-SLAIF_RELAY_DEMO=1 npm start
-```
-
-For extension testing:
+Lightweight checks and unit tests:
 
 ```bash
-./scripts/build-extension.sh
+npm test
 ```
 
-Then load `build/extension` as an unpacked extension in Chrome.
-
-For the local relay/OpenSSH harness, see `docs/RELAY_E2E_TESTING.md`:
+Relay auth/security tests:
 
 ```bash
 npm run test:relay
+```
+
+Docker/OpenSSH relay E2E test:
+
+```bash
 npm run test:relay:e2e
 ```
 
-The E2E harness uses system OpenSSH and a test sshd container to prove relay byte
-forwarding and strict host-key verification. It is a development test only; the
-production extension will use browser-side OpenSSH/WASM later.
-
-For the browser-side OpenSSH/WASM relay prototype, see
-`docs/BROWSER_WASSH_RELAY_PROTOTYPE.md`:
-
-```bash
-npm run plugin:install
-npm run build:extension
-npm run plugin:verify
-npm run dev:extension-stack
-```
-
-Automated Chromium validation is documented in `docs/BROWSER_E2E_TESTING.md`:
+Browser E2E setup and tests:
 
 ```bash
 npm run browser:install
 npm run test:browser
+npm run test:browser:launch-flow
+npm run test:browser:hostkey-negative
 ```
 
-The product-shaped web launch protocol is documented in
-`docs/SESSION_LAUNCH_PROTOCOL.md`. The web page may request only an approved HPC
-alias/session and provide a short-lived launch token. The session descriptor may
-provide relay connection data, but extension-side policy remains authoritative
-for SSH host, host key, and command.
+Browser and relay E2E tests require Docker, OpenSSH tooling, and Playwright Chromium. If Docker access fails with `/var/run/docker.sock: permission denied`, see [docs/BROWSER_E2E_TESTING.md](docs/BROWSER_E2E_TESTING.md) for the documented local passwordless-sudo wrapper.
 
-## Important production rules
+## Important Docs
 
-1. Do not load executable JavaScript or WASM from the web at runtime. Vendor upstream code at build time.
-2. Do not accept arbitrary SSH host/port values from the browser or from the web page.
-3. The relay token must map server-side to a fixed, approved HPC alias.
-4. The extension must verify the HPC SSH host key or host CA before the user authenticates.
-5. The web server may relay SSH bytes, but must not become a server-side SSH client.
-6. Remote commands must be template-based, not arbitrary shell sent by the web server.
+- [STATUS.md](STATUS.md): current progress, validation evidence, limitations, and roadmap.
+- [AGENTS.md](AGENTS.md): operational rules for coding agents.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): relay-only target architecture.
+- [docs/SECURITY.md](docs/SECURITY.md): security model and boundaries.
+- [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md): practical threat table.
+- [docs/UPSTREAM_LINKING.md](docs/UPSTREAM_LINKING.md): upstream `libapps` vendoring model.
+- [docs/RELAY_E2E_TESTING.md](docs/RELAY_E2E_TESTING.md): local system-SSH relay tests.
+- [docs/BROWSER_E2E_TESTING.md](docs/BROWSER_E2E_TESTING.md): Playwright/Chromium extension tests.
+- [docs/BROWSER_WASSH_RELAY_PROTOTYPE.md](docs/BROWSER_WASSH_RELAY_PROTOTYPE.md): local browser prototype instructions.
+- [docs/WASSH_INTEGRATION.md](docs/WASSH_INTEGRATION.md): OpenSSH/WASM integration notes.
+- [docs/SESSION_LAUNCH_PROTOCOL.md](docs/SESSION_LAUNCH_PROTOCOL.md): external web launch and session descriptor protocol.
 
-## Current useful files
+## Production Readiness
 
-Start with these:
+SLAIF Connect is not production-ready yet. Local validation now covers real SSH traffic through the relay, browser-side OpenSSH/WASM startup, strict host-key negative cases, and the product-shaped web launch/session descriptor flow. That is still not the same as deployment against real HPC infrastructure.
 
-- `docs/ARCHITECTURE.md`
-- `docs/SECURITY.md`
-- `docs/UPSTREAM_LINKING.md`
-- `extension/config/hpc_hosts.example.json`
-- `extension/js/slaif_policy.js`
-- `extension/js/slaif_relay.js`
-- `server/relay/relay.js`
+The next major security milestone is signed HPC policy and host-key or host-CA trust/rotation, followed by a real HPC pilot target, production authentication UX, relay hardening, and release packaging.
