@@ -2,18 +2,33 @@
 // This is the boundary between upstream wassh/nassh runtime and the SLAIF relay.
 
 export class SlaifRelayStream {
-  constructor({relayUrl, relayToken}) {
+  constructor({relayUrl, relayToken, WebSocketImpl = globalThis.WebSocket}) {
     this.relayUrl = relayUrl;
     this.relayToken = relayToken;
+    this.WebSocketImpl = WebSocketImpl;
     this.ws = null;
     this.onDataAvailable = null;
     this.onClose = null;
+    this.authenticated = false;
+    this.openPromise = null;
   }
 
   async open() {
-    this.ws = new WebSocket(this.relayUrl, ['slaif-ssh-relay-v1']);
+    if (!this.WebSocketImpl) {
+      throw new Error('WebSocket implementation is not available');
+    }
+    if (this.openPromise) {
+      return this.openPromise;
+    }
+
+    this.ws = new this.WebSocketImpl(this.relayUrl, ['slaif-ssh-relay-v1']);
     this.ws.binaryType = 'arraybuffer';
 
+    this.openPromise = this.openInternal_();
+    return this.openPromise;
+  }
+
+  async openInternal_() {
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('relay websocket open timeout')), 10000);
       this.ws.addEventListener('open', () => {
@@ -41,6 +56,7 @@ export class SlaifRelayStream {
             reject(new Error(`relay auth failed: ${event.data}`));
             return;
           }
+          this.authenticated = true;
           resolve(msg);
         } catch (e) {
           reject(e);
@@ -69,7 +85,10 @@ export class SlaifRelayStream {
   }
 
   async write(data) {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+    if (this.openPromise && !this.authenticated) {
+      await this.openPromise;
+    }
+    if (!this.ws || this.ws.readyState !== this.WebSocketImpl.OPEN) {
       throw new Error('relay websocket is not open');
     }
 
@@ -84,17 +103,19 @@ export class SlaifRelayStream {
   }
 
   close() {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+    if (this.ws && this.ws.readyState === this.WebSocketImpl.OPEN) {
       this.ws.close(1000, 'client_close');
     }
   }
 }
 
 export class SlaifRelay {
-  constructor({policyHost, relayUrl, relayToken}) {
+  constructor({policyHost, relayUrl, relayToken, WebSocketImpl = globalThis.WebSocket, logger = console}) {
     this.policyHost = policyHost;
     this.relayUrl = relayUrl;
     this.relayToken = relayToken;
+    this.WebSocketImpl = WebSocketImpl;
+    this.logger = logger;
   }
 
   async init() {
@@ -106,13 +127,14 @@ export class SlaifRelay {
     // exact host/port from extension policy. The relay token independently maps
     // to the same destination on the server side.
     if (host !== this.policyHost.sshHost || Number(port) !== Number(this.policyHost.sshPort)) {
-      console.error('Blocked unexpected relay target', {host, port});
+      this.logger.error?.('Blocked unexpected relay target', {host, port});
       return null;
     }
 
     const stream = new SlaifRelayStream({
       relayUrl: this.relayUrl,
       relayToken: this.relayToken,
+      WebSocketImpl: this.WebSocketImpl,
     });
 
     await stream.open();

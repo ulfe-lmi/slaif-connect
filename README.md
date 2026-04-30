@@ -42,9 +42,10 @@ It contains the amended project documents, the converted allowlist/policy shape,
 - WebSocket relay transport;
 - Node-based WebSocket-to-TCP relay;
 - SLURM job-id parsing;
-- upstream `libapps` vendoring scripts.
+- upstream `libapps` vendoring scripts;
+- development-only browser OpenSSH/WASM relay prototype boundaries.
 
-The remaining implementation work is wiring the selected upstream `libapps`/`wassh`/`nassh` runtime pieces into `extension/js/session.js`.
+The browser prototype installs bundled OpenSSH/WASM plugin artifacts and attempts to start upstream `SshSubproc` from the extension session page in local development mode. It is not production-ready SLAIF session support yet.
 
 ## What changed from the old fork
 
@@ -108,7 +109,9 @@ git submodule update --init --recursive
 npm install
 npm run upstream:init
 npm run vendor:libapps
+npm run plugin:install
 npm run build:extension
+npm run plugin:verify
 npm test
 ```
 
@@ -118,9 +121,8 @@ The generated extension can be inspected at:
 build/extension
 ```
 
-SSH login is still a future milestone. The build currently packages the
-extension scaffold and bundled upstream files only; it does not start
-OpenSSH/WASM.
+Browser-side SSH remains prototype-only. Manual local testing is documented in
+`docs/BROWSER_WASSH_RELAY_PROTOTYPE.md`.
 
 For local relay testing:
 
@@ -149,6 +151,16 @@ npm run test:relay:e2e
 The E2E harness uses system OpenSSH and a test sshd container to prove relay byte
 forwarding and strict host-key verification. It is a development test only; the
 production extension will use browser-side OpenSSH/WASM later.
+
+For the browser-side OpenSSH/WASM relay prototype, see
+`docs/BROWSER_WASSH_RELAY_PROTOTYPE.md`:
+
+```bash
+npm run plugin:install
+npm run build:extension
+npm run plugin:verify
+npm run dev:extension-stack
+```
 
 ## Important production rules
 

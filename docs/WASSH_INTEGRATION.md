@@ -1,0 +1,79 @@
+# WASSH Integration Notes
+
+This repository uses the pinned Chromium libapps submodule as a build-time dependency. The current pinned commit is recorded in `UPSTREAM_LIBAPPS_COMMIT`.
+
+## Upstream Interfaces Inspected
+
+- `third_party/libapps/nassh/js/nassh_subproc_ssh.js`
+  - Exports `SshSubproc`, the low-level OpenSSH/WASM wrapper used by this prototype.
+  - Accepts `argv`, `terminal`, `relay`, `knownHosts`, `secureInput`, `syncStorage`, and `captureStdout`.
+- `third_party/libapps/nassh/js/nassh_subproc_wasm.js`
+  - Exports `WasmSubproc`.
+  - Creates the WASSH syscall handler and calls `relay.openSocket(address, port)` when OpenSSH opens a TCP connection.
+- `third_party/libapps/wassh/js/sockets.js`
+  - Exports socket abstractions including `RelaySocket`, whose callback shape is `write`, `close`, `onDataAvailable`, and `onClose`.
+- `third_party/libapps/nassh/js/nassh_command_instance.js`
+  - Shows how upstream Secure Shell starts `SshSubproc` and injects known hosts into `/etc/ssh/ssh_known_hosts2`.
+  - It remains reference only; SLAIF does not instantiate the broad Secure Shell UI.
+- `third_party/libapps/nassh/bin/plugin`
+  - Downloads the upstream OpenSSH/WASM plugin tarball through `libdot.download_tarball_manifest`.
+  - `scripts/install-plugin.sh` uses that same helper but writes into `extension/plugin` so `third_party/libapps` stays untouched.
+- `third_party/libapps/ssh_client/README.md`
+  - Documents that `./nassh/bin/plugin` installs recent plugin binaries, while full source builds live under `ssh_client/output/plugin`.
+
+## Local Adapter
+
+`extension/js/slaif_ssh_client.js` owns the SLAIF-specific launch path. It dynamically imports `SshSubproc` from the generated vendored tree and passes a `SlaifRelay` instance as the upstream relay object.
+
+OpenSSH arguments are built with:
+
+```text
+-o StrictHostKeyChecking=yes
+-o CheckHostIP=no
+-o HostKeyAlias=<policy hostKeyAlias>
+-o ForwardAgent=no
+-o ForwardX11=no
+-o ClearAllForwardings=yes
+-p <policy sshPort>
+-l <username>
+<policy sshHost>
+<fixed command from extension policy>
+```
+
+The relay adapter only allows the exact `sshHost` and `sshPort` from extension policy. The WebSocket client sends only a relay token; it never sends an arbitrary relay destination.
+
+## Known Hosts
+
+`SshSubproc` accepts a `knownHosts` string. Upstream injects that into `/etc/ssh/ssh_known_hosts2` inside the WASM filesystem. SLAIF builds this string from extension policy and rejects SSH launch when only placeholder known-host comments are available.
+
+For relay mode, SSH uses `HostKeyAlias=<alias>` and `CheckHostIP=no`. The expected host-key identity is the HPC alias, not the relay hostname.
+
+## Plugin Artifacts
+
+Generated plugin artifacts are expected under:
+
+```text
+extension/plugin/wasm/ssh.wasm
+```
+
+They are installed with:
+
+```bash
+npm run plugin:install
+npm run plugin:verify
+```
+
+`extension/plugin` is ignored by git. `npm run build:extension` copies it into `build/extension/plugin` when present.
+
+## Current Uncertainties
+
+This PR creates the first browser-side prototype path, but full manual Chrome validation depends on loading `build/extension` in Chrome with installed plugin artifacts and the local dev stack running.
+
+The pinned upstream source imports generated `*.rollup.js` dependency bundles. The vendoring script currently creates minimal generated local bundles for the low-level prototype paths needed by `SshSubproc`:
+
+- `deps_resources.rollup.js`;
+- `deps_indexeddb-fs.rollup.js`.
+
+A later PR may replace these with a fuller deterministic upstream `nassh` dependency bundling step if manual Chrome testing shows more upstream-generated bundles are required.
+
+The relay and server still do not terminate SSH, parse SSH credentials, or inspect decrypted terminal data.
