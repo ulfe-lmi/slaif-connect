@@ -1,3 +1,9 @@
+<div style="text-align: center;">
+  <a href="https://www.slaif.si">
+    <img src="https://slaif.si/img/logos/SLAIF_logo_ANG_barve.svg" width="400" height="400">
+  </a>
+</div>
+
 # SLAIF Connect
 
 SLAIF Connect is a Chrome-compatible extension for launching approved SLAIF/HPC workflows through browser-side SSH. The SSH client runs in the extension, SSH credentials stay between the user's browser-side SSH client and the real HPC SSH server, and the SLAIF web server may act only as a WebSocket-to-TCP relay for encrypted SSH bytes.
