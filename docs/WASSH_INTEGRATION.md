@@ -40,11 +40,11 @@ OpenSSH arguments are built with:
 <fixed command from extension policy>
 ```
 
-The relay adapter only allows the exact `sshHost` and `sshPort` from extension policy. The WebSocket client sends only a relay token; it never sends an arbitrary relay destination.
+The relay adapter only allows the exact `sshHost` and `sshPort` from signed extension policy. The WebSocket client sends only a relay token; it never sends an arbitrary relay destination.
 
 ## Known Hosts
 
-`SshSubproc` accepts a `knownHosts` string. Upstream injects that into `/etc/ssh/ssh_known_hosts2` inside the WASM filesystem. SLAIF builds this string from extension policy and rejects SSH launch when only placeholder known-host comments are available.
+`SshSubproc` accepts a `knownHosts` string. Upstream injects that into `/etc/ssh/ssh_known_hosts2` inside the WASM filesystem. SLAIF builds this string from signed extension policy and rejects SSH launch when only placeholder known-host comments are available.
 
 For relay mode, SSH uses `HostKeyAlias=<alias>` and `CheckHostIP=no`. The expected host-key identity is the HPC alias, not the relay hostname.
 
@@ -71,7 +71,11 @@ npm run plugin:verify
 
 The browser suite also runs a wrong-host-key case and verifies the command output is not observed. The web-launch browser test starts a mock SLAIF launcher/API, sends the external `slaif.startSession` message, fetches the descriptor from `/api/connect/session/<sessionId>`, and then starts the same OpenSSH/WASM relay path.
 
-Session descriptors are intentionally narrow. They supply relay connection data only. `SshSubproc` still receives SSH host, port, known_hosts, HostKeyAlias, and the fixed remote command from extension-side policy.
+Session descriptors are intentionally narrow. They supply relay connection data only. `SshSubproc` still receives SSH host, port, known_hosts, HostKeyAlias, allowed relay origin, and the fixed remote command from signed extension-side policy.
+
+The local browser dev stack now generates a signed local policy and trust root
+for `test-sshd`. Tampered policy, wrong signer, expired policy, and relay-origin
+mismatch are rejected before OpenSSH/WASM starts.
 
 ## Current Uncertainties
 

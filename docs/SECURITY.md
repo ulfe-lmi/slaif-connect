@@ -107,6 +107,17 @@ For multi-login-node HPC systems, host certificates signed by an HPC-operated ho
 
 The SSH known-hosts lookup should use a stable alias such as `vegahpc`, not the relay hostname.
 
+Signed HPC policy is now the authoritative source for:
+
+- SSH hostname and port;
+- host-key alias;
+- pinned host keys or host CA entries;
+- allowed API origins;
+- allowed relay origins;
+- fixed remote command template.
+
+The web launch message and session descriptor cannot override those fields. A compromised web page or API can issue a launch request or descriptor only within the signed policy boundary.
+
 Recommended OpenSSH-style options:
 
 ```text
@@ -214,8 +225,21 @@ remote command
 ```
 
 This boundary protects against a compromised web page or API trying to redirect
-SSH to a fake server or run an arbitrary shell command. Extension-side policy
-and strict host-key verification remain authoritative.
+SSH to a fake server or run an arbitrary shell command. Signed extension-side
+policy and strict host-key verification remain authoritative.
+
+The descriptor relay URL is accepted only if its origin is listed in the signed
+policy. The descriptor relay token is not an SSH credential and must not be
+logged.
+
+## Signed policy and rollback
+
+Production policy must be signed with a trusted SLAIF policy signing key. The
+extension rejects unsigned policy, unknown signing keys, invalid signatures,
+expired policy, not-yet-valid policy, and rollback to older sequence numbers.
+
+See [HPC_POLICY.md](HPC_POLICY.md) and
+[HOST_KEY_ROTATION.md](HOST_KEY_ROTATION.md).
 
 ## Compromised component analysis
 

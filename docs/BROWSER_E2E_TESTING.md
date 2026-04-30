@@ -30,11 +30,22 @@ type: "slaif.startSession", ... })`, verifies the service worker accepts the
 external launch, fetches a server-issued session descriptor, and then observes
 the same real remote command output through browser-side OpenSSH/WASM.
 
-## Host-Key Verification
+## Signed Policy and Host-Key Verification
 
-The dev stack writes a generated `known_hosts` line for `HostKeyAlias=test-sshd` into `build/extension/config/dev_runtime.local.json`.
+The dev stack generates a temporary ECDSA P-256 policy signing key, writes a
+local trust root into `build/extension/config/policy_trust_roots.local.json`,
+and writes a signed local HPC policy into
+`build/extension/config/hpc_policy.local.json`.
+
+The generated signed policy contains the `test-sshd` SSH host, port,
+`HostKeyAlias`, `known_hosts` entry, allowed mock API origin, allowed relay
+origin, and fixed command template. The unsigned runtime config carries launch
+and relay tokens only.
 
 The browser test also includes a negative case with an intentionally wrong known_hosts entry. That test expects OpenSSH/WASM to fail host-key verification and verifies that the fixed command output is not observed.
+
+The signed-policy browser tests also reject tampered policy, wrong signer,
+expired policy, and relay-origin mismatch before SSH starts.
 
 ## Commands
 
@@ -45,6 +56,7 @@ npm run test:browser:headed
 npm run test:browser:debug
 npm run test:browser:hostkey-negative
 npm run test:browser:launch-flow
+npm run test:browser:signed-policy
 ```
 
 `npm test` intentionally does not require Playwright or Chromium. Browser validation is explicit because it needs Chromium, Docker, and the generated extension build.

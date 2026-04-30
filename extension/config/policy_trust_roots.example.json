@@ -1,0 +1,11 @@
+{
+  "type": "slaif.policyTrustRoots",
+  "version": 1,
+  "keys": [
+    {
+      "keyId": "slaif-policy-dev-2026-04",
+      "algorithm": "ECDSA-P256-SHA256",
+      "publicKeySpkiBase64": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEvWTnQAwfb58wCo8qov5a7Q+LxymQTPO1pp/xwqQWHLo1HPLlRcGbwCmeglkyjmq6UWQ66qMDKH958ZUSxT9bVg=="
+    }
+  ]
+}

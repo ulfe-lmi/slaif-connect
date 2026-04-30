@@ -20,6 +20,17 @@ const policyHost = {
   sshHost: '127.0.0.1',
   sshPort: 22,
 };
+const signedPolicy = {
+  type: 'slaif.hpcPolicy',
+  version: 1,
+  policyId: 'slaif-hpc-policy-test',
+  sequence: 1,
+  validFrom: '2026-04-30T00:00:00.000Z',
+  validUntil: '2027-12-31T23:59:59.000Z',
+  allowedApiOrigins: ['https://connect.slaif.si'],
+  allowedRelayOrigins: ['wss://connect.slaif.si'],
+  hosts: {'test-sshd': policyHost},
+};
 
 function descriptor(overrides = {}) {
   return {
@@ -48,6 +59,12 @@ assert.equal(
     validateSessionDescriptor(descriptor(), pending, policyHost).relayUrl,
     'wss://connect.slaif.si/ssh-relay',
 );
+assert.equal(
+    validateSessionDescriptor(descriptor(), pending, policyHost, {policy: signedPolicy}).relayUrl,
+    'wss://connect.slaif.si/ssh-relay',
+);
+assert.throws(() => validateSessionDescriptor(
+    descriptor({relayUrl: 'wss://attacker.example/ssh-relay'}), pending, policyHost, {policy: signedPolicy}), /not allowed/);
 assert.throws(() => validateSessionDescriptor(
     descriptor({hpc: 'vegahpc'}), pending, policyHost), /hpc mismatch/);
 assert.throws(() => validateSessionDescriptor(

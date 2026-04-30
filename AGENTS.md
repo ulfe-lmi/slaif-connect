@@ -40,6 +40,24 @@ it. Distinguish local prototype validation from production readiness, and do
 not let `README.md` drift back into starter-skeleton language now that the
 project has progressed.
 
+## Signed HPC policy rules
+
+Production-directed code must load and verify signed HPC policy before using
+SSH target details. Do not load unsigned production policy, bypass signature
+verification, or accept unknown signing keys for convenience.
+
+The signed policy is authoritative for SSH host, SSH port, host-key alias,
+known hosts / host CA, allowed API origins, allowed relay origins, and fixed
+remote command templates. Web launch messages and session descriptors must not
+override those fields.
+
+Do not commit private policy signing keys. Local development may generate
+temporary policy keys and signed local policy files, but those files must stay
+ignored and local-only.
+
+Future agents must update `STATUS.md` when policy, trust-root, or host-key
+rotation status changes.
+
 ---
 
 ## 0. One-sentence mission
@@ -1776,7 +1794,7 @@ TODO: security
 Good TODO:
 
 ```text
-TODO(security): replace development hpc_hosts.example.json with signed policy verification before production.
+TODO(security): replace development trust roots with production SLAIF policy-signing operations before production.
 ```
 
 ### 15.6 Use clear module boundaries
@@ -2015,7 +2033,9 @@ Do not let the SLAIF server store private keys.
 
 ### 18.4 Production host policy update
 
-Need final design for signed `hpc_hosts.signed.json`.
+Signed HPC policy verification exists. Future work is production operation:
+real trust roots, signing-key custody, host-key rotation workflow, and release
+management.
 
 The signing key should not live on the web server if the web server compromise is in the threat model for host identity.
 

@@ -13,7 +13,7 @@ This document defines the product-shaped launch boundary for SLAIF Connect.
 7. The service worker opens `html/session.html`.
 8. The session page loads the pending launch.
 9. The session page fetches a session descriptor from the SLAIF API.
-10. The session page validates the descriptor against extension-side policy.
+10. The session page verifies signed HPC policy and validates the descriptor against that policy.
 11. The session page starts browser-side OpenSSH/WASM through the WSS relay.
 12. Browser-side SSH verifies the HPC host key or host CA.
 13. The user authenticates to the SSH server.
@@ -84,6 +84,8 @@ Rules:
 - `relayToken` must be short-lived and session-bound.
 - Production `relayUrl` must use `wss://`.
 - Local browser E2E may use `ws://127.0.0.1:<port>` only with local-dev runtime config.
+- Descriptor `relayUrl` origin must be listed in signed policy `allowedRelayOrigins`.
+- Descriptor fetch origin must be listed in signed policy `allowedApiOrigins`.
 - Descriptor fields must not redefine SSH host, SSH port, host key, SSH options, or command.
 
 The extension rejects these fields if present in the descriptor:
@@ -93,15 +95,20 @@ sshHost, sshPort, host, port, knownHosts, known_hosts, hostKey,
 hostKeyAlias, command, remoteCommand, sshOptions, relayHost, relayPort
 ```
 
-Extension-side policy remains authoritative for:
+Signed extension-side policy remains authoritative for:
 
 ```text
 SSH host
 SSH port
 HostKeyAlias
 known_hosts / host CA
+allowed API origins
+allowed relay origins
 remote command template
 ```
+
+The signed policy prevents a compromised web page or session descriptor API from
+silently changing the SSH target, host trust, relay origin, or command template.
 
 ## Local Development Origin
 
