@@ -2368,3 +2368,24 @@ Hard rules:
   accept mocked SSH success;
 - update `STATUS.md` whenever job-reporting implementation or validation status
   changes.
+
+## Remote launcher rules
+
+The remote launcher is site-controlled HPC-side code executed after the user
+authenticates through browser-side SSH.
+
+Hard rules:
+
+- keep signed policy authoritative for the launcher command template;
+- do not replace `/opt/slaif/bin/slaif-launch --session ${SESSION_ID}` style
+  fixed commands with arbitrary command execution;
+- do not allow the web launch message or session descriptor to pass job scripts,
+  shell commands, scheduler commands, or launcher arguments beyond validated
+  identifiers already approved by policy;
+- keep the reference launcher tests passing when changing the launcher contract;
+- do not add `sshpass`, password environment variables, scripted OTP entry, or
+  credential-bearing launcher environment variables;
+- treat production launchers as site-controlled deployments owned and writable
+  only by trusted HPC administrators;
+- update `STATUS.md` and `docs/REMOTE_LAUNCHER_CONTRACT.md` when launcher
+  behavior or validation changes.

@@ -426,6 +426,10 @@ export async function startExtensionDevStack(options = {}) {
     const hostKey = path.join(tempDir, 'ssh_host_ed25519_key');
     const wrongHostKey = path.join(tempDir, 'wrong_ssh_host_ed25519_key');
     const clientKey = path.join(tempDir, 'unused_client_ed25519');
+    const launcherSource = path.join(root, 'remote/launcher/slaif-launch');
+    const launcherTarget = path.join(tempDir, 'slaif-launch');
+    fs.copyFileSync(launcherSource, launcherTarget);
+    fs.chmodSync(launcherTarget, 0o555);
     run('ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-f', hostKey], {cwd: root});
     run('ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-f', wrongHostKey], {cwd: root});
     run('ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-f', clientKey], {cwd: root});
@@ -531,7 +535,7 @@ export async function startExtensionDevStack(options = {}) {
           knownHosts: [knownHostsLine],
           remoteCommandTemplate: options.noSlurmJobOutput ?
             '/bin/sh -lc "printf \'SLAIF session ${SESSION_ID}\\n\'"' :
-            `/bin/sh -lc "printf 'Submitted batch job ${expectedJobId}\\nSLAIF session \${SESSION_ID}\\n'"`,
+            `SLAIF_LAUNCHER_TEST_JOB_ID=${expectedJobId} /keys/slaif-launch --session ${'${SESSION_ID}'}`,
           allowInteractiveTerminal: false,
           developmentOnly: true,
         },

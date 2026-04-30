@@ -42,6 +42,14 @@ The captured output is used locally for parsing and UI diagnostics. It is not up
 
 The signed HPC policy is authoritative for `remoteCommandTemplate`.
 
+The preferred production command is the remote launcher contract:
+
+```text
+/opt/slaif/bin/slaif-launch --session ${SESSION_ID}
+```
+
+That launcher runs under the authenticated HPC user account, submits a site-approved workload, and emits parseable scheduler output. See [REMOTE_LAUNCHER_CONTRACT.md](REMOTE_LAUNCHER_CONTRACT.md).
+
 The following components must not provide or override the remote command:
 
 - SLAIF web launch message;
@@ -70,6 +78,8 @@ sbatch: Submitted batch job 12345
 ```
 
 The job ID must be a numeric string. Output containing multiple different SLURM job IDs is rejected as ambiguous. Repeated identical job IDs are accepted.
+
+The remote launcher should avoid printing multiple submission lines and must not print secrets. A real SLURM launcher should call a site-approved `sbatch` wrapper or script using argv-safe invocation, not untrusted shell string construction.
 
 ## Job Report API
 
@@ -123,7 +133,7 @@ Rules:
 
 ## Local Validation
 
-The browser job-reporting E2E test starts the local signed-policy dev stack, runs browser-side OpenSSH/WASM through the relay, observes real remote output, parses:
+The browser job-reporting E2E test starts the local signed-policy dev stack, mounts the reference launcher into the test sshd container, runs browser-side OpenSSH/WASM through the relay, observes real remote output, parses:
 
 ```text
 Submitted batch job 424242

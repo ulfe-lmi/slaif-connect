@@ -204,6 +204,11 @@ Example:
 /opt/slaif/bin/slaif-launch --session sess_abc123
 ```
 
+The production command should normally target the remote launcher contract
+documented in [REMOTE_LAUNCHER_CONTRACT.md](REMOTE_LAUNCHER_CONTRACT.md). That
+launcher is site-controlled HPC-side code. It must not accept arbitrary commands
+or job scripts from the browser, web app, descriptor, or relay.
+
 Session ids must be validated with a strict allowlist pattern before being placed into a command.
 
 The session descriptor must not provide `jobCommand`, `schedulerCommand`,
@@ -224,7 +229,8 @@ server-issued session descriptor and must not be placed in URLs or logged.
 The session descriptor may provide:
 
 ```text
-relayUrl, relayToken, relayTokenExpiresAt, optional usernameHint
+relayUrl, relayToken, relayTokenExpiresAt, jobReportToken,
+jobReportTokenExpiresAt, optional usernameHint
 ```
 
 The descriptor must not provide or override:
@@ -245,6 +251,9 @@ policy and strict host-key verification remain authoritative.
 The descriptor relay URL is accepted only if its origin is listed in the signed
 policy. The descriptor relay token is not an SSH credential and must not be
 logged.
+
+The job report token is also not an SSH credential. It authorizes posting safe
+job metadata only and must not be logged or placed in URLs.
 
 ## Signed policy and rollback
 

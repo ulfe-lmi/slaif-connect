@@ -110,6 +110,14 @@ npm run test:pilot
 
 Pilot fixed-command mode is local/manual only and must be requested with `--pilot-fixed-command`. Production command templates should include `${SESSION_ID}`.
 
+Production policies should normally point at the HPC-side launcher contract:
+
+```text
+/opt/slaif/bin/slaif-launch --session ${SESSION_ID}
+```
+
+or a site-approved equivalent. The web launch message and session descriptor must never provide this command, a replacement command, or a job script path.
+
 ## Job Reporting Boundary
 
 Signed policy remains the source of truth for the command whose output is

@@ -1,0 +1,113 @@
+#!/bin/sh
+set -eu
+
+VERSION="slaif-launch reference 0.1.0"
+SESSION_ID=""
+SCHEDULER="${SLAIF_SCHEDULER:-slurm}"
+API_BASE="${SLAIF_API_BASE:-}"
+DRY_RUN=0
+VERBOSE=0
+
+usage() {
+  cat <<'EOF'
+Usage: slaif-launch --session <SESSION_ID> [--scheduler slurm] [--dry-run] [--verbose]
+
+Runs a site-approved SLAIF launcher flow under the authenticated HPC user.
+This reference launcher does not accept arbitrary commands, job scripts,
+SSH credentials, tokens, passwords, OTPs, or private keys.
+EOF
+}
+
+fail() {
+  code="$1"
+  shift
+  printf '%s\n' "$*" >&2
+  exit "$code"
+}
+
+validate_session_id() {
+  session="$1"
+  printf '%s\n' "$session" | grep -Eq '^sess_[A-Za-z0-9_-]{8,128}$'
+}
+
+validate_script_path() {
+  script_path="$1"
+  case "$script_path" in
+    /*) ;;
+    *) return 1 ;;
+  esac
+  printf '%s\n' "$script_path" | grep -Eq '^[A-Za-z0-9_./:+-]+$' || return 1
+  case "$script_path" in
+    *..*) return 1 ;;
+  esac
+  return 0
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --session)
+      [ "$#" -ge 2 ] || fail 2 "missing value for --session"
+      SESSION_ID="$2"
+      shift 2
+      ;;
+    --scheduler)
+      [ "$#" -ge 2 ] || fail 2 "missing value for --scheduler"
+      SCHEDULER="$2"
+      shift 2
+      ;;
+    --api-base)
+      [ "$#" -ge 2 ] || fail 2 "missing value for --api-base"
+      API_BASE="$2"
+      shift 2
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      shift
+      ;;
+    --verbose)
+      VERBOSE=1
+      shift
+      ;;
+    --version)
+      printf '%s\n' "$VERSION"
+      exit 0
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      fail 2 "unknown flag: $1"
+      ;;
+  esac
+done
+
+[ -n "$SESSION_ID" ] || fail 2 "--session is required"
+if ! validate_session_id "$SESSION_ID"; then
+  fail 3 "invalid SLAIF session id"
+fi
+
+case "$SCHEDULER" in
+  slurm) ;;
+  *) fail 2 "unsupported scheduler: $SCHEDULER" ;;
+esac
+
+if [ -n "$API_BASE" ] && [ "$VERBOSE" -eq 1 ]; then
+  printf 'Using SLAIF API base configured by site policy\n' >&2
+fi
+
+if [ "$DRY_RUN" -eq 1 ] || [ -n "${SLAIF_LAUNCHER_TEST_JOB_ID:-}" ]; then
+  job_id="${SLAIF_LAUNCHER_TEST_JOB_ID:-424242}"
+  printf '%s\n' "$job_id" | grep -Eq '^[0-9]+$' || fail 4 "invalid SLAIF_LAUNCHER_TEST_JOB_ID"
+  printf 'Submitted batch job %s\n' "$job_id"
+  exit 0
+fi
+
+[ -n "${SLAIF_SLURM_SCRIPT:-}" ] || fail 4 "SLAIF_SLURM_SCRIPT is required for real SLURM mode"
+validate_script_path "$SLAIF_SLURM_SCRIPT" || fail 4 "SLAIF_SLURM_SCRIPT must be an absolute safe site-owned path"
+command -v sbatch >/dev/null 2>&1 || fail 4 "sbatch not found"
+
+export SLAIF_SESSION_ID="$SESSION_ID"
+if ! sbatch "$SLAIF_SLURM_SCRIPT"; then
+  fail 5 "scheduler submission failed"
+fi
