@@ -2389,3 +2389,27 @@ Hard rules:
   only by trusted HPC administrators;
 - update `STATUS.md` and `docs/REMOTE_LAUNCHER_CONTRACT.md` when launcher
   behavior or validation changes.
+
+## Token lifecycle and relay hardening rules
+
+Launch, relay, and job-report tokens are orchestration tokens only. They are not
+SSH credentials and must not be treated like passwords, OTPs, or private keys.
+
+Hard rules:
+
+- keep `launchToken`, `relayToken`, and `jobReportToken` scope-separated;
+- keep tokens short-lived and session-bound;
+- do not log full token values;
+- do not put tokens in query strings;
+- send `launchToken` and `jobReportToken` only in `Authorization: Bearer ...`
+  headers;
+- send `relayToken` only in the relay WebSocket auth JSON message;
+- do not weaken token expiry or replay checks to make tests pass;
+- the relay must not accept client-supplied host or port;
+- the relay must enforce timeout and connection controls;
+- audit logs must not include SSH payload bytes, terminal transcripts,
+  passwords, OTPs, private keys, or full token values;
+- keep `npm run test:tokens`, `npm run test:relay-hardening`, and browser token
+  lifecycle tests passing when touching token or relay code;
+- update `STATUS.md`, `docs/TOKEN_LIFECYCLE.md`, and
+  `docs/RELAY_HARDENING.md` when token or relay hardening behavior changes.

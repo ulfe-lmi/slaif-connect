@@ -191,6 +191,11 @@ Never install a launcher that executes arbitrary web-provided commands, accepts 
 
 The pilot stack does not accept a host or port through CLI arguments. It resolves the SSH target from the verified signed policy.
 
+The pilot stack uses the same reference token lifecycle as local browser tests:
+short-lived scoped launch, relay, and job-report tokens are issued for the
+session; relay and job-report tokens are one-use by default; full token values
+must not be logged or placed in URLs.
+
 For a real SLURM pilot, use a harmless site-approved launcher command first.
 After that, a policy command may call a site-approved launcher that eventually
 runs `sbatch` and prints the canonical SLURM line:
@@ -206,6 +211,7 @@ during the pilot.
 ## What This PR Does Not Solve
 
 - no production SLAIF signing-key custody;
+- no production durable token store or distributed replay prevention;
 - no production deployment;
 - no Chrome Web Store release;
 - no real HPC credentials stored or automated;

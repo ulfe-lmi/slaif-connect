@@ -40,7 +40,7 @@ OpenSSH arguments are built with:
 <fixed command from extension policy>
 ```
 
-The relay adapter only allows the exact `sshHost` and `sshPort` from signed extension policy. The WebSocket client sends only a relay token; it never sends an arbitrary relay destination.
+The relay adapter only allows the exact `sshHost` and `sshPort` from signed extension policy. The WebSocket client sends only a scoped `relayToken` in the initial auth JSON message; it never puts that token in the URL and never sends an arbitrary relay destination.
 
 ## Known Hosts
 

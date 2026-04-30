@@ -8,6 +8,7 @@ import path from 'node:path';
 import process from 'node:process';
 import {fileURLToPath} from 'node:url';
 import {createRelayServer} from '../server/relay/relay.js';
+import {createTokenRegistry, TOKEN_SCOPES} from '../server/tokens/token_registry.js';
 import {
   base64urlEncode,
   canonicalPolicySigningInput,
@@ -16,13 +17,10 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const defaultRoot = path.resolve(__dirname, '..');
 
-export const DEFAULT_DEV_TOKEN = 'dev-token-test-sshd';
 export const DEFAULT_DEV_HPC = 'test-sshd';
 export const DEFAULT_HOST_KEY_ALIAS = 'test-sshd';
 export const DEFAULT_EXPECTED_JOB_ID = '424242';
 export const DEFAULT_EXPECTED_OUTPUT = `Submitted batch job ${DEFAULT_EXPECTED_JOB_ID}`;
-export const DEFAULT_LAUNCH_TOKEN = 'dev-launch-token-test-sshd';
-export const DEFAULT_JOB_REPORT_TOKEN = 'dev-job-report-token-test-sshd';
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -172,13 +170,14 @@ async function startMockSlaifWebApiServer({
   host = '127.0.0.1',
   hpc,
   sessionId,
-  launchToken,
-  relayToken,
-  jobReportToken,
+  tokenRegistry,
+  launchTokenRecord,
+  relayTokenRecord,
+  jobReportTokenRecord,
+  relayTokenExpiresAtOverride,
+  jobReportTokenExpiresAtOverride,
   relayUrl,
   username,
-  relayTokenExpiresAt,
-  jobReportTokenExpiresAt,
 }) {
   const jobReports = [];
   const server = http.createServer((req, res) => {
@@ -187,6 +186,7 @@ async function startMockSlaifWebApiServer({
 
     if (url.pathname === '/launcher.html') {
       const extensionId = url.searchParams.get('extensionId') || '';
+      const launchToken = launchTokenRecord.token;
       res.writeHead(200, {
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'no-store',
@@ -245,7 +245,14 @@ async function startMockSlaifWebApiServer({
     }
 
     if (url.pathname === `/api/connect/session/${encodeURIComponent(sessionId)}`) {
-      if (req.headers.authorization !== `Bearer ${launchToken}`) {
+      const bearer = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
+      try {
+        tokenRegistry.consumeToken(bearer, {
+          scope: TOKEN_SCOPES.LAUNCH,
+          sessionId,
+          hpc,
+        });
+      } catch (_error) {
         res.writeHead(401, {'Content-Type': 'application/json'});
         res.end(JSON.stringify({error: 'unauthorized'}));
         return;
@@ -261,10 +268,10 @@ async function startMockSlaifWebApiServer({
         sessionId,
         hpc,
         relayUrl,
-        relayToken,
-        relayTokenExpiresAt,
-        jobReportToken,
-        jobReportTokenExpiresAt,
+        relayToken: relayTokenRecord.token,
+        relayTokenExpiresAt: relayTokenExpiresAtOverride || relayTokenRecord.expiresAt,
+        jobReportToken: jobReportTokenRecord.token,
+        jobReportTokenExpiresAt: jobReportTokenExpiresAtOverride || jobReportTokenRecord.expiresAt,
         usernameHint: username,
         mode: 'launch',
       }));
@@ -277,7 +284,14 @@ async function startMockSlaifWebApiServer({
         res.end(JSON.stringify({error: 'method_not_allowed'}));
         return;
       }
-      if (req.headers.authorization !== `Bearer ${jobReportToken}`) {
+      const bearer = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
+      try {
+        tokenRegistry.validateToken(bearer, {
+          scope: TOKEN_SCOPES.JOB_REPORT,
+          sessionId,
+          hpc,
+        });
+      } catch (_error) {
         res.writeHead(401, {'Content-Type': 'application/json'});
         res.end(JSON.stringify({error: 'unauthorized'}));
         return;
@@ -325,6 +339,11 @@ async function startMockSlaifWebApiServer({
           res.end(JSON.stringify({error: error.message || 'invalid_report'}));
           return;
         }
+        tokenRegistry.consumeToken(bearer, {
+          scope: TOKEN_SCOPES.JOB_REPORT,
+          sessionId,
+          hpc,
+        });
         jobReports.push(report);
         res.writeHead(200, {
           'Content-Type': 'application/json',
@@ -332,6 +351,40 @@ async function startMockSlaifWebApiServer({
         });
         res.end(JSON.stringify({ok: true}));
       });
+      return;
+    }
+
+    if (url.pathname === '/api/test/descriptor-replay') {
+      const bearer = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
+      try {
+        tokenRegistry.consumeToken(bearer, {
+          scope: TOKEN_SCOPES.LAUNCH,
+          sessionId,
+          hpc,
+        });
+        res.writeHead(200, {'Content-Type': 'application/json'});
+        res.end(JSON.stringify({ok: true}));
+      } catch (error) {
+        res.writeHead(401, {'Content-Type': 'application/json'});
+        res.end(JSON.stringify({ok: false, error: error.code || 'unauthorized'}));
+      }
+      return;
+    }
+
+    if (url.pathname === '/api/test/job-report-replay') {
+      const bearer = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
+      try {
+        tokenRegistry.consumeToken(bearer, {
+          scope: TOKEN_SCOPES.JOB_REPORT,
+          sessionId,
+          hpc,
+        });
+        res.writeHead(200, {'Content-Type': 'application/json'});
+        res.end(JSON.stringify({ok: true}));
+      } catch (error) {
+        res.writeHead(401, {'Content-Type': 'application/json'});
+        res.end(JSON.stringify({ok: false, error: error.code || 'unauthorized'}));
+      }
       return;
     }
 
@@ -370,18 +423,17 @@ async function startMockSlaifWebApiServer({
 export async function startExtensionDevStack(options = {}) {
   const root = options.root || defaultRoot;
   const buildDir = options.buildDir || path.join(root, 'build/extension');
-  const token = options.relayToken || DEFAULT_DEV_TOKEN;
   const hpc = options.hpc || DEFAULT_DEV_HPC;
   const hostKeyAlias = options.hostKeyAlias || DEFAULT_HOST_KEY_ALIAS;
   const expectedOutput = options.expectedOutput || DEFAULT_EXPECTED_OUTPUT;
   const expectedJobId = options.expectedJobId || DEFAULT_EXPECTED_JOB_ID;
   const sessionId = options.sessionId || `sess_local_dev_${crypto.randomBytes(8).toString('hex')}`;
   const password = options.password || `slaif-${crypto.randomBytes(6).toString('base64url')}`;
-  const launchToken = options.launchToken || `${DEFAULT_LAUNCH_TOKEN}-${crypto.randomBytes(8).toString('hex')}`;
-  const jobReportToken = options.jobReportToken || `${DEFAULT_JOB_REPORT_TOKEN}-${crypto.randomBytes(8).toString('hex')}`;
   const imageTag = options.imageTag || `slaif-extension-dev-sshd-${process.pid}-${Date.now()}`;
   const policyKeyId = options.policyKeyId || 'slaif-policy-local-dev';
   const logger = options.logger || defaultLogger(options.quiet);
+  const tokenRegistry = options.tokenRegistry || createTokenRegistry();
+  const tokenTtlMs = options.tokenTtlMs || 5 * 60 * 1000;
 
   for (const command of ['docker', 'ssh-keygen']) {
     requireCommand(command);
@@ -457,33 +509,58 @@ export async function startExtensionDevStack(options = {}) {
         },
       },
       tokenOptions: {
-        devMode: true,
-        devTokenMap: {
-          [token]: {
-            hpc,
-            sessionId,
-            userId: 'local-dev-user',
-          },
-        },
+        devMode: false,
+        tokenRegistry,
       },
       logger,
     });
     await relay.listen({host: '127.0.0.1', port: 0});
     const relayPort = relay.address().port;
     const relayUrl = `ws://127.0.0.1:${relayPort}/ssh-relay`;
-    const relayTokenExpiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-    const jobReportTokenExpiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
+    const launchTokenRecord = tokenRegistry.issueToken({
+      token: options.launchToken,
+      scope: options.launchTokenScope || TOKEN_SCOPES.LAUNCH,
+      sessionId,
+      hpc,
+      ttlMs: tokenTtlMs,
+      maxUses: 1,
+    });
+    const relayTokenRecord = tokenRegistry.issueToken({
+      token: options.relayToken,
+      scope: options.relayTokenScope || TOKEN_SCOPES.RELAY,
+      sessionId,
+      hpc,
+      ttlMs: tokenTtlMs,
+      maxUses: 1,
+      metadata: {
+        userId: 'local-dev-user',
+      },
+    });
+    const jobReportTokenRecord = tokenRegistry.issueToken({
+      token: options.jobReportToken,
+      scope: options.jobReportTokenScope || TOKEN_SCOPES.JOB_REPORT,
+      sessionId,
+      hpc,
+      ttlMs: tokenTtlMs,
+      maxUses: 1,
+    });
 
     webApi = await startMockSlaifWebApiServer({
       hpc,
       sessionId,
-      launchToken,
-      relayToken: token,
-      jobReportToken,
+      tokenRegistry,
+      launchTokenRecord,
+      relayTokenRecord,
+      jobReportTokenRecord,
+      relayTokenExpiresAtOverride: options.expiredRelayTokenDescriptor ?
+        new Date(Date.now() - 60000).toISOString() :
+        undefined,
+      jobReportTokenExpiresAtOverride: options.expiredJobReportTokenDescriptor ?
+        new Date(Date.now() - 60000).toISOString() :
+        undefined,
       relayUrl,
       username: 'testuser',
-      relayTokenExpiresAt,
-      jobReportTokenExpiresAt,
     });
 
     const runtimeConfig = {
@@ -492,9 +569,9 @@ export async function startExtensionDevStack(options = {}) {
       apiBaseUrl: webApi.apiBaseUrl,
       launcherUrl: webApi.launcherUrl,
       webOrigin: webApi.webOrigin,
-      launchToken,
+      launchToken: launchTokenRecord.token,
       relayUrl,
-      relayToken: token,
+      relayToken: relayTokenRecord.token,
       username: 'testuser',
       password,
       sessionId,
@@ -572,7 +649,13 @@ export async function startExtensionDevStack(options = {}) {
       signedPolicyPath,
       trustRootsPath,
       runtimeConfig,
-      launchToken,
+      tokenRegistry,
+      launchToken: launchTokenRecord.token,
+      relayToken: relayTokenRecord.token,
+      jobReportToken: jobReportTokenRecord.token,
+      launchTokenRecord,
+      relayTokenRecord,
+      jobReportTokenRecord,
       password,
       expectedOutput,
       stop,

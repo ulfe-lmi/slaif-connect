@@ -224,7 +224,9 @@ type, version, hpc alias, sessionId, launchToken
 ```
 
 The launch token is not an SSH credential. It lets the extension fetch a
-server-issued session descriptor and must not be placed in URLs or logged.
+server-issued session descriptor and must not be placed in URLs or logged. In
+the reference implementation it has scope `slaif.launch` and is consumed on
+descriptor fetch.
 
 The session descriptor may provide:
 
@@ -250,10 +252,15 @@ policy and strict host-key verification remain authoritative.
 
 The descriptor relay URL is accepted only if its origin is listed in the signed
 policy. The descriptor relay token is not an SSH credential and must not be
-logged.
+logged. It has scope `slaif.relay`, is short-lived, and is consumed when one
+relay connection is accepted.
 
 The job report token is also not an SSH credential. It authorizes posting safe
-job metadata only and must not be logged or placed in URLs.
+job metadata only and must not be logged or placed in URLs. It has scope
+`slaif.jobReport` and is consumed when the final metadata report is accepted.
+
+See [TOKEN_LIFECYCLE.md](TOKEN_LIFECYCLE.md) and
+[RELAY_HARDENING.md](RELAY_HARDENING.md).
 
 ## Signed policy and rollback
 
@@ -299,7 +306,10 @@ Mitigations:
 - descriptor rejection when it tries to define SSH target identity or command;
 - no trust in server-provided host keys unless signed by trusted admin key;
 - relay egress firewall;
-- short-lived relay tokens.
+- short-lived relay tokens;
+- scoped token validation and replay prevention;
+- relay idle and max-lifetime timeouts;
+- audit-safe logging without token values or SSH payload bytes.
 
 ### Compromised browser profile
 
@@ -333,7 +343,7 @@ Mitigations:
 
 Before real HPC testing, implement these:
 
-1. Relay rejects missing, malformed, expired, and reused tokens.
+1. Relay rejects missing, malformed, wrong-scope, expired, and reused tokens.
 2. Relay never accepts client-supplied host/port.
 3. Relay egress firewall allows only approved HPC login nodes.
 4. Fake SSH server with wrong host key is rejected before auth prompt.

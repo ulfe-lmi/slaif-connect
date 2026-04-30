@@ -43,6 +43,8 @@ Rules:
 - `sessionId` must pass the strict extension validator.
 - `launchToken` is not an SSH credential. It authorizes fetching one session descriptor.
 - The launch token must not be placed in URLs or logged.
+- The launch token has scope `slaif.launch` and is consumed when the descriptor
+  is fetched in the reference implementation.
 - The web page must not provide SSH target details, host keys, SSH options, or commands.
 
 The extension rejects these fields if present in the launch message:
@@ -85,9 +87,13 @@ Rules:
 - Descriptor `sessionId` must match the pending launch.
 - `relayToken` is not an SSH credential. It authorizes one relay connection.
 - `relayToken` must be short-lived and session-bound.
+- `relayToken` has scope `slaif.relay` and cannot be reused after a relay
+  connection is accepted.
 - `jobReportToken` is not an SSH credential. It authorizes posting one session-bound job metadata report.
 - `jobReportToken` must be short-lived and session-bound.
 - `jobReportToken` is required for launch-flow job reporting.
+- `jobReportToken` has scope `slaif.jobReport` and is consumed when the final
+  job metadata report is accepted.
 - Production `relayUrl` must use `wss://`.
 - Local browser E2E may use `ws://127.0.0.1:<port>` only with local-dev runtime config.
 - Descriptor `relayUrl` origin must be listed in signed policy `allowedRelayOrigins`.
@@ -138,6 +144,11 @@ The report endpoint is derived from the trusted API base and `sessionId`; the
 descriptor cannot provide arbitrary upload URLs. Report payloads contain
 scheduler metadata such as SLURM job ID and status, not raw terminal
 transcripts.
+
+Token lifecycle rules are documented in
+[TOKEN_LIFECYCLE.md](TOKEN_LIFECYCLE.md). The reference development stack
+rejects wrong-scope, expired, and replayed launch, relay, and job-report
+tokens.
 
 The signed policy prevents a compromised web page or session descriptor API from
 silently changing the SSH target, host trust, relay origin, or command template.

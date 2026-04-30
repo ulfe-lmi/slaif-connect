@@ -313,6 +313,33 @@ npm run test:remote-launcher
 npm run test:browser:job-reporting
 ```
 
+### 16. Token lifecycle and relay hardening foundations
+
+The local dev and pilot stacks now use a shared in-memory scoped token registry
+for launch, relay, and job-report tokens. Tokens are short-lived, session-bound,
+scope-bound, and one-use by default. The relay enforces auth message size,
+unauthenticated timeout, idle timeout, absolute max lifetime, client target
+rejection, allowlist-only target selection, and audit-safe logging.
+
+Main files and docs:
+
+- [server/tokens/token_registry.js](server/tokens/token_registry.js)
+- [server/logging/audit_log.js](server/logging/audit_log.js)
+- [server/relay/relay.js](server/relay/relay.js)
+- [tests/tokens/](tests/tokens)
+- [tests/relay/relay-hardening.test.mjs](tests/relay/relay-hardening.test.mjs)
+- [tests/browser/extension-token-lifecycle.spec.mjs](tests/browser/extension-token-lifecycle.spec.mjs)
+- [docs/TOKEN_LIFECYCLE.md](docs/TOKEN_LIFECYCLE.md)
+- [docs/RELAY_HARDENING.md](docs/RELAY_HARDENING.md)
+
+Validation:
+
+```bash
+npm run test:tokens
+npm run test:relay-hardening
+npm run test:browser:tokens
+```
+
 ## What Is Validated
 
 | Capability | Status | Evidence / command |
@@ -324,6 +351,8 @@ npm run test:browser:job-reporting
 | SLURM job ID parsing | Working locally | `npm run test:jobs` |
 | Mock SLAIF API receives safe job metadata report | Working locally | `npm run test:browser:job-reporting` |
 | Remote launcher contract/reference implementation | Working locally | `npm run test:remote-launcher`; browser job-reporting E2E mounts the reference launcher |
+| Scoped token lifecycle and replay rejection | Working locally | `npm run test:tokens`, `npm run test:browser:tokens` |
+| Relay timeouts and audit-safe hardening controls | Working locally | `npm run test:relay-hardening` |
 | Web launch/session descriptor flow | Working locally | `npm run test:browser:launch-flow` |
 | Malicious launch fields are rejected | Working locally | `tests/session_descriptor.test.mjs`, browser launch-flow test |
 | Malicious descriptor SSH-target fields are rejected | Working locally | `tests/session_descriptor.test.mjs` |
@@ -356,6 +385,7 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 - no production trust-on-first-use unless explicitly approved later;
 - no arbitrary web-supplied shell commands;
 - no launch-token, relay-token, job-report-token, password, OTP, private-key, or raw SSH payload logging;
+- launch, relay, and job-report tokens must remain scope-separated, short-lived, and not placed in query strings;
 - no terminal transcript upload through job reporting without explicit review;
 - no SSH agent forwarding;
 - no X11 forwarding;
@@ -373,19 +403,20 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 - User-facing UX is still prototype-level.
 - Local SLURM job metadata reporting is implemented and validated against the local test sshd; real HPC SLURM reporting is not validated yet.
 - Broader result reporting beyond initial scheduler metadata is not production-integrated.
-- Relay deployment hardening, observability, audit logging, rate limiting, and token lifecycle controls remain production work.
+- Durable production token storage, distributed replay prevention, infrastructure rate limits, and production audit-log operations remain production work.
 - The current browser prototype includes deterministic generated compatibility files for pinned upstream modules; a later build-system pass may replace these with a fuller upstream build flow.
 
 ## Next Milestones
 
-1. Remote launcher contract and reference implementation. This PR.
+1. Token lifecycle and relay hardening foundations. This PR.
 2. Real HPC pilot target with independently verified pinned host key or host CA.
 3. Site-approved production SLAIF remote launcher deployment.
-4. Real SLAIF policy signing operations and production trust-root handling.
-5. Production authentication UX.
-6. Relay deployment hardening.
-7. Chrome extension packaging and release workflow.
-8. Security review.
+4. Durable production token store and distributed replay prevention.
+5. Real SLAIF policy signing operations and production trust-root handling.
+6. Production authentication UX.
+7. Relay deployment hardening and infrastructure rate limiting.
+8. Chrome extension packaging and release workflow.
+9. Security review.
 
 The production-style web launch/session descriptor flow is already present on `main`.
 
@@ -406,6 +437,7 @@ Merged PRs visible from GitHub at the time of this update:
 | [#9 Add signed HPC policy verification](https://github.com/ulfe-lmi/slaif-connect/pull/9) | 2026-04-30 | Added signed policy verification, policy tooling, rollback foundations, signed local-dev policy, and signed-policy browser validation. |
 | [#10 Add real HPC pilot onboarding tooling](https://github.com/ulfe-lmi/slaif-connect/pull/10) | 2026-04-30 | Added real-HPC pilot documentation, host-key collection/verification tools, pilot policy creation, and manual pilot stack. |
 | [#11 Add SLURM job metadata reporting](https://github.com/ulfe-lmi/slaif-connect/pull/11) | 2026-04-30 | Added fixed-command SLURM output parsing and safe job metadata reporting to the mock SLAIF API. |
+| [#12 Add remote launcher contract](https://github.com/ulfe-lmi/slaif-connect/pull/12) | 2026-04-30 | Added the remote launcher contract, reference launcher, tests, and local browser E2E integration. |
 
 ## How To Read The Repository
 
@@ -419,6 +451,8 @@ Merged PRs visible from GitHub at the time of this update:
 - [docs/HOST_KEY_ROTATION.md](docs/HOST_KEY_ROTATION.md): host-key and host-CA rotation foundation.
 - [docs/REAL_HPC_PILOT.md](docs/REAL_HPC_PILOT.md): manual real-HPC pilot onboarding.
 - [docs/REMOTE_LAUNCHER_CONTRACT.md](docs/REMOTE_LAUNCHER_CONTRACT.md): HPC-side launcher contract.
+- [docs/TOKEN_LIFECYCLE.md](docs/TOKEN_LIFECYCLE.md): token scopes, expiry, replay, and logging.
+- [docs/RELAY_HARDENING.md](docs/RELAY_HARDENING.md): relay timeout, allowlist, token, and audit controls.
 - [docs/UPSTREAM_LINKING.md](docs/UPSTREAM_LINKING.md): upstream `libapps` vendoring.
 - [docs/RELAY_E2E_TESTING.md](docs/RELAY_E2E_TESTING.md): system SSH relay tests.
 - [docs/BROWSER_E2E_TESTING.md](docs/BROWSER_E2E_TESTING.md): browser E2E tests.
