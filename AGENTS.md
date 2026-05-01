@@ -92,6 +92,195 @@ The extension is the SSH client. The HPC login node is the SSH server. The SLAIF
 
 ---
 
+## 0a SLAIF workload MVP, GaMS chat, diagnostics, and YOLO mode
+
+The fixed MVP direction is now:
+
+```text
+SLAIF Connect supports both:
+  1. fast Slurm-launched diagnostic payloads; and
+  2. a ChatGPT-like interactive GaMS workload.
+```
+
+The target interactive model payload is:
+
+```text
+gams_chat_v1
+model: cjvt/GaMS3-12B-Instruct
+runtime target: vLLM where site environment supports it
+```
+
+### 0a.1 Normal workload invariant
+
+Agents must preserve the normal workload architecture:
+
+```text
+SLAIF web app
+  -> extension external launch
+  -> browser-side OpenSSH/WASM
+  -> SSH to HPC login node
+  -> fixed signed-policy remote launcher
+  -> sbatch from login node
+  -> Slurm worker allocation
+  -> payload runs on worker node
+```
+
+Agents must not introduce SSH into compute/worker nodes.
+
+Agents must not make the SLAIF server the SSH client.
+
+Agents must not let the extension SSH into worker nodes.
+
+Agents must not bypass Slurm for worker-node execution.
+
+For fast diagnostics, payloads such as `gpu_diagnostics_v1` and `cpu_memory_diagnostics_v1` must run through Slurm jobs, not through SSH fan-out.
+
+For interactive GaMS chat, the Slurm worker may connect outbound to the SLAIF server using a scoped workload token.
+
+### 0a.2 Workload runtime protocol
+
+Interactive workloads require a workload runtime protocol between the SLAIF server and the worker process running inside the Slurm allocation.
+
+Agents may add:
+
+```text
+workloadToken
+scope: slaif.workload
+```
+
+The workload token must be bound to:
+
+- sessionId;
+- hpc alias;
+- payloadId;
+- jobId where available;
+- expiry;
+- max use count.
+
+The workload token must not be logged, placed in query strings, printed to Slurm output, or stored in world-readable files.
+
+The worker may connect outbound over WSS/HTTPS to the SLAIF server if the HPC site allows outbound worker-node connections or provides a dedicated proxy.
+
+### 0a.2 Payload catalog invariant
+
+Normal workloads must be selected by payload ID, not arbitrary command text.
+
+Allowed:
+
+```text
+payloadId = gpu_diagnostics_v1
+payloadId = cpu_memory_diagnostics_v1
+payloadId = gams_chat_v1
+```
+
+Forbidden in normal mode:
+
+```text
+command = arbitrary shell text from web app
+command = arbitrary shell text from session descriptor
+command = arbitrary shell text from relay
+```
+
+Signed policy and site-approved launcher configuration must remain authoritative for:
+
+- allowed payload IDs;
+- Slurm templates;
+- resource limits;
+- model/runtime selection;
+- max output size;
+- max runtime;
+- remote command template.
+
+### 0a.3 GaMS chat rules
+
+For `gams_chat_v1`, agents should assume:
+
+- the model is `cjvt/GaMS3-12B-Instruct`;
+- vLLM is the preferred first serving runtime where available;
+- vLLM should bind to localhost inside the Slurm job;
+- a SLAIF workload agent should connect outbound to the SLAIF server;
+- SLAIF sees prompts and responses by design;
+- SLAIF still must not see SSH passwords, OTPs, private keys, or decrypted SSH sessions.
+
+Agents must document this privacy distinction clearly.
+
+### 0a.4 YOLO mode
+
+YOLO mode is allowed only as an explicitly development/demo mode for arbitrary commands.
+
+YOLO mode must be disabled by default.
+
+YOLO mode must be impossible in normal production configuration.
+
+YOLO mode must never weaken normal mode.
+
+YOLO mode requires all of the following gates:
+
+1. explicit runtime/build flag, for example `SLAIF_ENABLE_YOLO_MODE=1`;
+2. non-production environment such as `development` or explicitly labelled `single-instance-pilot`;
+3. signed policy explicitly allowing YOLO mode;
+4. visibly separate UI;
+5. red warning treatment;
+6. explicit user acknowledgement phrase;
+7. displayed command before execution;
+8. no hidden or autostart commands;
+9. bounded runtime and output;
+10. Slurm execution path, not worker-node SSH.
+
+Minimum user-facing warning:
+
+```text
+⚠️ YOLO DEVELOPMENT MODE ⚠️
+
+This is not a normal SLAIF workload.
+This command will run under your authenticated HPC user account.
+It may read, modify, or delete files that your HPC account can access.
+SLAIF cannot make this command safe.
+Use this only for development/testing and only if you understand the command.
+```
+
+Preferred YOLO command source:
+
+```text
+The user types the command directly in the extension UI.
+```
+
+Acceptable demo form:
+
+```text
+The SLAIF server suggests a command, but the extension displays it and requires explicit user confirmation.
+```
+
+Forbidden:
+
+```text
+The SLAIF server silently supplies a command and the extension runs it automatically.
+```
+
+Even in YOLO mode, agents should prefer:
+
+```text
+extension SSH -> login node -> remote launcher -> sbatch -> worker allocation
+```
+
+Agents must not use YOLO mode as a shortcut to implement normal payloads.
+
+Agents must not let YOLO mode become the default or production path.
+
+Agents must keep YOLO tests separate from normal payload tests.
+
+### 0a.5 Documentation requirement
+
+When workload MVP, GaMS chat, diagnostics, workload tokens, or YOLO mode are modified, agents must update:
+
+- `STATUS.md`;
+- `README.md` if project overview changes;
+- relevant docs under `docs/`;
+- `AGENTS.md` if invariants change.
+
+README.md contains a SLAIF logo and link block at the very top. Agents must preserve that block whenever README.md is edited.
+
+
 ## 1. Ground-truth decisions already made
 
 Do not reopen these decisions unless explicitly instructed by the project owner.
