@@ -220,6 +220,14 @@ catalog entries must not contain shell commands, Slurm script text, SSH
 credentials, tokens, or endpoint overrides. See
 [PAYLOAD_CATALOG.md](PAYLOAD_CATALOG.md).
 
+Maintainer-only YOLO test tooling is separate from normal mode. It intentionally
+runs arbitrary code under the maintainer's own authenticated HPC account for
+manual diagnostics and requires explicit local/config/environment gates. It must
+not be exposed through web launch, session descriptors, extension UI, signed
+payload catalog entries, or normal remote launcher product flows. Real-HPC test
+results must not be claimed unless a maintainer actually ran them with verified
+host keys and site/account-specific Slurm inputs.
+
 Session ids must be validated with a strict allowlist pattern before being placed into a command.
 
 The session descriptor must not provide `jobCommand`, `schedulerCommand`,

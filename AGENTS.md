@@ -259,6 +259,34 @@ Acceptable demo form:
 The SLAIF server suggests a command, but the extension displays it and requires explicit user confirmation.
 ```
 
+Maintainer-owned real-HPC test kit YOLO scripts are even narrower: they are
+manual tools for maintainers with their own HPC accounts, must require explicit
+local/config/environment gates, and must never be wired into normal web launch,
+session descriptor, signed payload catalog, browser UI, or product launcher
+flows. Normal MVP execution remains payloadId-based.
+
+### 0a.5 Maintainer real-HPC testing rules
+
+Real-HPC tests must not be claimed unless they were actually run against real
+systems with verified host-key or host-CA data and user/account-specific Slurm
+configuration.
+
+Maintainer local configs and result bundles must not be committed:
+
+```text
+.slaif-connect/
+maintainer-results/
+*.candidate-known-hosts
+*.verified-known-hosts
+*.hpc.local.json
+*.maintainer.local.json
+```
+
+`ssh-keyscan` output is candidate-only until a maintainer verifies fingerprints
+out of band through official docs, site support, host CA material, or another
+approved independent channel. Do not sign policies from unverified candidate
+keys.
+
 Forbidden:
 
 ```text

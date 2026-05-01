@@ -96,4 +96,9 @@ Hosts with no `allowedPayloadIds` reject workload payload launches. There is no 
 
 ## Future Site-Specific Slurm Profiles
 
-Later PRs will map payload IDs to site-approved Slurm profiles or templates. That mapping must remain site-approved and policy-controlled. It must not become arbitrary command execution.
+Later PRs will map payload IDs to site-approved Slurm profiles or templates.
+Real values for partition, account, QoS, time, memory, GPU request syntax, max
+runtime, and max output should be informed by maintainer-owned real-HPC tests
+rather than guesses. See [MAINTAINER_HPC_TESTING.md](MAINTAINER_HPC_TESTING.md).
+
+That mapping must remain site-approved and policy-controlled. It must not become arbitrary command execution.

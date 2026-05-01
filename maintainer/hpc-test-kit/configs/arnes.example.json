@@ -1,0 +1,38 @@
+{
+  "type": "slaif.maintainerHpcTestConfig",
+  "version": 1,
+  "system": "arnes",
+  "loginHostCandidates": [
+    "hpc-login.arnes.si",
+    "hpc-login3.arnes.si",
+    "hpc-login4.arnes.si",
+    "hpc-login1.arnes.si"
+  ],
+  "selectedLoginHost": "REPLACE_ME",
+  "username": "REPLACE_ME",
+  "sshKeyPath": "~/.ssh/id_ed25519",
+  "verifiedKnownHostsFile": "REPLACE_ME",
+  "remoteBaseDir": "~/.slaif-connect/hpc-tests",
+  "slurm": {
+    "account": "",
+    "cpuPartition": "",
+    "gpuPartition": "",
+    "qos": "",
+    "timeLimit": "00:05:00",
+    "memory": "1G",
+    "cpusPerTask": 1,
+    "gpus": 1,
+    "gpuGres": ""
+  },
+  "tests": {
+    "runCpuDiagnostics": true,
+    "runGpuDiagnostics": false,
+    "runLauncherDryRun": true,
+    "runYolo": false
+  },
+  "yolo": {
+    "command": "",
+    "allowYolo": false,
+    "iUnderstandThisRunsArbitraryCode": false
+  }
+}
