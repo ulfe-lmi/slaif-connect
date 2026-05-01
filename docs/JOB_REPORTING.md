@@ -2,6 +2,14 @@
 
 SLAIF Connect reports scheduler metadata, not terminal transcripts.
 
+Job reporting is now one part of the broader SLAIF workload MVP. The scheduler
+metadata path proves that the extension can run a fixed signed-policy launcher,
+parse bounded SLURM output, and report safe job state. Future fast diagnostics
+will add structured payload results, and interactive GaMS chat will use a
+separate worker runtime protocol. Those additions must preserve the same rule:
+metadata and structured results are allowed, raw terminal transcripts and SSH
+credentials are not.
+
 ## Purpose
 
 The fixed remote launcher path connects browser-side SSH execution to SLAIF job tracking. After the user authenticates directly to the HPC `sshd`, the extension runs one signed-policy-approved command and reports safe metadata back to the SLAIF API.
@@ -38,6 +46,13 @@ signed policy remoteCommandTemplate
 
 The captured output is used locally for parsing and UI diagnostics. It is not uploaded as the job report payload.
 
+For the workload MVP, this path should evolve from job metadata only toward
+payload-aware reporting. A normal diagnostic launch will still start with the
+fixed launcher and a SLURM job ID, but it may later report bounded structured
+payload results such as `gpu_diagnostics_v1` or `cpu_memory_diagnostics_v1`.
+Interactive payloads such as `gams_chat_v1` should use a workload runtime
+channel from the Slurm worker to SLAIF rather than terminal transcript upload.
+
 ## Remote Command Source Of Truth
 
 The signed HPC policy is authoritative for `remoteCommandTemplate`.
@@ -60,6 +75,11 @@ The following components must not provide or override the remote command:
 The web launch message provides an HPC alias and session ID. The session descriptor provides relay and reporting tokens. Neither is allowed to provide `command`, `remoteCommand`, `jobCommand`, `schedulerCommand`, or equivalent fields.
 
 Future interactive or administrator modes, if any, must be separate from this launcher path and must receive explicit security review.
+
+Normal workload mode is selected by signed-policy-approved `payloadId` values,
+not arbitrary command strings. The initial planned payload IDs are
+`gpu_diagnostics_v1`, `cpu_memory_diagnostics_v1`, and `gams_chat_v1`. See
+[../SLAIF_WORKLOAD_MVP.md](../SLAIF_WORKLOAD_MVP.md).
 
 ## Initial Scheduler Support
 
