@@ -8,6 +8,11 @@ import path from 'node:path';
 import process from 'node:process';
 import {fileURLToPath} from 'node:url';
 import {createRelayServer} from '../server/relay/relay.js';
+import {createAuditLogger} from '../server/logging/audit_log.js';
+import {createMemoryAuditSink} from '../server/logging/audit_sink.js';
+import {createMetricsRegistry} from '../server/metrics/metrics_registry.js';
+import {createObservabilityHttpHandler} from '../server/observability/observability_http.js';
+import {createRateLimiter} from '../server/rate_limit/rate_limiter.js';
 import {createTokenRegistry, TOKEN_SCOPES} from '../server/tokens/token_registry.js';
 import {
   base64urlEncode,
@@ -171,6 +176,9 @@ async function startMockSlaifWebApiServer({
   hpc,
   sessionId,
   tokenRegistry,
+  auditLogger,
+  metricsRegistry,
+  readinessOptions,
   launchTokenRecord,
   relayTokenRecord,
   jobReportTokenRecord,
@@ -180,9 +188,36 @@ async function startMockSlaifWebApiServer({
   username,
 }) {
   const jobReports = [];
+  const observabilityHandler = createObservabilityHttpHandler({
+    metricsRegistry,
+    readinessOptions,
+  });
   const server = http.createServer((req, res) => {
     const origin = `http://${host}:${server.address().port}`;
     const url = new URL(req.url, origin);
+
+    observabilityHandler(req, res).then((handled) => {
+      if (!handled) {
+        routeRequest();
+      }
+    }).catch((error) => {
+      res.writeHead(500, {'Content-Type': 'application/json'});
+      res.end(JSON.stringify({error: error.code || 'observability_error'}));
+    });
+
+    function metric(name, labels = {}, value = 1) {
+      metricsRegistry?.increment?.(name, labels, value);
+    }
+
+    function observe(name, labels = {}, value = 0) {
+      metricsRegistry?.observeHistogram?.(name, labels, value);
+    }
+
+    function audit(event, fields = {}) {
+      auditLogger?.event?.(event, fields);
+    }
+
+    function routeRequest() {
 
     if (url.pathname === '/launcher.html') {
       const extensionId = url.searchParams.get('extensionId') || '';
@@ -245,6 +280,9 @@ async function startMockSlaifWebApiServer({
     }
 
     if (url.pathname === `/api/connect/session/${encodeURIComponent(sessionId)}`) {
+      const startedAt = Date.now();
+      audit('descriptor.requested', {sessionId, hpc, outcome: 'started'});
+      metric('slaif_descriptor_requests_total', {route: 'session_descriptor', outcome: 'requested'});
       const bearer = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
       try {
         tokenRegistry.consumeToken(bearer, {
@@ -253,10 +291,18 @@ async function startMockSlaifWebApiServer({
           hpc,
         });
       } catch (_error) {
+        audit('descriptor.rejected', {sessionId, hpc, outcome: 'rejected', reason: 'unauthorized'});
+        metric('slaif_descriptor_rejections_total', {
+          route: 'session_descriptor',
+          outcome: 'rejected',
+          reason: 'unauthorized',
+        });
         res.writeHead(401, {'Content-Type': 'application/json'});
         res.end(JSON.stringify({error: 'unauthorized'}));
         return;
       }
+      audit('descriptor.issued', {sessionId, hpc, outcome: 'issued'});
+      observe('slaif_descriptor_duration_seconds', {route: 'session_descriptor'}, (Date.now() - startedAt) / 1000);
       res.writeHead(200, {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-store',
@@ -279,7 +325,15 @@ async function startMockSlaifWebApiServer({
     }
 
     if (url.pathname === `/api/connect/session/${encodeURIComponent(sessionId)}/job-report`) {
+      const startedAt = Date.now();
+      audit('jobReport.received', {sessionId, hpc, outcome: 'received'});
       if (req.method !== 'POST') {
+        audit('jobReport.rejected', {sessionId, hpc, outcome: 'rejected', reason: 'method_not_allowed'});
+        metric('slaif_job_report_rejections_total', {
+          route: 'job_report',
+          outcome: 'rejected',
+          reason: 'method_not_allowed',
+        });
         res.writeHead(405, {'Content-Type': 'application/json'});
         res.end(JSON.stringify({error: 'method_not_allowed'}));
         return;
@@ -292,6 +346,12 @@ async function startMockSlaifWebApiServer({
           hpc,
         });
       } catch (_error) {
+        audit('jobReport.rejected', {sessionId, hpc, outcome: 'rejected', reason: 'unauthorized'});
+        metric('slaif_job_report_rejections_total', {
+          route: 'job_report',
+          outcome: 'rejected',
+          reason: 'unauthorized',
+        });
         res.writeHead(401, {'Content-Type': 'application/json'});
         res.end(JSON.stringify({error: 'unauthorized'}));
         return;
@@ -335,6 +395,17 @@ async function startMockSlaifWebApiServer({
             }
           }
         } catch (error) {
+          audit('jobReport.rejected', {
+            sessionId,
+            hpc,
+            outcome: 'rejected',
+            reason: error.message || 'invalid_report',
+          });
+          metric('slaif_job_report_rejections_total', {
+            route: 'job_report',
+            outcome: 'rejected',
+            reason: 'invalid_report',
+          });
           res.writeHead(400, {'Content-Type': 'application/json'});
           res.end(JSON.stringify({error: error.message || 'invalid_report'}));
           return;
@@ -345,6 +416,13 @@ async function startMockSlaifWebApiServer({
           hpc,
         });
         jobReports.push(report);
+        audit('jobReport.accepted', {sessionId, hpc, outcome: 'accepted'});
+        metric('slaif_job_reports_total', {
+          route: 'job_report',
+          outcome: 'accepted',
+          scheduler: report.scheduler || 'none',
+        });
+        observe('slaif_job_report_duration_seconds', {route: 'job_report'}, (Date.now() - startedAt) / 1000);
         res.writeHead(200, {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*',
@@ -399,6 +477,7 @@ async function startMockSlaifWebApiServer({
 
     res.writeHead(404, {'Content-Type': 'text/plain'});
     res.end('not found\n');
+    }
   });
 
   await new Promise((resolve, reject) => {
@@ -416,6 +495,7 @@ async function startMockSlaifWebApiServer({
     apiBaseUrl: webOrigin,
     launcherUrl: `${webOrigin}/launcher.html`,
     jobReports,
+    auditEvents: auditLogger?.sink?.events,
     close: () => closeHttpServer(server),
   };
 }
@@ -432,7 +512,20 @@ export async function startExtensionDevStack(options = {}) {
   const imageTag = options.imageTag || `slaif-extension-dev-sshd-${process.pid}-${Date.now()}`;
   const policyKeyId = options.policyKeyId || 'slaif-policy-local-dev';
   const logger = options.logger || defaultLogger(options.quiet);
-  const tokenRegistry = options.tokenRegistry || createTokenRegistry();
+  const auditSink = options.auditSink || createMemoryAuditSink();
+  const auditLogger = options.auditLogger || createAuditLogger({
+    sink: auditSink,
+    environment: 'development',
+    includeSessionId: true,
+  });
+  const metricsRegistry = options.metricsRegistry || createMetricsRegistry({
+    environment: 'development',
+  });
+  const tokenRegistry = options.tokenRegistry || createTokenRegistry({
+    auditLogger,
+    metricsRegistry,
+  });
+  const rateLimiter = options.rateLimiter || createRateLimiter({mode: 'memory'});
   const tokenTtlMs = options.tokenTtlMs || 5 * 60 * 1000;
 
   for (const command of ['docker', 'ssh-keygen']) {
@@ -519,6 +612,8 @@ export async function startExtensionDevStack(options = {}) {
         maxConnectionMs: options.deploymentConfig.relayAbsoluteTimeoutMs,
       } : {}),
       logger,
+      auditLogger,
+      metricsRegistry,
     });
     await relay.listen({host: '127.0.0.1', port: 0});
     const relayPort = relay.address().port;
@@ -556,6 +651,37 @@ export async function startExtensionDevStack(options = {}) {
       hpc,
       sessionId,
       tokenRegistry,
+      auditLogger,
+      metricsRegistry,
+      readinessOptions: {
+        deploymentConfig: {
+          env: 'development',
+          auditLogMode: 'memory',
+          metricsMode: 'prometheus',
+          signedPolicyFile: 'build/extension/config/hpc_policy.local.json',
+          policyTrustRootsFile: 'build/extension/config/policy_trust_roots.local.json',
+        },
+        tokenStore: {
+          healthCheck: () => ({
+            ok: true,
+            mode: 'memory',
+            durable: false,
+            sharedAcrossInstances: false,
+          }),
+        },
+        rateLimiter,
+        relayAllowlist: {
+          [hpc]: {
+            host: '127.0.0.1',
+            port: sshdPort,
+          },
+        },
+        auditLogger,
+        auditSink,
+        metricsRegistry,
+        requireSignedPolicy: true,
+        requireTrustRoots: true,
+      },
       launchTokenRecord,
       relayTokenRecord,
       jobReportTokenRecord,
@@ -656,6 +782,10 @@ export async function startExtensionDevStack(options = {}) {
       trustRootsPath,
       runtimeConfig,
       tokenRegistry,
+      auditSink,
+      auditLogger,
+      metricsRegistry,
+      rateLimiter,
       launchToken: launchTokenRecord.token,
       relayToken: relayTokenRecord.token,
       jobReportToken: jobReportTokenRecord.token,

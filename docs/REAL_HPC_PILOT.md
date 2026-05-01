@@ -196,11 +196,17 @@ short-lived scoped launch, relay, and job-report tokens are issued for the
 session; relay and job-report tokens are one-use by default; full token values
 must not be logged or placed in URLs.
 
+The pilot stack also exposes local reference `/metrics`, `/healthz`, and
+`/readyz` endpoints and in-memory audit events for manual diagnostics. These
+local endpoints are not production monitoring controls and must not expose full
+tokens, SSH payloads, credentials, transcripts, or raw command output.
+
 Production API/relay deployment is a separate milestone from the manual pilot
 stack. A real deployment must satisfy
 [PRODUCTION_DEPLOYMENT_CONTRACT.md](PRODUCTION_DEPLOYMENT_CONTRACT.md),
 including durable shared token state, distributed replay prevention, rate
-limits, readiness checks, audit retention, and network egress controls.
+limits, readiness checks, audit/metrics operations, retention/privacy policy,
+and network egress controls.
 
 For a real SLURM pilot, use a harmless site-approved launcher command first.
 After that, a policy command may call a site-approved launcher that eventually
@@ -217,7 +223,9 @@ during the pilot.
 ## What This PR Does Not Solve
 
 - no production SLAIF signing-key custody;
-- no production durable token store or distributed replay prevention;
+- no production durable token store deployment or distributed replay prevention
+  validation in a real environment;
+- no production metrics scrape, alerting, or audit sink deployment;
 - no production deployment;
 - no Chrome Web Store release;
 - no real HPC credentials stored or automated;

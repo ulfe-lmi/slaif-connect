@@ -106,7 +106,7 @@ async function testUnauthenticatedConnectionTimesOut() {
     await waitOpen(ws);
     const close = await waitClose(ws);
     assert.equal(close.reason, 'auth_timeout');
-    assert(logger.events.some((event) => event.type === 'relay.auth_timeout'));
+    assert(logger.events.some((event) => event.event === 'relay.auth_timeout'));
   } finally {
     await relay.close();
   }

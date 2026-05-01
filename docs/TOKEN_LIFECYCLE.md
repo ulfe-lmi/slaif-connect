@@ -90,6 +90,10 @@ Logs must not include:
 - passwords, OTPs, private keys, or passphrases;
 - full launch, relay, or job-report token values.
 
+Metrics must use aggregate low-cardinality labels only. Token values, token
+fingerprints, session IDs, usernames, credentials, SSH payloads, transcripts,
+stdout, stderr, and raw command output must not appear as metric labels.
+
 ## Reference Implementation
 
 `server/tokens/token_registry.js` provides an in-memory development registry for
@@ -110,3 +114,4 @@ network, credential management, access controls, monitoring, backup/retention
 policy where applicable, latency/reliability planning, rate limits, and
 operational audit policy. See
 [PRODUCTION_DEPLOYMENT_CONTRACT.md](PRODUCTION_DEPLOYMENT_CONTRACT.md).
+For audit and metrics details, see [OBSERVABILITY.md](OBSERVABILITY.md).

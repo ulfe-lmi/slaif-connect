@@ -2459,3 +2459,24 @@ Redis is the first durable/shared token-store adapter. Future agents must:
 - keep Redis tests out of `npm test` unless Redis is reliably provided by CI;
 - leave Postgres explicitly not implemented unless a real tested adapter is
   added in a separate, clearly scoped change.
+
+## Observability rules
+
+Audit, metrics, health, and readiness work must preserve the credential and
+payload boundaries of the relay-only architecture.
+
+Hard rules:
+
+- do not log full launch, relay, or job-report token values;
+- do not add metric labels containing `sessionId`, raw token values, token
+  fingerprints, usernames, passwords, OTPs, private keys, transcripts, stdout,
+  stderr, SSH payloads, or raw command output;
+- keep audit events structured and sanitized before they reach any sink;
+- keep token fingerprints in audit logs only, never in metrics labels;
+- keep `/readyz` strict when token-store, rate-limit, audit, metrics, policy, or
+  relay allowlist dependencies are unhealthy or missing;
+- protect production metrics endpoints with deployment/network controls;
+- keep `npm run test:observability` and browser observability tests passing when
+  touching observability, token, relay, descriptor, or job-report paths;
+- update `STATUS.md` and `docs/OBSERVABILITY.md` when observability readiness
+  changes.

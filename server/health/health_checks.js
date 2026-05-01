@@ -31,6 +31,8 @@ export async function evaluateReadiness({
   rateLimiter,
   relayAllowlist,
   auditLogger,
+  auditSink,
+  metricsRegistry,
   requireSignedPolicy = false,
   requireTrustRoots = false,
 } = {}) {
@@ -61,10 +63,27 @@ export async function evaluateReadiness({
       errorCode: count > 0 ? undefined : 'relay_allowlist_empty',
     };
   }));
-  checks.push(await runCheck('audit_logging', () => ({
-    ok: Boolean(auditLogger?.event || deploymentConfig?.auditLogMode),
-    mode: deploymentConfig?.auditLogMode,
-  })));
+  checks.push(await runCheck('audit_logging', () => {
+    const auditHealth = auditSink?.healthCheck ?
+      auditSink.healthCheck() :
+      auditLogger?.healthCheck?.();
+    if (auditHealth) {
+      return {
+        mode: deploymentConfig?.auditLogMode || auditHealth.mode,
+        ...auditHealth,
+      };
+    }
+    return {
+      ok: Boolean(auditLogger?.event || deploymentConfig?.auditLogMode),
+      mode: deploymentConfig?.auditLogMode,
+    };
+  }));
+  checks.push(await runCheck('metrics', () => {
+    if (!metricsRegistry?.healthCheck) {
+      return {ok: false, errorCode: 'metrics_registry_missing'};
+    }
+    return metricsRegistry.healthCheck();
+  }));
   checks.push(await runCheck('signed_policy', () => ({
     ok: !requireSignedPolicy || Boolean(deploymentConfig?.signedPolicyFile),
     configured: Boolean(deploymentConfig?.signedPolicyFile),

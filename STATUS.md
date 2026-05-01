@@ -390,6 +390,34 @@ Validation:
 npm run test:redis-token-store
 ```
 
+### 19. Audit, metrics, observability, and readiness foundations
+
+The API/relay reference stack now has structured audit events, memory/stdout/file
+audit sinks, a Prometheus-style metrics registry, observability HTTP helpers for
+`/metrics`, `/healthz`, and `/readyz`, and instrumentation for token, relay,
+descriptor, and job-report paths. Tests verify that full token values, SSH
+payloads, transcripts, credentials, and raw command output are not emitted in
+audit logs or metrics, and that readiness checks include audit and metrics
+health.
+
+Main files and docs:
+
+- [server/logging/audit_log.js](server/logging/audit_log.js)
+- [server/logging/audit_sink.js](server/logging/audit_sink.js)
+- [server/metrics/metrics_registry.js](server/metrics/metrics_registry.js)
+- [server/observability/observability_http.js](server/observability/observability_http.js)
+- [server/health/health_checks.js](server/health/health_checks.js)
+- [tests/observability/](tests/observability)
+- [tests/browser/extension-observability.spec.mjs](tests/browser/extension-observability.spec.mjs)
+- [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md)
+
+Validation:
+
+```bash
+npm run test:observability
+npm run test:browser:observability
+```
+
 ## What Is Validated
 
 | Capability | Status | Evidence / command |
@@ -405,6 +433,7 @@ npm run test:redis-token-store
 | Relay timeouts and audit-safe hardening controls | Working locally | `npm run test:relay-hardening` |
 | Unsafe production deployment config rejection | Working locally | `npm run test:deployment` |
 | Redis durable token store | Working locally with Redis test instance | `npm run test:redis-token-store` |
+| Audit/metrics/readiness observability foundations | Working locally | `npm run test:observability`, `npm run test:browser:observability` |
 | Production API/relay deployment | Pending | contract/reference validation exists; real deployment is not complete |
 | Web launch/session descriptor flow | Working locally | `npm run test:browser:launch-flow` |
 | Malicious launch fields are rejected | Working locally | `tests/session_descriptor.test.mjs`, browser launch-flow test |
@@ -439,6 +468,8 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 - no arbitrary web-supplied shell commands;
 - no launch-token, relay-token, job-report-token, password, OTP, private-key, or raw SSH payload logging;
 - launch, relay, and job-report tokens must remain scope-separated, short-lived, and not placed in query strings;
+- audit logs and metrics must not include full token values, SSH payloads, terminal transcripts, passwords, OTPs, private keys, or raw command output;
+- metrics labels must avoid high-cardinality or secret-bearing values such as session IDs, token fingerprints, usernames, credentials, and raw output;
 - no terminal transcript upload through job reporting without explicit review;
 - no SSH agent forwarding;
 - no X11 forwarding;
@@ -461,19 +492,21 @@ These rules are non-negotiable unless the project owner explicitly changes the a
   consume/replay prevention, but no production Redis deployment has been
   performed.
 - Postgres token-store adapter remains explicitly not implemented.
-- Production metrics/audit sink integration, infrastructure rate limits, and readiness wiring into a deployed service are not implemented yet.
+- Production audit sink deployment, metrics scrape/alerting, privacy/retention
+  policy, infrastructure rate limits, and readiness wiring into a deployed
+  service are not implemented yet.
 - The current browser prototype includes deterministic generated compatibility files for pinned upstream modules; a later build-system pass may replace these with a fuller upstream build flow.
 
 ## Next Milestones
 
-1. Production API/relay deployment contract and unsafe-config validation. This PR.
+1. Audit/metrics/observability foundations and readiness integration. This PR.
 2. Real HPC pilot target with independently verified pinned host key or host CA.
 3. Site-approved production SLAIF remote launcher deployment.
 4. Production Redis deployment and distributed replay prevention validation in
    the target API/relay environment.
 5. Real SLAIF policy signing operations and production trust-root handling.
 6. Production authentication UX.
-7. Production audit/metrics integration and infrastructure rate limiting.
+7. Production audit sink, metrics scrape/alerting, and infrastructure rate limiting.
 8. Chrome extension packaging and release workflow.
 9. Security review.
 
@@ -497,6 +530,10 @@ Merged PRs visible from GitHub at the time of this update:
 | [#10 Add real HPC pilot onboarding tooling](https://github.com/ulfe-lmi/slaif-connect/pull/10) | 2026-04-30 | Added real-HPC pilot documentation, host-key collection/verification tools, pilot policy creation, and manual pilot stack. |
 | [#11 Add SLURM job metadata reporting](https://github.com/ulfe-lmi/slaif-connect/pull/11) | 2026-04-30 | Added fixed-command SLURM output parsing and safe job metadata reporting to the mock SLAIF API. |
 | [#12 Add remote launcher contract](https://github.com/ulfe-lmi/slaif-connect/pull/12) | 2026-04-30 | Added the remote launcher contract, reference launcher, tests, and local browser E2E integration. |
+| [#13 Add token lifecycle and relay hardening](https://github.com/ulfe-lmi/slaif-connect/pull/13) | 2026-04-30 | Added scoped short-lived token lifecycle, replay prevention, relay hardening, and safe audit logging foundations. |
+| [#14 Protect README SLAIF branding block](https://github.com/ulfe-lmi/slaif-connect/pull/14) | 2026-04-30 | Added the README branding invariant to `AGENTS.md`. |
+| [#15 Add production API and relay deployment contract](https://github.com/ulfe-lmi/slaif-connect/pull/15) | 2026-04-30 | Added deployment config validation, token-store/rate-limit contracts, health/readiness helpers, and production checklist docs. |
+| [#16 Add Redis token store adapter](https://github.com/ulfe-lmi/slaif-connect/pull/16) | 2026-05-01 | Added the Redis-backed durable token-store adapter and Redis replay-prevention tests. |
 
 ## How To Read The Repository
 
@@ -514,6 +551,7 @@ Merged PRs visible from GitHub at the time of this update:
 - [docs/RELAY_HARDENING.md](docs/RELAY_HARDENING.md): relay timeout, allowlist, token, and audit controls.
 - [docs/PRODUCTION_DEPLOYMENT_CONTRACT.md](docs/PRODUCTION_DEPLOYMENT_CONTRACT.md): production API/relay deployment contract.
 - [docs/PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md): production readiness checklist.
+- [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md): audit events, metrics, and readiness observability.
 - [docs/UPSTREAM_LINKING.md](docs/UPSTREAM_LINKING.md): upstream `libapps` vendoring.
 - [docs/RELAY_E2E_TESTING.md](docs/RELAY_E2E_TESTING.md): system SSH relay tests.
 - [docs/BROWSER_E2E_TESTING.md](docs/BROWSER_E2E_TESTING.md): browser E2E tests.

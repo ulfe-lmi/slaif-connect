@@ -132,6 +132,11 @@ Rules:
 - The API origin must be allowed by signed policy `allowedApiOrigins`.
 - Raw stdout, stderr, and terminal transcripts are not reported by default.
 - Debug excerpts, if ever added, need separate review, strict bounds, and redaction.
+- Audit events may record `jobReport.received`, `jobReport.accepted`, or
+  `jobReport.rejected`, but must not contain raw stdout/stderr, transcripts, or
+  token values.
+- Metrics may count accepted/rejected reports using low-cardinality labels, but
+  must not include session IDs, token fingerprints, credentials, or raw output.
 
 ## Local Validation
 
@@ -155,4 +160,5 @@ npm run test:browser:job-reporting
 
 Production deployment requirements for the job-report endpoint, job report
 token consumption, body-size limits, and audit logging are defined in
-[PRODUCTION_DEPLOYMENT_CONTRACT.md](PRODUCTION_DEPLOYMENT_CONTRACT.md).
+[PRODUCTION_DEPLOYMENT_CONTRACT.md](PRODUCTION_DEPLOYMENT_CONTRACT.md). Audit
+and metrics details are defined in [OBSERVABILITY.md](OBSERVABILITY.md).
