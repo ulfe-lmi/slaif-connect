@@ -17,6 +17,10 @@ Connect is already deployed in production.
 
 - [ ] Real HPC host key or host CA is verified out of band.
 - [ ] Signed policy sequence is correct and current.
+- [ ] Signed policy includes an allowed payload catalog.
+- [ ] Each HPC host has explicit `allowedPayloadIds`.
+- [ ] Payload catalog entries contain bounded metadata only, not shell commands,
+      Slurm scripts, credentials, tokens, or endpoint overrides.
 - [ ] Host-key rotation plan exists.
 - [ ] Emergency revocation process exists.
 - [ ] Rollback protection is checked.

@@ -43,14 +43,15 @@ instance.
 
 The relay egress path must be restricted to approved HPC login nodes. The
 signed extension-side HPC policy remains authoritative for SSH host, SSH port,
-host-key trust, relay origin, API origin, and remote command template. Session
-descriptors still must not supply SSH host, host key, SSH options, or command.
+host-key trust, relay origin, API origin, remote command template, and allowed
+payload catalog. Session descriptors still must not supply SSH host, host key,
+SSH options, command, scripts, or payload definitions.
 
 Normal workloads are selected by `payloadId` and must resolve to
-site-approved Slurm profiles. Worker nodes are reached through Slurm
-allocation, not SSH. Interactive worker processes may connect outbound to SLAIF
-with a scoped `slaif.workload` token; the broker that accepts those connections
-is a future implementation phase.
+signed-policy-approved payload entries and site-approved Slurm profiles. Worker
+nodes are reached through Slurm allocation, not SSH. Interactive worker
+processes may connect outbound to SLAIF with a scoped `slaif.workload` token;
+the broker that accepts those connections is a future implementation phase.
 
 ## Required Server Endpoints
 

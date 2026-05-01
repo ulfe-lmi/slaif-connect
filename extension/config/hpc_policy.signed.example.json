@@ -17,6 +17,36 @@
     "allowedRelayOrigins": [
       "wss://connect.slaif.si"
     ],
+    "allowedPayloads": {
+      "gpu_diagnostics_v1": {
+        "type": "fast_diagnostic",
+        "scheduler": "slurm",
+        "requiresGpu": true,
+        "maxRuntimeSeconds": 300,
+        "maxOutputBytes": 65536,
+        "resultSchema": "slaif.gpuDiagnosticsResult.v1"
+      },
+      "cpu_memory_diagnostics_v1": {
+        "type": "fast_diagnostic",
+        "scheduler": "slurm",
+        "requiresGpu": false,
+        "maxRuntimeSeconds": 300,
+        "maxOutputBytes": 65536,
+        "resultSchema": "slaif.cpuMemoryDiagnosticsResult.v1"
+      },
+      "gams_chat_v1": {
+        "type": "interactive_llm",
+        "scheduler": "slurm",
+        "model": "cjvt/GaMS3-12B-Instruct",
+        "runtime": "vllm",
+        "requiresGpu": true,
+        "requiresOutboundWorkloadConnection": true,
+        "maxSessionSeconds": 3600,
+        "idleTimeoutSeconds": 300,
+        "maxPromptBytes": 16000,
+        "maxOutputTokens": 1024
+      }
+    },
     "hosts": {
       "vegahpc": {
         "displayName": "Vega HPC",
@@ -26,9 +56,14 @@
         "knownHosts": [
           "vegahpc ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAplaceholder"
         ],
-        "remoteCommandTemplate": "/opt/slaif/bin/slaif-launch --session ${SESSION_ID}"
+        "remoteCommandTemplate": "/opt/slaif/bin/slaif-launch --session ${SESSION_ID}",
+        "allowedPayloadIds": [
+          "gpu_diagnostics_v1",
+          "cpu_memory_diagnostics_v1",
+          "gams_chat_v1"
+        ]
       }
     }
   },
-  "signature": "U8hBRGX-rlBV2pnJgfw2GKQ0vP71i1UQF2WzAlwIj2k48vs7oKiqkFOnNPVz__u8cDWg1l0CS2NM9bVpg6lMAg"
+  "signature": "akzSA8WgqPyJHwXtVqn--Ma2WwHuohyiMQtEA1cv4PHb7iT2v8mGhbYWitRrV4RKDMUsgOisOKbwfwUDozevvg"
 }

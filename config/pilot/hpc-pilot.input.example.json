@@ -15,6 +15,9 @@
   "allowedRelayOrigins": [
     "ws://127.0.0.1"
   ],
+  "allowedPayloadIds": [
+    "gpu_diagnostics_v1"
+  ],
   "remoteCommandTemplate": "/opt/slaif/bin/slaif-launch --session ${SESSION_ID}",
   "notes": "Example only. Replace with independently verified host-key or host-CA data."
 }

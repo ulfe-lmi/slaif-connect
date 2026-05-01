@@ -1,8 +1,10 @@
 import {
   policyAllowsRelayUrl,
+  resolveAllowedPayload,
   validateAlias,
   validateSessionId,
 } from './slaif_policy.js';
+import {validatePayloadId} from './payload_catalog.js';
 
 export const FORBIDDEN_SSH_TARGET_FIELDS = Object.freeze([
   'sshHost',
@@ -14,7 +16,12 @@ export const FORBIDDEN_SSH_TARGET_FIELDS = Object.freeze([
   'hostKey',
   'hostKeyAlias',
   'command',
+  'shellCommand',
   'remoteCommand',
+  'sshCommand',
+  'script',
+  'scriptText',
+  'jobScript',
   'sshOptions',
   'relayHost',
   'relayPort',
@@ -24,6 +31,10 @@ export const FORBIDDEN_SSH_TARGET_FIELDS = Object.freeze([
   'transcriptUploadUrl',
   'reportUrl',
   'jobReportUrl',
+  'password',
+  'otp',
+  'privateKey',
+  'workloadToken',
 ]);
 
 const LOCAL_DEV_HOSTS = new Set(['127.0.0.1', 'localhost']);
@@ -77,6 +88,7 @@ export function validateLaunchMessage(message) {
     type: 'slaif.startSession',
     version: 1,
     hpc: validateAlias(message.hpc),
+    payloadId: validatePayloadId(message.payloadId),
     sessionId: validateSessionId(message.sessionId),
     launchToken: validateOpaqueToken(message.launchToken, 'launchToken'),
   };
@@ -120,6 +132,14 @@ export function validateSessionDescriptor(descriptor, pendingLaunch, policyHost,
   const hpc = validateAlias(descriptor.hpc);
   if (hpc !== pendingLaunch.hpc) {
     throw new Error('session descriptor hpc mismatch');
+  }
+
+  const payloadId = validatePayloadId(descriptor.payloadId);
+  if (payloadId !== pendingLaunch.payloadId) {
+    throw new Error('session descriptor payloadId mismatch');
+  }
+  if (options.policy) {
+    resolveAllowedPayload(options.policy, hpc, payloadId);
   }
 
   const policyAlias = validateAlias(policyHost.hostKeyAlias);
@@ -171,6 +191,7 @@ export function validateSessionDescriptor(descriptor, pendingLaunch, policyHost,
     version: 1,
     sessionId,
     hpc,
+    payloadId,
     relayUrl,
     relayToken,
     relayTokenExpiresAt,

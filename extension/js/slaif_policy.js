@@ -5,6 +5,13 @@ import {
   policyFingerprint,
   verifySignedPolicyEnvelope,
 } from './slaif_policy_signature.js';
+import {
+  buildDefaultPayloadCatalog,
+  resolveAllowedPayload as resolveAllowedPayloadFromCatalog,
+  validateHostPayloadRefs,
+  validatePayloadCatalog,
+  validatePayloadId,
+} from './payload_catalog.js';
 
 function defaultPolicyUrl() {
   if (globalThis.chrome?.runtime?.getURL) {
@@ -117,6 +124,7 @@ export function buildDevelopmentPolicy(runtimeConfig) {
       new URL(runtimeConfig.apiBaseUrl).origin :
       'http://127.0.0.1'],
     allowedRelayOrigins: [new URL(runtimeConfig.relayUrl).origin],
+    allowedPayloads: buildDefaultPayloadCatalog(),
     hosts: {
       [runtimeConfig.hpc]: {
         displayName: 'Local test sshd',
@@ -126,6 +134,7 @@ export function buildDevelopmentPolicy(runtimeConfig) {
         knownHosts: runtimeConfig.knownHosts,
         remoteCommandTemplate: runtimeConfig.remoteCommandTemplate ||
             'SESSION_ID=${SESSION_ID} /bin/printf slaif-browser-relay-ok',
+        allowedPayloadIds: [runtimeConfig.payloadId || 'gpu_diagnostics_v1'],
         allowInteractiveTerminal: false,
         developmentOnly: true,
       },
@@ -246,12 +255,14 @@ export function validateSignedPolicyPayload(policy, {allowLocalDev = false, now 
       Object.keys(policy.hosts).length === 0) {
     throw new Error('policy.hosts missing');
   }
+  validatePayloadCatalog(policy.allowedPayloads);
 
   for (const [alias, host] of Object.entries(policy.hosts)) {
     validateAlias(alias);
     validatePolicyHost(alias, host, {
       allowPilotFixedCommand: allowLocalDev && policy.pilot === true,
     });
+    validateHostPayloadRefs(host, policy.allowedPayloads, {alias});
   }
 }
 
@@ -369,6 +380,10 @@ export function requireKnownHpcAlias(policy, alias) {
   return host;
 }
 
+export function resolveAllowedPayload(policy, alias, payloadId) {
+  return resolveAllowedPayloadFromCatalog(policy, alias, payloadId);
+}
+
 export function policyAllowsApiBaseUrl(policy, apiBaseUrl, {allowLocalDev = false} = {}) {
   const base = new URL(apiBaseUrl);
   const origin = base.origin;
@@ -447,6 +462,9 @@ export function validateDevelopmentRuntimeConfig(config) {
     throw new Error('development runtime config mode must be local-dev');
   }
   validateAlias(config.hpc);
+  if (config.payloadId !== undefined) {
+    validatePayloadId(config.payloadId);
+  }
   validateSessionId(config.sessionId);
   if (typeof config.relayUrl !== 'string') {
     throw new Error('development runtime config missing relayUrl');

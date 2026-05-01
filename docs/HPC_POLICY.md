@@ -1,13 +1,14 @@
 # Signed HPC Policy
 
-SLAIF Connect treats the HPC policy as trusted data, not executable code. The signed policy is the extension-side authority for SSH target identity and command construction.
+SLAIF Connect treats the HPC policy as trusted data, not executable code. The signed policy is the extension-side authority for SSH target identity, command construction, relay/API origins, and allowed workload payload catalog.
 
 The SLAIF web page and session descriptor must not define or override:
 
 - SSH host or port;
 - SSH host key, host CA, `known_hosts`, or `HostKeyAlias`;
 - SSH options;
-- remote command template or arbitrary shell command.
+- remote command template or arbitrary shell command;
+- payload definitions or site workload profiles.
 
 ## Policy Envelope
 
@@ -29,6 +30,36 @@ Signed policies use ECDSA P-256 with SHA-256. The public trust root is bundled w
     "validUntil": "2026-12-31T23:59:59.000Z",
     "allowedApiOrigins": ["https://connect.slaif.si"],
     "allowedRelayOrigins": ["wss://connect.slaif.si"],
+    "allowedPayloads": {
+      "gpu_diagnostics_v1": {
+        "type": "fast_diagnostic",
+        "scheduler": "slurm",
+        "requiresGpu": true,
+        "maxRuntimeSeconds": 300,
+        "maxOutputBytes": 65536,
+        "resultSchema": "slaif.gpuDiagnosticsResult.v1"
+      },
+      "cpu_memory_diagnostics_v1": {
+        "type": "fast_diagnostic",
+        "scheduler": "slurm",
+        "requiresGpu": false,
+        "maxRuntimeSeconds": 300,
+        "maxOutputBytes": 65536,
+        "resultSchema": "slaif.cpuMemoryDiagnosticsResult.v1"
+      },
+      "gams_chat_v1": {
+        "type": "interactive_llm",
+        "scheduler": "slurm",
+        "model": "cjvt/GaMS3-12B-Instruct",
+        "runtime": "vllm",
+        "requiresGpu": true,
+        "requiresOutboundWorkloadConnection": true,
+        "maxSessionSeconds": 3600,
+        "idleTimeoutSeconds": 300,
+        "maxPromptBytes": 16000,
+        "maxOutputTokens": 1024
+      }
+    },
     "hosts": {
       "vegahpc": {
         "displayName": "Vega HPC",
@@ -38,7 +69,12 @@ Signed policies use ECDSA P-256 with SHA-256. The public trust root is bundled w
         "knownHosts": [
           "vegahpc ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA..."
         ],
-        "remoteCommandTemplate": "/opt/slaif/bin/slaif-launch --session ${SESSION_ID}"
+        "remoteCommandTemplate": "/opt/slaif/bin/slaif-launch --session ${SESSION_ID}",
+        "allowedPayloadIds": [
+          "gpu_diagnostics_v1",
+          "cpu_memory_diagnostics_v1",
+          "gams_chat_v1"
+        ]
       }
     }
   },
@@ -65,6 +101,20 @@ Trust roots are configured separately:
 ```
 
 Production builds must reject unsigned policy, unknown signing keys, malformed signatures, expired policy, not-yet-valid policy, and rollback to older sequence numbers.
+
+## Payload Catalog
+
+Signed policies must include a non-empty `allowedPayloads` object. Each host must explicitly list `allowedPayloadIds`; hosts without that list reject workload payload launches. There is no implicit "all payloads" default.
+
+For the workload MVP, valid normal payload IDs are:
+
+- `gpu_diagnostics_v1`
+- `cpu_memory_diagnostics_v1`
+- `gams_chat_v1`
+
+Each host `allowedPayloadIds` entry must reference a key in `allowedPayloads`. Payload catalog entries are bounded metadata only. They must not contain shell commands, Slurm script text, SSH credentials, tokens, endpoint URLs, or arbitrary command fragments.
+
+See [PAYLOAD_CATALOG.md](PAYLOAD_CATALOG.md) for the catalog contract.
 
 ## Canonical Signing Input
 

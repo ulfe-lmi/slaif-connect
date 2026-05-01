@@ -96,6 +96,25 @@ assertTokenError(() => registry.validateToken(workload.token, {
   metadata: {payloadId: 'gpu_diagnostics_v1'},
 }), 'wrong_payloadId');
 
+const launchWithPayload = registry.issueToken({
+  scope: TOKEN_SCOPES.LAUNCH,
+  sessionId: 'sess_token_test_123',
+  hpc: 'test-sshd',
+  ttlMs: 60000,
+  maxUses: 1,
+  metadata: {payloadId: 'gpu_diagnostics_v1'},
+});
+assert.equal(registry.validateToken(launchWithPayload.token, {
+  scope: TOKEN_SCOPES.LAUNCH,
+  sessionId: 'sess_token_test_123',
+  hpc: 'test-sshd',
+  metadata: {payloadId: 'gpu_diagnostics_v1'},
+}).metadata.payloadId, 'gpu_diagnostics_v1');
+assertTokenError(() => registry.validateToken(launchWithPayload.token, {
+  scope: TOKEN_SCOPES.LAUNCH,
+  metadata: {payloadId: 'gams_chat_v1'},
+}), 'wrong_payloadId');
+
 const expired = registry.issueToken({
   scope: TOKEN_SCOPES.LAUNCH,
   sessionId: 'sess_token_test_123',

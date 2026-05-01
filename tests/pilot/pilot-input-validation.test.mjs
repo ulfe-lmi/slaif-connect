@@ -28,6 +28,12 @@ function validInput(overrides = {}) {
 }
 
 assert.equal(validatePilotInput(validInput()).alias, 'examplehpc');
+assert.deepEqual(validatePilotInput(validInput()).allowedPayloadIds, ['gpu_diagnostics_v1']);
+assert.deepEqual(validatePilotInput(validInput({
+  allowedPayloadIds: ['gpu_diagnostics_v1', 'cpu_memory_diagnostics_v1'],
+})).allowedPayloadIds, ['gpu_diagnostics_v1', 'cpu_memory_diagnostics_v1']);
+assert.throws(() => validatePilotInput(validInput({allowedPayloadIds: []})), /allowedPayloadIds/);
+assert.throws(() => validatePilotInput(validInput({allowedPayloadIds: ['curl_attacker']})), /payloadId/);
 assert.equal(validatePilotInput(validInput({
   verifiedKnownHosts: [`@cert-authority examplehpc ssh-ed25519 ${keyBody('host-ca')}`],
 })).alias, 'examplehpc');

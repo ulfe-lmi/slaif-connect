@@ -5,6 +5,36 @@
     "url": "wss://connect.slaif.si/ssh-relay",
     "sessionDescriptorUrlTemplate": "https://connect.slaif.si/api/connect/session/${SESSION_ID}"
   },
+  "allowedPayloads": {
+    "gpu_diagnostics_v1": {
+      "type": "fast_diagnostic",
+      "scheduler": "slurm",
+      "requiresGpu": true,
+      "maxRuntimeSeconds": 300,
+      "maxOutputBytes": 65536,
+      "resultSchema": "slaif.gpuDiagnosticsResult.v1"
+    },
+    "cpu_memory_diagnostics_v1": {
+      "type": "fast_diagnostic",
+      "scheduler": "slurm",
+      "requiresGpu": false,
+      "maxRuntimeSeconds": 300,
+      "maxOutputBytes": 65536,
+      "resultSchema": "slaif.cpuMemoryDiagnosticsResult.v1"
+    },
+    "gams_chat_v1": {
+      "type": "interactive_llm",
+      "scheduler": "slurm",
+      "model": "cjvt/GaMS3-12B-Instruct",
+      "runtime": "vllm",
+      "requiresGpu": true,
+      "requiresOutboundWorkloadConnection": true,
+      "maxSessionSeconds": 3600,
+      "idleTimeoutSeconds": 300,
+      "maxPromptBytes": 16000,
+      "maxOutputTokens": 1024
+    }
+  },
   "hosts": {
     "stare": {
       "displayName": "LMI STARE host",
@@ -15,6 +45,10 @@
         "# TODO replace with real SSH host key: stare ssh-ed25519 AAAA..."
       ],
       "remoteCommandTemplate": "/opt/slaif/bin/slaif-launch --session ${SESSION_ID}",
+      "allowedPayloadIds": [
+        "gpu_diagnostics_v1",
+        "cpu_memory_diagnostics_v1"
+      ],
       "allowInteractiveTerminal": false
     },
     "arneshpc": {
@@ -26,6 +60,11 @@
         "# TODO replace with real SSH host key: arneshpc ssh-ed25519 AAAA..."
       ],
       "remoteCommandTemplate": "/opt/slaif/bin/slaif-launch --session ${SESSION_ID}",
+      "allowedPayloadIds": [
+        "gpu_diagnostics_v1",
+        "cpu_memory_diagnostics_v1",
+        "gams_chat_v1"
+      ],
       "allowInteractiveTerminal": false
     },
     "vegahpc": {
@@ -37,6 +76,11 @@
         "# TODO replace with real SSH host key or host certificate CA entry"
       ],
       "remoteCommandTemplate": "/opt/slaif/bin/slaif-launch --session ${SESSION_ID}",
+      "allowedPayloadIds": [
+        "gpu_diagnostics_v1",
+        "cpu_memory_diagnostics_v1",
+        "gams_chat_v1"
+      ],
       "allowInteractiveTerminal": false
     },
     "vegahpccpu": {
@@ -48,6 +92,9 @@
         "# TODO replace with real SSH host key or host certificate CA entry"
       ],
       "remoteCommandTemplate": "/opt/slaif/bin/slaif-launch --session ${SESSION_ID}",
+      "allowedPayloadIds": [
+        "cpu_memory_diagnostics_v1"
+      ],
       "allowInteractiveTerminal": false
     },
     "vegahpcgpu": {
@@ -59,6 +106,10 @@
         "# TODO replace with real SSH host key or host certificate CA entry"
       ],
       "remoteCommandTemplate": "/opt/slaif/bin/slaif-launch --session ${SESSION_ID}",
+      "allowedPayloadIds": [
+        "gpu_diagnostics_v1",
+        "gams_chat_v1"
+      ],
       "allowInteractiveTerminal": false
     },
     "test-sshd": {
@@ -71,6 +122,9 @@
         "test-sshd ssh-ed25519 AAAAplaceholder"
       ],
       "remoteCommandTemplate": "/opt/slaif/bin/slaif-launch --session ${SESSION_ID}",
+      "allowedPayloadIds": [
+        "gpu_diagnostics_v1"
+      ],
       "allowInteractiveTerminal": false,
       "developmentOnly": true
     }

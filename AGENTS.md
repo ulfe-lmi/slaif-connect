@@ -186,12 +186,18 @@ command = arbitrary shell text from relay
 Signed policy and site-approved launcher configuration must remain authoritative for:
 
 - allowed payload IDs;
+- allowed payload catalog entries;
 - Slurm templates;
 - resource limits;
 - model/runtime selection;
 - max output size;
 - max runtime;
 - remote command template.
+
+Payload catalog entries must not contain shell commands, Slurm script text,
+SSH credentials, token values, endpoint URLs, or arbitrary command fragments.
+Web launch messages and session descriptors may request or echo `payloadId`,
+but must not override signed-policy payload definitions.
 
 ### 0a.3 GaMS chat rules
 

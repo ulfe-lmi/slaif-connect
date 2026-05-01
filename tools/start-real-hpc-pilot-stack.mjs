@@ -16,6 +16,7 @@ import {
   policyAllowsApiBaseUrl,
   policyAllowsRelayUrl,
   requireKnownHpcAlias,
+  resolveAllowedPayload,
   validatePolicy,
   validateSessionId,
 } from '../extension/js/slaif_policy.js';
@@ -78,6 +79,7 @@ async function startMockPilotWebApiServer({
   host,
   port,
   hpc,
+  payloadId,
   sessionId,
   launchToken,
   relayToken,
@@ -138,6 +140,7 @@ async function startMockPilotWebApiServer({
       type: 'slaif.startSession',
       version: 1,
       hpc: ${JSON.stringify(hpc)},
+      payloadId: ${JSON.stringify(payloadId)},
       sessionId: ${JSON.stringify(sessionId)},
       launchToken: ${JSON.stringify(launchToken)}
     };
@@ -183,6 +186,7 @@ async function startMockPilotWebApiServer({
           scope: TOKEN_SCOPES.LAUNCH,
           sessionId,
           hpc,
+          metadata: {payloadId},
         });
       } catch (_error) {
         audit('descriptor.rejected', {sessionId, hpc, outcome: 'rejected', reason: 'unauthorized'});
@@ -206,6 +210,7 @@ async function startMockPilotWebApiServer({
         version: 1,
         sessionId,
         hpc,
+        payloadId,
         relayUrl,
         relayToken,
         relayTokenExpiresAt,
@@ -236,6 +241,7 @@ async function startMockPilotWebApiServer({
           scope: TOKEN_SCOPES.JOB_REPORT,
           sessionId,
           hpc,
+          metadata: {payloadId},
         });
       } catch (_error) {
         audit('jobReport.rejected', {sessionId, hpc, outcome: 'rejected', reason: 'unauthorized'});
@@ -276,6 +282,7 @@ async function startMockPilotWebApiServer({
             'relayToken',
             'launchToken',
             'jobReportToken',
+            'workloadToken',
           ]) {
             if (Object.hasOwn(report, forbidden)) {
               throw new Error(`forbidden report field ${forbidden}`);
@@ -285,6 +292,7 @@ async function startMockPilotWebApiServer({
             scope: TOKEN_SCOPES.JOB_REPORT,
             sessionId,
             hpc,
+            metadata: {payloadId},
           });
           jobReports.push(report);
           audit('jobReport.accepted', {sessionId, hpc, outcome: 'accepted'});
@@ -376,6 +384,8 @@ export async function startRealHpcPilotStack(options = {}) {
     allowLocalDev: true,
   });
   const policyHost = requireKnownHpcAlias(verified.policy, hpc);
+  const payloadId = options.payloadId || policyHost.allowedPayloadIds?.[0] || 'gpu_diagnostics_v1';
+  resolveAllowedPayload(verified.policy, hpc, payloadId);
 
   const relayUrl = `ws://${host}:${relayPort}/ssh-relay`;
   const webOrigin = `http://${host}:${webPort}`;
@@ -388,6 +398,7 @@ export async function startRealHpcPilotStack(options = {}) {
     hpc,
     ttlMs: tokenTtlMs,
     maxUses: 1,
+    metadata: {payloadId},
   });
   const relayTokenRecord = tokenRegistry.issueToken({
     token: options.relayToken,
@@ -407,6 +418,7 @@ export async function startRealHpcPilotStack(options = {}) {
     hpc,
     ttlMs: tokenTtlMs,
     maxUses: 1,
+    metadata: {payloadId},
   });
 
   let relay = null;
@@ -462,6 +474,7 @@ export async function startRealHpcPilotStack(options = {}) {
       host,
       port: webPort,
       hpc,
+      payloadId,
       sessionId,
       launchToken: launchTokenRecord.token,
       relayToken: relayTokenRecord.token,
@@ -508,6 +521,7 @@ export async function startRealHpcPilotStack(options = {}) {
     const runtimeConfig = {
       mode: 'local-dev',
       hpc,
+      payloadId,
       apiBaseUrl: webApi.apiBaseUrl,
       launcherUrl: webApi.launcherUrl,
       webOrigin: webApi.webOrigin,
@@ -529,6 +543,7 @@ export async function startRealHpcPilotStack(options = {}) {
       policyFingerprint: verified.fingerprint,
       policyHost,
       hpc,
+      payloadId,
       sessionId,
       launchToken: launchTokenRecord.token,
       relayToken: relayTokenRecord.token,
@@ -571,6 +586,7 @@ function usage() {
 Options:
   --relay-port <port>  Local relay port. Default: 18181
   --web-port <port>    Local mock SLAIF web/API port. Default: 18180
+  --payload-id <id>     Policy-approved payloadId. Default: first host allowedPayloadIds entry
   --expected-output <text>  Expected fixed pilot output. Default: slaif-pilot-ok`;
 }
 

@@ -61,6 +61,10 @@ test.describe('SLAIF Connect signed HPC policy enforcement', () => {
     await expectPolicyFailure({tamperSignedPolicy: true}, /signature verification failed/i);
   });
 
+  test('rejects a tampered signed payload catalog', async () => {
+    await expectPolicyFailure({tamperPayloadCatalog: true}, /signature verification failed/i);
+  });
+
   test('rejects a signed policy from an unknown signer', async () => {
     await expectPolicyFailure({wrongPolicySigner: true}, /unknown policy signing key/i);
   });

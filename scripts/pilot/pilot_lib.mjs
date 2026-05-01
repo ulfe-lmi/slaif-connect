@@ -1,6 +1,10 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import {validatePolicy} from '../../extension/js/slaif_policy.js';
+import {
+  buildDefaultPayloadCatalog,
+  validatePayloadId,
+} from '../../server/workloads/payload_catalog.js';
 
 export const PILOT_INPUT_TYPE = 'slaif.hpcPilotInput';
 
@@ -15,8 +19,18 @@ const FORBIDDEN_PILOT_FIELDS = [
   'strictHostKeyChecking',
   'commandFromWeb',
   'allowArbitraryCommand',
+  'command',
+  'shellCommand',
+  'remoteCommand',
+  'sshCommand',
+  'script',
+  'scriptText',
+  'jobScript',
   'launchToken',
   'relayToken',
+  'jobReportToken',
+  'workloadToken',
+  'token',
 ];
 
 export function parseCliArgs(argv, {boolean = []} = {}) {
@@ -172,10 +186,20 @@ export function validatePilotInput(input, {pilotFixedCommand = false} = {}) {
   if (!input.remoteCommandTemplate.includes('${SESSION_ID}') && !pilotFixedCommand) {
     throw new Error('pilot remoteCommandTemplate must include ${SESSION_ID} unless --pilot-fixed-command is set');
   }
+  const allowedPayloadIds = input.allowedPayloadIds === undefined ?
+    ['gpu_diagnostics_v1'] :
+    input.allowedPayloadIds;
+  if (!Array.isArray(allowedPayloadIds) || allowedPayloadIds.length === 0) {
+    throw new Error('pilot allowedPayloadIds must be non-empty');
+  }
+  for (const payloadId of allowedPayloadIds) {
+    validatePayloadId(payloadId);
+  }
   return {
     ...input,
     alias,
     hostKeyAlias: alias,
+    allowedPayloadIds,
   };
 }
 
@@ -204,6 +228,7 @@ export function createPilotPolicyPayload(input, {
     pilot: true,
     allowedApiOrigins: pilot.allowedApiOrigins,
     allowedRelayOrigins: pilot.allowedRelayOrigins,
+    allowedPayloads: buildDefaultPayloadCatalog(),
     hosts: {
       [pilot.alias]: {
         displayName: pilot.displayName,
@@ -212,6 +237,7 @@ export function createPilotPolicyPayload(input, {
         hostKeyAlias: pilot.hostKeyAlias,
         knownHosts: pilot.verifiedKnownHosts,
         remoteCommandTemplate: pilot.remoteCommandTemplate,
+        allowedPayloadIds: pilot.allowedPayloadIds,
         pilotFixedCommand: pilotFixedCommand && !pilot.remoteCommandTemplate.includes('${SESSION_ID}'),
         developmentOnly: pilot.allowedApiOrigins.some((origin) => origin.startsWith('http://127.0.0.1')) ||
             pilot.allowedRelayOrigins.some((origin) => origin.startsWith('ws://127.0.0.1')),

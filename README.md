@@ -38,7 +38,8 @@ Short version:
 - Redis-backed durable token storage is available for shared token state and distributed replay prevention;
 - audit, metrics, observability, and readiness foundations are present for the API/relay reference stack;
 - workload-token and workload runtime protocol foundations are present for outbound Slurm worker communication;
-- the next product phase is payload-driven Slurm workloads: `gpu_diagnostics_v1`, `cpu_memory_diagnostics_v1`, and `gams_chat_v1`;
+- signed HPC policy payload catalog validation is present for `gpu_diagnostics_v1`, `cpu_memory_diagnostics_v1`, and `gams_chat_v1`;
+- the next product phase is remote launcher payload intent and site-approved Slurm profiles;
 - production deployment, real HPC integration, production trust-root operations, and release packaging are still pending.
 
 ## Architecture
@@ -194,6 +195,7 @@ npm run test:pilot
 - [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md): practical threat table.
 - [docs/UPSTREAM_LINKING.md](docs/UPSTREAM_LINKING.md): upstream `libapps` vendoring model.
 - [docs/HPC_POLICY.md](docs/HPC_POLICY.md): signed HPC policy format and tools.
+- [docs/PAYLOAD_CATALOG.md](docs/PAYLOAD_CATALOG.md): signed-policy allowed payload catalog and host-level payload restrictions.
 - [docs/HOST_KEY_ROTATION.md](docs/HOST_KEY_ROTATION.md): host-key and host-CA rotation foundation.
 - [docs/REAL_HPC_PILOT.md](docs/REAL_HPC_PILOT.md): manual real-HPC pilot onboarding flow.
 - [docs/JOB_REPORTING.md](docs/JOB_REPORTING.md): fixed-command scheduler metadata reporting.
@@ -214,4 +216,4 @@ npm run test:pilot
 
 SLAIF Connect is not production-ready yet. Local validation now covers real SSH traffic through the relay, browser-side OpenSSH/WASM startup, strict host-key negative cases, and the product-shaped web launch/session descriptor flow. That is still not the same as deployment against real HPC infrastructure.
 
-The next major product milestone is the normal payload-driven workload path described in [SLAIF_WORKLOAD_MVP.md](SLAIF_WORKLOAD_MVP.md): signed-policy payload catalog, remote launcher payload intent, fast diagnostics, structured results, and the workload registry/broker. Real HPC pilots still require independently verified host-key or host-CA data and a site-approved installed launcher command. Production SLAIF trust roots, Redis/secret/audit/metrics operations, authentication UX, API/relay deployment, and release packaging remain pending.
+The next major product milestone is the normal payload-driven workload path described in [SLAIF_WORKLOAD_MVP.md](SLAIF_WORKLOAD_MVP.md): remote launcher payload intent, fast diagnostics, structured results, and the workload registry/broker. Real HPC pilots still require independently verified host-key or host-CA data and a site-approved installed launcher command. Production SLAIF trust roots, Redis/secret/audit/metrics operations, authentication UX, API/relay deployment, and release packaging remain pending.

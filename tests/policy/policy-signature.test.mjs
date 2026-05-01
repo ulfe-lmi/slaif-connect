@@ -24,6 +24,13 @@ await assert.rejects(
     /signature verification failed/,
 );
 
+const tamperedPayloadCatalog = structuredClone(envelope);
+tamperedPayloadCatalog.payload.allowedPayloads.gpu_diagnostics_v1.maxRuntimeSeconds = 999;
+await assert.rejects(
+    () => verifySignedPolicyEnvelope(tamperedPayloadCatalog, material.trustRoots),
+    /signature verification failed/,
+);
+
 const wrongMaterial = await makeSigningMaterial('other-key');
 await assert.rejects(
     () => verifySignedPolicyEnvelope(envelope, wrongMaterial.trustRoots),
