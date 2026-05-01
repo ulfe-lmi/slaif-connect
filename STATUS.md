@@ -498,6 +498,41 @@ Validation:
 npm run test:workloads
 ```
 
+### 21. Signed-policy payload catalog
+
+Signed HPC policy now includes an `allowedPayloads` catalog and each host must
+explicitly list `allowedPayloadIds`. Launch messages and session descriptors
+carry a `payloadId`, but cannot provide command text, scripts, or payload
+definitions. A launch for `(hpc, payloadId)` is valid only when the payload
+exists in signed policy and the selected host allows that payload.
+
+Initial MVP payload IDs are:
+
+- `gpu_diagnostics_v1`
+- `cpu_memory_diagnostics_v1`
+- `gams_chat_v1`
+
+This is the catalog/validation foundation only. It does not implement remote
+launcher payload-intent lookup, diagnostic payload execution, structured
+diagnostic results, workload broker behavior, remote workload agents, GaMS/vLLM
+serving, real-HPC workload pilots, or YOLO mode.
+
+Main files and docs:
+
+- [extension/js/payload_catalog.js](extension/js/payload_catalog.js)
+- [server/workloads/payload_catalog.js](server/workloads/payload_catalog.js)
+- [extension/js/slaif_policy.js](extension/js/slaif_policy.js)
+- [extension/js/slaif_session_descriptor.js](extension/js/slaif_session_descriptor.js)
+- [tests/workloads/payload-catalog.test.mjs](tests/workloads/payload-catalog.test.mjs)
+- [docs/PAYLOAD_CATALOG.md](docs/PAYLOAD_CATALOG.md)
+
+Validation:
+
+```bash
+npm run test:payload-catalog
+npm run test:policy
+```
+
 ## What Is Validated
 
 | Capability | Status | Evidence / command |
@@ -510,6 +545,7 @@ npm run test:workloads
 | Mock SLAIF API receives safe job metadata report | Working locally | `npm run test:browser:job-reporting` |
 | Payload-driven workload MVP | Direction documented | [SLAIF_WORKLOAD_MVP.md](SLAIF_WORKLOAD_MVP.md); broker/agent implementation pending |
 | Workload token scope and runtime protocol | Working locally at reference/protocol level | `npm run test:workloads` |
+| Signed-policy payload catalog | Working locally | `npm run test:payload-catalog`, `npm run test:policy` |
 | Fast diagnostics payloads | Pending | `gpu_diagnostics_v1` and `cpu_memory_diagnostics_v1` profiles/tests not implemented yet |
 | Interactive GaMS chat payload | Pending | `gams_chat_v1`, workload registry/broker, and worker agent not implemented yet |
 | Remote launcher contract/reference implementation | Working locally | `npm run test:remote-launcher`; browser job-reporting E2E mounts the reference launcher |
@@ -545,11 +581,12 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 - upstream `libapps` is pinned and bundled at build time;
 - files under `third_party/libapps` are upstream-owned and must stay untouched;
 - the relay must not accept arbitrary client-supplied host/port;
-- signed extension-side policy is authoritative for SSH host, port, host-key alias, known hosts / host CA, allowed API/relay origins, and command template;
+- signed extension-side policy is authoritative for SSH host, port, host-key alias, known hosts / host CA, allowed API/relay origins, command template, and allowed payload catalog;
 - host-key verification must happen before user authentication;
 - changed host keys must not be accepted silently;
 - no production trust-on-first-use unless explicitly approved later;
 - no arbitrary web-supplied shell commands;
+- normal workload launches use signed-policy-approved `payloadId` values, not arbitrary command text;
 - no launch-token, relay-token, job-report-token, password, OTP, private-key, or raw SSH payload logging;
 - launch, relay, and job-report tokens must remain scope-separated, short-lived, and not placed in query strings;
 - audit logs and metrics must not include full token values, SSH payloads, terminal transcripts, passwords, OTPs, private keys, or raw command output;
@@ -572,8 +609,9 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 - Local SLURM job metadata reporting is implemented and validated against the local test sshd; this is only the scheduler metadata slice of the workload MVP, and real HPC SLURM reporting is not validated yet.
 - Fast diagnostic payload profiles, structured diagnostic result reporting,
   workload registry/broker behavior, a remote workload agent, and interactive
-  GaMS chat are not implemented yet. Workload-token scope and runtime protocol
-  validators exist at reference/protocol level only.
+  GaMS chat are not implemented yet. Workload-token scope, runtime protocol,
+  and signed-policy payload catalog validators exist at reference/protocol
+  level only.
 - Broader result reporting beyond initial scheduler metadata is not production-integrated.
 - Durable production token storage, distributed replay prevention, infrastructure rate limits, and production audit-log operations have documented contracts and reference validation, but remain production deployment work.
 - Redis durable/shared token-store adapter is implemented and tested for atomic
@@ -587,17 +625,16 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 
 ## Next Milestones
 
-1. Payload catalog in signed policy.
-2. Remote launcher payload intent contract.
-3. Fast diagnostic payload profiles.
-4. Structured diagnostic result reporting.
-5. Workload registry and WebSocket broker.
-6. Remote workload agent skeleton.
-7. GaMS chat fake/model-placeholder flow.
-8. GaMS/vLLM scaffold.
-9. Real-HPC diagnostics pilot.
-10. Real-HPC GaMS pilot.
-11. YOLO mode only after normal payload path is stable.
+1. Remote launcher payload intent contract.
+2. Fast diagnostic payload profiles.
+3. Structured diagnostic result reporting.
+4. Workload registry and WebSocket broker.
+5. Remote workload agent skeleton.
+6. GaMS chat fake/model-placeholder flow.
+7. GaMS/vLLM scaffold.
+8. Real-HPC diagnostics pilot.
+9. Real-HPC GaMS pilot.
+10. YOLO mode only after normal payload path is stable.
 
 Production readiness work remains ongoing alongside these milestones: production
 Redis deployment, production trust-root/signing operations, production

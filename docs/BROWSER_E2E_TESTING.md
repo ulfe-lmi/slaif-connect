@@ -39,13 +39,15 @@ and writes a signed local HPC policy into
 
 The generated signed policy contains the `test-sshd` SSH host, port,
 `HostKeyAlias`, `known_hosts` entry, allowed mock API origin, allowed relay
-origin, and fixed command template. The unsigned runtime config carries launch
-and relay tokens only.
+origin, fixed command template, and the allowed payload catalog. The unsigned
+runtime config carries launch and relay tokens plus the selected `payloadId`;
+it does not carry SSH target details or command text.
 
 The browser test also includes a negative case with an intentionally wrong known_hosts entry. That test expects OpenSSH/WASM to fail host-key verification and verifies that the fixed command output is not observed.
 
-The signed-policy browser tests also reject tampered policy, wrong signer,
-expired policy, and relay-origin mismatch before SSH starts.
+The signed-policy browser tests also reject tampered policy, tampered payload
+catalog, wrong signer, expired policy, and relay-origin mismatch before SSH
+starts.
 
 The browser job-reporting test also verifies that the extension parses the
 SLURM job ID from real remote output and that the mock SLAIF API receives one

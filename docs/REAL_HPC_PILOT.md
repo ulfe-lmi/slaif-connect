@@ -22,6 +22,8 @@ A pilot operator must provide:
 - verified `known_hosts` entry or verified host-CA entry;
 - allowed API origin;
 - allowed relay origin;
+- allowed payload IDs, normally starting with `gpu_diagnostics_v1` or
+  `cpu_memory_diagnostics_v1` for diagnostics;
 - fixed remote command template;
 - optional username hint.
 
@@ -66,6 +68,11 @@ Production-style command templates should normally invoke the remote launcher co
 ```
 
 Pilot tooling supports a fixed no-session command only when `--pilot-fixed-command` is explicitly provided. Do not use destructive commands, do not accept command strings from the web app, and do not allow the session descriptor to define the command.
+
+Pilot policy creation now includes the signed-policy payload catalog and host
+`allowedPayloadIds`. A real pilot should start with a site-approved diagnostic
+payload profile. `payloadId` may select a policy-approved workload profile; it
+must not carry command text, job script text, credentials, or tokens.
 
 ## Installing The Pilot Launcher On HPC
 
@@ -122,6 +129,12 @@ Never install a launcher that executes arbitrary web-provided commands, accepts 
    ```json
    "allowedApiOrigins": ["http://127.0.0.1:18180"],
    "allowedRelayOrigins": ["ws://127.0.0.1:18181"]
+   ```
+
+   Keep `allowedPayloadIds` explicit. For an initial diagnostic pilot, prefer:
+
+   ```json
+   "allowedPayloadIds": ["gpu_diagnostics_v1"]
    ```
 
 4. Create an unsigned policy payload:

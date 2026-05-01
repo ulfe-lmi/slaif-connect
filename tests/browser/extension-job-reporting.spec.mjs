@@ -60,6 +60,7 @@ test.describe('SLAIF Connect SLURM job metadata reporting', () => {
         'relayToken',
         'launchToken',
         'jobReportToken',
+        'workloadToken',
       ]) {
         expect(report).not.toHaveProperty(forbidden);
       }

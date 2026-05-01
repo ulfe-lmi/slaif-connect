@@ -32,6 +32,8 @@ const payload = createPilotPolicyPayload(input, {
 });
 assert.equal(payload.hosts.examplehpc.sshHost, 'login.example.edu');
 assert.equal(payload.hosts.examplehpc.pilotFixedCommand, true);
+assert.equal(payload.allowedPayloads.gpu_diagnostics_v1.type, 'fast_diagnostic');
+assert.deepEqual(payload.hosts.examplehpc.allowedPayloadIds, ['gpu_diagnostics_v1']);
 validatePolicy(payload, {allowLocalDev: true, now: new Date('2026-05-01T00:00:00.000Z')});
 const productionLikeFixedCommandPayload = {
   ...payload,

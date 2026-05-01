@@ -5,6 +5,7 @@ import {
   policyAllowsApiBaseUrl,
   policyAllowsRelayUrl,
   requireKnownHpcAlias,
+  resolveAllowedPayload,
   validateSessionId,
 } from './slaif_policy.js';
 import {
@@ -262,6 +263,9 @@ async function startDevelopmentSession(runtimeConfig) {
   setStatusState('loading-config', 'Loading signed local development SSH policy...');
   const {policy} = await loadPolicyForContext({allowLocalDev: true});
   const policyHost = requireKnownHpcAlias(policy, runtimeConfig.hpc);
+  if (runtimeConfig.payloadId) {
+    resolveAllowedPayload(policy, runtimeConfig.hpc, runtimeConfig.payloadId);
+  }
   policyAllowsApiBaseUrl(policy, runtimeConfig.apiBaseUrl, {allowLocalDev: true});
   policyAllowsRelayUrl(policy, runtimeConfig.relayUrl, {allowLocalDev: true});
   const relay = new SlaifRelay({
@@ -336,6 +340,7 @@ async function main() {
   const policy = verifiedPolicy.policy;
   await rememberProductionPolicy(verifiedPolicy, {allowLocalDev: Boolean(devRuntimeConfig)});
   const policyHost = requireKnownHpcAlias(policy, pending.hpc);
+  resolveAllowedPayload(policy, pending.hpc, pending.payloadId);
   const apiBaseUrl = devRuntimeConfig?.apiBaseUrl || apiBaseUrlFromPolicy(policy);
   policyAllowsApiBaseUrl(policy, apiBaseUrl, {allowLocalDev: Boolean(devRuntimeConfig)});
 

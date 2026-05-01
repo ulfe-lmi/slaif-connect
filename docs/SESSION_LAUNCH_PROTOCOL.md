@@ -8,7 +8,7 @@ This document defines the product-shaped launch boundary for SLAIF Connect.
 2. The SLAIF web page calls `chrome.runtime.sendMessage(extensionId, ...)`.
 3. The extension service worker receives the external message.
 4. The service worker validates the sender origin.
-5. The service worker validates the `hpc` alias and `sessionId`.
+5. The service worker validates the `hpc` alias, `payloadId`, and `sessionId`.
 6. The service worker stores a pending launch in `chrome.storage.session`.
 7. The service worker opens `html/session.html`.
 8. The session page loads the pending launch.
@@ -32,6 +32,7 @@ The web page may send only a launch request:
   "type": "slaif.startSession",
   "version": 1,
   "hpc": "vegahpc",
+  "payloadId": "gpu_diagnostics_v1",
   "sessionId": "sess_abcdefgh",
   "launchToken": "opaque-short-lived-token"
 }
@@ -40,18 +41,22 @@ The web page may send only a launch request:
 Rules:
 
 - `hpc` is an alias only, never a hostname.
+- `payloadId` is required for workload-MVP launch mode.
+- `payloadId` is a signed-policy-approved workload selector, not command text.
 - `sessionId` must pass the strict extension validator.
 - `launchToken` is not an SSH credential. It authorizes fetching one session descriptor.
 - The launch token must not be placed in URLs or logged.
 - The launch token has scope `slaif.launch` and is consumed when the descriptor
   is fetched in the reference implementation.
-- The web page must not provide SSH target details, host keys, SSH options, or commands.
+- The web page must not provide SSH target details, host keys, SSH options, commands, scripts, or payload definitions.
 
 The extension rejects these fields if present in the launch message:
 
 ```text
 sshHost, sshPort, host, port, knownHosts, known_hosts, hostKey,
-hostKeyAlias, command, remoteCommand, sshOptions, relayHost, relayPort
+hostKeyAlias, command, shellCommand, remoteCommand, sshCommand, script,
+scriptText, jobScript, sshOptions, relayHost, relayPort, password, otp,
+privateKey
 ```
 
 ## Session Descriptor
@@ -71,6 +76,7 @@ The descriptor shape is:
   "version": 1,
   "sessionId": "sess_abcdefgh",
   "hpc": "vegahpc",
+  "payloadId": "gpu_diagnostics_v1",
   "relayUrl": "wss://connect.slaif.si/ssh-relay",
   "relayToken": "opaque-short-lived-relay-token",
   "relayTokenExpiresAt": "2026-04-30T12:00:00.000Z",
@@ -85,6 +91,8 @@ Rules:
 
 - Descriptor `hpc` must match the pending launch.
 - Descriptor `sessionId` must match the pending launch.
+- Descriptor `payloadId` must match the pending launch.
+- Descriptor `payloadId` must be allowed by signed policy for the selected HPC alias.
 - `relayToken` is not an SSH credential. It authorizes one relay connection.
 - `relayToken` must be short-lived and session-bound.
 - `relayToken` has scope `slaif.relay` and cannot be reused after a relay
@@ -98,15 +106,16 @@ Rules:
 - Local browser E2E may use `ws://127.0.0.1:<port>` only with local-dev runtime config.
 - Descriptor `relayUrl` origin must be listed in signed policy `allowedRelayOrigins`.
 - Descriptor fetch origin must be listed in signed policy `allowedApiOrigins`.
-- Descriptor fields must not redefine SSH host, SSH port, host key, SSH options, or command.
+- Descriptor fields must not redefine SSH host, SSH port, host key, SSH options, command, script, workload profile, or payload catalog fields.
 
 The extension rejects these fields if present in the descriptor:
 
 ```text
 sshHost, sshPort, host, port, knownHosts, known_hosts, hostKey,
-hostKeyAlias, command, remoteCommand, sshOptions, relayHost, relayPort,
-jobCommand, schedulerCommand, stdoutUploadUrl, transcriptUploadUrl,
-reportUrl, jobReportUrl
+hostKeyAlias, command, shellCommand, remoteCommand, sshCommand, script,
+scriptText, jobScript, sshOptions, relayHost, relayPort, jobCommand,
+schedulerCommand, stdoutUploadUrl, transcriptUploadUrl, reportUrl,
+jobReportUrl, password, otp, privateKey, workloadToken
 ```
 
 Signed extension-side policy remains authoritative for:
@@ -119,7 +128,10 @@ known_hosts / host CA
 allowed API origins
 allowed relay origins
 remote command template
+allowed payload catalog
 ```
+
+Signed policy `allowedPayloads` and host `allowedPayloadIds` determine whether a launch for `(hpc, payloadId)` may proceed. A host with no `allowedPayloadIds` rejects workload payload launches. The payload catalog contract is documented in [PAYLOAD_CATALOG.md](PAYLOAD_CATALOG.md).
 
 The preferred production remote command template is the HPC-side launcher
 contract:

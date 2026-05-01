@@ -15,6 +15,11 @@ reporting. Interactive workloads need a worker process inside the allocation to
 connect outbound to SLAIF over WSS or HTTPS. The first interactive MVP payload
 is `gams_chat_v1`.
 
+Normal workload payloads must be selected by signed-policy-approved
+`payloadId` values. The initial payload catalog is defined in
+[PAYLOAD_CATALOG.md](PAYLOAD_CATALOG.md), and future brokers must reject
+payloads that are not allowed by signed policy for the selected HPC alias.
+
 SLAIF receives application-level prompts and responses by design for
 interactive workloads. SLAIF still must not receive SSH passwords, OTPs, private
 keys, decrypted SSH terminal sessions, or arbitrary shell command authority.

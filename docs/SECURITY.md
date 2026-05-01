@@ -114,9 +114,13 @@ Signed HPC policy is now the authoritative source for:
 - pinned host keys or host CA entries;
 - allowed API origins;
 - allowed relay origins;
-- fixed remote command template.
+- fixed remote command template;
+- allowed payload catalog and host-level `allowedPayloadIds`.
 
-The web launch message and session descriptor cannot override those fields. A compromised web page or API can issue a launch request or descriptor only within the signed policy boundary.
+The web launch message and session descriptor cannot override those fields. They
+may carry a `payloadId`, but that ID must resolve through signed policy and
+must not contain command text. A compromised web page or API can issue a launch
+request or descriptor only within the signed policy boundary.
 
 Real-HPC pilot onboarding uses the same boundary. `ssh-keyscan` output is candidate data only and must be verified out of band before a policy is signed. Pilot tooling must not store SSH credentials, automate password/OTP entry, or let the pilot descriptor define SSH host, host key, SSH options, or command.
 
@@ -208,6 +212,13 @@ The production command should normally target the remote launcher contract
 documented in [REMOTE_LAUNCHER_CONTRACT.md](REMOTE_LAUNCHER_CONTRACT.md). That
 launcher is site-controlled HPC-side code. It must not accept arbitrary commands
 or job scripts from the browser, web app, descriptor, or relay.
+
+Normal workload selection is `payloadId`-based. Signed policy `allowedPayloads`
+and host `allowedPayloadIds` define the initial allowed workload catalog:
+`gpu_diagnostics_v1`, `cpu_memory_diagnostics_v1`, and `gams_chat_v1`. Payload
+catalog entries must not contain shell commands, Slurm script text, SSH
+credentials, tokens, or endpoint overrides. See
+[PAYLOAD_CATALOG.md](PAYLOAD_CATALOG.md).
 
 Session ids must be validated with a strict allowlist pattern before being placed into a command.
 

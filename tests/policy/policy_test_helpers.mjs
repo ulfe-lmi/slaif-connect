@@ -3,6 +3,7 @@ import {
   base64urlEncode,
   canonicalPolicySigningInput,
 } from '../../extension/js/slaif_policy_signature.js';
+import {buildDefaultPayloadCatalog} from '../../server/workloads/payload_catalog.js';
 
 export function validPolicyPayload(overrides = {}) {
   return {
@@ -14,6 +15,7 @@ export function validPolicyPayload(overrides = {}) {
     validUntil: '2027-12-31T23:59:59.000Z',
     allowedApiOrigins: ['https://connect.slaif.si'],
     allowedRelayOrigins: ['wss://connect.slaif.si'],
+    allowedPayloads: buildDefaultPayloadCatalog(),
     hosts: {
       vegahpc: {
         displayName: 'Vega HPC',
@@ -22,6 +24,11 @@ export function validPolicyPayload(overrides = {}) {
         hostKeyAlias: 'vegahpc',
         knownHosts: ['vegahpc ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAplaceholder'],
         remoteCommandTemplate: '/opt/slaif/bin/slaif-launch --session ${SESSION_ID}',
+        allowedPayloadIds: [
+          'gpu_diagnostics_v1',
+          'cpu_memory_diagnostics_v1',
+          'gams_chat_v1',
+        ],
       },
     },
     ...overrides,

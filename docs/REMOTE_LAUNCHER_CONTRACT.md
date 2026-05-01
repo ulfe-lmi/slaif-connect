@@ -30,10 +30,11 @@ SLURM job ID" toward the normal SLAIF workload path:
 sessionId -> session intent -> payloadId -> site-approved Slurm profile -> sbatch
 ```
 
-That evolution is documented in [../SLAIF_WORKLOAD_MVP.md](../SLAIF_WORKLOAD_MVP.md).
+That evolution is documented in [../SLAIF_WORKLOAD_MVP.md](../SLAIF_WORKLOAD_MVP.md)
+and [PAYLOAD_CATALOG.md](PAYLOAD_CATALOG.md).
 It is not permission to accept arbitrary commands. Payload intent must resolve
-to a site-approved profile, and worker nodes must be reached through Slurm
-allocation rather than SSH.
+to a signed-policy-approved payload ID and site-approved profile, and worker
+nodes must be reached through Slurm allocation rather than SSH.
 
 ## Invocation Contract
 

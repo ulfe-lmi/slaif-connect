@@ -8,6 +8,8 @@ The example input file contains placeholders. Replace them only with host-key or
 
 Pilot inputs must never include SSH passwords, OTPs, private keys, passphrases, or arbitrary command strings from the SLAIF web app.
 
+Pilot inputs include explicit `allowedPayloadIds`. These IDs select signed-policy-approved workload profiles such as `gpu_diagnostics_v1`; they are not command text and must not contain Slurm scripts, credentials, or tokens.
+
 Production-style pilot inputs should normally use a fixed launcher command:
 
 ```text

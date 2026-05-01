@@ -14,6 +14,7 @@ import {createMetricsRegistry} from '../server/metrics/metrics_registry.js';
 import {createObservabilityHttpHandler} from '../server/observability/observability_http.js';
 import {createRateLimiter} from '../server/rate_limit/rate_limiter.js';
 import {createTokenRegistry, TOKEN_SCOPES} from '../server/tokens/token_registry.js';
+import {buildDefaultPayloadCatalog} from '../server/workloads/payload_catalog.js';
 import {
   base64urlEncode,
   canonicalPolicySigningInput,
@@ -24,6 +25,7 @@ const defaultRoot = path.resolve(__dirname, '..');
 
 export const DEFAULT_DEV_HPC = 'test-sshd';
 export const DEFAULT_HOST_KEY_ALIAS = 'test-sshd';
+export const DEFAULT_PAYLOAD_ID = 'gpu_diagnostics_v1';
 export const DEFAULT_EXPECTED_JOB_ID = '424242';
 export const DEFAULT_EXPECTED_OUTPUT = `Submitted batch job ${DEFAULT_EXPECTED_JOB_ID}`;
 
@@ -174,6 +176,8 @@ function closeHttpServer(server) {
 async function startMockSlaifWebApiServer({
   host = '127.0.0.1',
   hpc,
+  payloadId,
+  descriptorPayloadId = payloadId,
   sessionId,
   tokenRegistry,
   auditLogger,
@@ -201,6 +205,9 @@ async function startMockSlaifWebApiServer({
         routeRequest();
       }
     }).catch((error) => {
+      if (res.headersSent || res.writableEnded) {
+        return;
+      }
       res.writeHead(500, {'Content-Type': 'application/json'});
       res.end(JSON.stringify({error: error.code || 'observability_error'}));
     });
@@ -238,6 +245,7 @@ async function startMockSlaifWebApiServer({
       type: 'slaif.startSession',
       version: 1,
       hpc: ${JSON.stringify(hpc)},
+      payloadId: ${JSON.stringify(payloadId)},
       sessionId: ${JSON.stringify(sessionId)},
       launchToken: ${JSON.stringify(launchToken)}
     };
@@ -289,6 +297,7 @@ async function startMockSlaifWebApiServer({
           scope: TOKEN_SCOPES.LAUNCH,
           sessionId,
           hpc,
+          metadata: {payloadId},
         });
       } catch (_error) {
         audit('descriptor.rejected', {sessionId, hpc, outcome: 'rejected', reason: 'unauthorized'});
@@ -313,6 +322,7 @@ async function startMockSlaifWebApiServer({
         version: 1,
         sessionId,
         hpc,
+        payloadId: descriptorPayloadId,
         relayUrl,
         relayToken: relayTokenRecord.token,
         relayTokenExpiresAt: relayTokenExpiresAtOverride || relayTokenRecord.expiresAt,
@@ -344,6 +354,7 @@ async function startMockSlaifWebApiServer({
           scope: TOKEN_SCOPES.JOB_REPORT,
           sessionId,
           hpc,
+          metadata: {payloadId},
         });
       } catch (_error) {
         audit('jobReport.rejected', {sessionId, hpc, outcome: 'rejected', reason: 'unauthorized'});
@@ -389,6 +400,7 @@ async function startMockSlaifWebApiServer({
             'relayToken',
             'launchToken',
             'jobReportToken',
+            'workloadToken',
           ]) {
             if (Object.hasOwn(report, forbidden)) {
               throw new Error(`forbidden report field ${forbidden}`);
@@ -414,6 +426,7 @@ async function startMockSlaifWebApiServer({
           scope: TOKEN_SCOPES.JOB_REPORT,
           sessionId,
           hpc,
+          metadata: {payloadId},
         });
         jobReports.push(report);
         audit('jobReport.accepted', {sessionId, hpc, outcome: 'accepted'});
@@ -439,6 +452,7 @@ async function startMockSlaifWebApiServer({
           scope: TOKEN_SCOPES.LAUNCH,
           sessionId,
           hpc,
+          metadata: {payloadId},
         });
         res.writeHead(200, {'Content-Type': 'application/json'});
         res.end(JSON.stringify({ok: true}));
@@ -456,6 +470,7 @@ async function startMockSlaifWebApiServer({
           scope: TOKEN_SCOPES.JOB_REPORT,
           sessionId,
           hpc,
+          metadata: {payloadId},
         });
         res.writeHead(200, {'Content-Type': 'application/json'});
         res.end(JSON.stringify({ok: true}));
@@ -504,6 +519,7 @@ export async function startExtensionDevStack(options = {}) {
   const root = options.root || defaultRoot;
   const buildDir = options.buildDir || path.join(root, 'build/extension');
   const hpc = options.hpc || DEFAULT_DEV_HPC;
+  const payloadId = options.payloadId || DEFAULT_PAYLOAD_ID;
   const hostKeyAlias = options.hostKeyAlias || DEFAULT_HOST_KEY_ALIAS;
   const expectedOutput = options.expectedOutput || DEFAULT_EXPECTED_OUTPUT;
   const expectedJobId = options.expectedJobId || DEFAULT_EXPECTED_JOB_ID;
@@ -626,6 +642,7 @@ export async function startExtensionDevStack(options = {}) {
       hpc,
       ttlMs: tokenTtlMs,
       maxUses: 1,
+      metadata: {payloadId},
     });
     const relayTokenRecord = tokenRegistry.issueToken({
       token: options.relayToken,
@@ -645,10 +662,13 @@ export async function startExtensionDevStack(options = {}) {
       hpc,
       ttlMs: tokenTtlMs,
       maxUses: 1,
+      metadata: {payloadId},
     });
 
     webApi = await startMockSlaifWebApiServer({
       hpc,
+      payloadId,
+      descriptorPayloadId: options.descriptorPayloadIdOverride || payloadId,
       sessionId,
       tokenRegistry,
       auditLogger,
@@ -698,6 +718,7 @@ export async function startExtensionDevStack(options = {}) {
     const runtimeConfig = {
       mode: 'local-dev',
       hpc,
+      payloadId,
       apiBaseUrl: webApi.apiBaseUrl,
       launcherUrl: webApi.launcherUrl,
       webOrigin: webApi.webOrigin,
@@ -735,6 +756,7 @@ export async function startExtensionDevStack(options = {}) {
       allowedRelayOrigins: [
         options.relayOriginMismatch ? 'ws://127.0.0.1:1' : new URL(relayUrl).origin,
       ],
+      allowedPayloads: buildDefaultPayloadCatalog(),
       hosts: {
         [hpc]: {
           displayName: 'Local development test sshd',
@@ -746,6 +768,7 @@ export async function startExtensionDevStack(options = {}) {
             '/bin/sh -lc "printf \'SLAIF session ${SESSION_ID}\\n\'"' :
             `SLAIF_LAUNCHER_TEST_JOB_ID=${expectedJobId} /keys/slaif-launch --session ${'${SESSION_ID}'}`,
           allowInteractiveTerminal: false,
+          allowedPayloadIds: options.allowedPayloadIds || [payloadId],
           developmentOnly: true,
         },
       },
@@ -757,6 +780,9 @@ export async function startExtensionDevStack(options = {}) {
     const signedPolicy = await signPolicyPayload(policyPayload, policyKeyMaterial);
     if (options.tamperSignedPolicy) {
       signedPolicy.payload.hosts[hpc].remoteCommandTemplate = 'printf tampered-policy';
+    }
+    if (options.tamperPayloadCatalog) {
+      signedPolicy.payload.allowedPayloads[payloadId].maxRuntimeSeconds = 999;
     }
 
     fs.mkdirSync(path.dirname(configPath), {recursive: true});
