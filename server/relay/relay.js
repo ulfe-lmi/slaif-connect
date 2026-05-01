@@ -187,6 +187,7 @@ export function createRelayServer(options = {}) {
     path = '/ssh-relay',
     logger = console,
     auditLogger = createAuditLogger({logger}),
+    metricsRegistry = null,
     connectTcp = defaultConnectTcp,
     tokenOptions = {},
     maxAuthMessageBytes = DEFAULT_MAX_AUTH_MESSAGE_BYTES,
@@ -208,6 +209,22 @@ export function createRelayServer(options = {}) {
 
   const wss = new WebSocketServer({server, path});
   const activeConnections = new Map();
+
+  function metric(name, labels = {}, value = 1) {
+    metricsRegistry?.increment?.(name, labels, value);
+  }
+
+  function gauge(name, labels = {}, value = 0) {
+    metricsRegistry?.setGauge?.(name, labels, value);
+  }
+
+  function observe(name, labels = {}, value = 0) {
+    metricsRegistry?.observeHistogram?.(name, labels, value);
+  }
+
+  function audit(type, fields = {}) {
+    auditLogger?.event?.(type, fields);
+  }
 
   function incrementActive(session) {
     if (!session?.sessionId || !session?.hpc) {
@@ -243,10 +260,15 @@ export function createRelayServer(options = {}) {
     let closed = false;
     let idleTimer = null;
     let maxConnectionTimer = null;
+    let connectedAt = null;
+    let wsToTcpBytes = 0;
+    let tcpToWsBytes = 0;
     const remoteAddress = req.socket.remoteAddress;
 
     const unauthenticatedTimer = setTimeout(() => {
-      auditLogger.event('relay.auth_timeout', {remoteAddress});
+      audit('relay.auth_timeout', {remoteAddress});
+      audit('relay.timeout', {remoteAddress, reason: 'auth_timeout', outcome: 'rejected'});
+      metric('slaif_relay_timeouts_total', {reason: 'auth_timeout'});
       safeClose(ws, 1008, 'auth_timeout');
     }, unauthenticatedTimeoutMs);
 
@@ -262,11 +284,19 @@ export function createRelayServer(options = {}) {
       }
       clearTimeout(idleTimer);
       idleTimer = setTimeout(() => {
-        auditLogger.event('relay.idle_timeout', {
+        audit('relay.idle_timeout', {
           sessionId: session?.sessionId,
           hpc: session?.hpc,
           tokenFingerprint: session?.tokenFingerprint,
         });
+        audit('relay.timeout', {
+          sessionId: session?.sessionId,
+          hpc: session?.hpc,
+          tokenFingerprint: session?.tokenFingerprint,
+          reason: 'idle_timeout',
+          outcome: 'closed',
+        });
+        metric('slaif_relay_timeouts_total', {reason: 'idle_timeout'});
         safeClose(ws, 1000, 'idle_timeout');
       }, idleTimeoutMs);
     }
@@ -276,33 +306,57 @@ export function createRelayServer(options = {}) {
         return;
       }
       maxConnectionTimer = setTimeout(() => {
-        auditLogger.event('relay.max_lifetime_exceeded', {
+        audit('relay.max_lifetime_exceeded', {
           sessionId: session?.sessionId,
           hpc: session?.hpc,
           tokenFingerprint: session?.tokenFingerprint,
         });
+        audit('relay.timeout', {
+          sessionId: session?.sessionId,
+          hpc: session?.hpc,
+          tokenFingerprint: session?.tokenFingerprint,
+          reason: 'max_lifetime_exceeded',
+          outcome: 'closed',
+        });
+        metric('slaif_relay_timeouts_total', {reason: 'max_lifetime_exceeded'});
         safeClose(ws, 1000, 'max_lifetime_exceeded');
       }, maxConnectionMs);
     }
 
-    auditLogger.event('relay.connection_open', {remoteAddress});
+    audit('relay.connection_open', {remoteAddress});
 
     ws.on('message', async (message, isBinary) => {
       try {
         if (!authed) {
+          audit('relay.auth.started', {remoteAddress, outcome: 'started'});
           if (isBinary) {
-            auditLogger.event('relay.auth_rejected', {
+            audit('relay.auth_rejected', {
               remoteAddress,
               errorCode: 'auth_required',
             });
+            audit('relay.auth.rejected', {
+              remoteAddress,
+              outcome: 'rejected',
+              reason: 'auth_required',
+            });
+            metric('slaif_relay_auth_total', {outcome: 'rejected', reason: 'auth_required'});
             safeClose(ws, 1008, 'auth_required');
             return;
           }
 
           if (Buffer.byteLength(message) > maxAuthMessageBytes) {
-            auditLogger.event('relay.auth_rejected', {
+            audit('relay.auth_rejected', {
               remoteAddress,
               errorCode: 'auth_message_too_large',
+            });
+            audit('relay.auth.rejected', {
+              remoteAddress,
+              outcome: 'rejected',
+              reason: 'auth_message_too_large',
+            });
+            metric('slaif_relay_auth_total', {
+              outcome: 'rejected',
+              reason: 'auth_message_too_large',
             });
             safeClose(ws, 1009, 'auth_message_too_large');
             return;
@@ -312,27 +366,48 @@ export function createRelayServer(options = {}) {
           try {
             auth = JSON.parse(message.toString('utf8'));
           } catch (_e) {
-            auditLogger.event('relay.auth_rejected', {
+            audit('relay.auth_rejected', {
               remoteAddress,
               errorCode: 'bad_auth_json',
             });
+            audit('relay.auth.rejected', {
+              remoteAddress,
+              outcome: 'rejected',
+              reason: 'bad_auth_json',
+            });
+            metric('slaif_relay_auth_total', {outcome: 'rejected', reason: 'bad_auth_json'});
             safeClose(ws, 1008, 'bad_auth_json');
             return;
           }
 
           if (!auth || auth.type !== 'auth') {
-            auditLogger.event('relay.auth_rejected', {
+            audit('relay.auth_rejected', {
               remoteAddress,
               errorCode: 'bad_auth_type',
             });
+            audit('relay.auth.rejected', {
+              remoteAddress,
+              outcome: 'rejected',
+              reason: 'bad_auth_type',
+            });
+            metric('slaif_relay_auth_total', {outcome: 'rejected', reason: 'bad_auth_type'});
             safeClose(ws, 1008, 'bad_auth_type');
             return;
           }
 
           if ('host' in auth || 'port' in auth || 'target' in auth) {
-            auditLogger.event('relay.auth_rejected', {
+            audit('relay.auth_rejected', {
               remoteAddress,
               errorCode: 'client_target_not_allowed',
+            });
+            audit('relay.auth.rejected', {
+              remoteAddress,
+              outcome: 'rejected',
+              reason: 'client_target_not_allowed',
+            });
+            metric('slaif_relay_auth_total', {
+              outcome: 'rejected',
+              reason: 'client_target_not_allowed',
             });
             safeClose(ws, 1008, 'client_target_not_allowed');
             return;
@@ -347,19 +422,36 @@ export function createRelayServer(options = {}) {
             const errorCode = error instanceof TokenRegistryError ?
               error.code :
               'invalid_or_expired_token';
-            auditLogger.event('relay.auth_rejected', {
+            audit('relay.auth_rejected', {
               remoteAddress,
               errorCode,
               token: auth.relayToken,
             });
+            audit('relay.auth.rejected', {
+              remoteAddress,
+              outcome: 'rejected',
+              reason: errorCode,
+              token: auth.relayToken,
+            });
+            metric('slaif_relay_auth_total', {outcome: 'rejected', reason: errorCode});
             safeClose(ws, 1008, errorCode);
             return;
           }
           if (!session || session.expiresAt < Date.now()) {
-            auditLogger.event('relay.auth_rejected', {
+            audit('relay.auth_rejected', {
               remoteAddress,
               errorCode: 'invalid_or_expired_token',
               token: auth.relayToken,
+            });
+            audit('relay.auth.rejected', {
+              remoteAddress,
+              outcome: 'rejected',
+              reason: 'invalid_or_expired_token',
+              token: auth.relayToken,
+            });
+            metric('slaif_relay_auth_total', {
+              outcome: 'rejected',
+              reason: 'invalid_or_expired_token',
             });
             safeClose(ws, 1008, 'invalid_or_expired_token');
             return;
@@ -367,12 +459,20 @@ export function createRelayServer(options = {}) {
 
           target = targetForSession(session, allowedHosts);
           if (!target) {
-            auditLogger.event('relay.auth_rejected', {
+            audit('relay.auth_rejected', {
               sessionId: session.sessionId,
               hpc: session.hpc,
               tokenFingerprint: session.tokenFingerprint,
               errorCode: 'target_not_allowed',
             });
+            audit('relay.auth.rejected', {
+              sessionId: session.sessionId,
+              hpc: session.hpc,
+              tokenFingerprint: session.tokenFingerprint,
+              outcome: 'rejected',
+              reason: 'target_not_allowed',
+            });
+            metric('slaif_relay_auth_total', {outcome: 'rejected', reason: 'target_not_allowed'});
             safeClose(ws, 1008, 'target_not_allowed');
             return;
           }
@@ -380,11 +480,22 @@ export function createRelayServer(options = {}) {
           try {
             activeKey = incrementActive(session);
           } catch (_error) {
-            auditLogger.event('relay.auth_rejected', {
+            audit('relay.auth_rejected', {
               sessionId: session.sessionId,
               hpc: session.hpc,
               tokenFingerprint: session.tokenFingerprint,
               errorCode: 'connection_limit_exceeded',
+            });
+            audit('relay.auth.rejected', {
+              sessionId: session.sessionId,
+              hpc: session.hpc,
+              tokenFingerprint: session.tokenFingerprint,
+              outcome: 'rejected',
+              reason: 'connection_limit_exceeded',
+            });
+            metric('slaif_relay_auth_total', {
+              outcome: 'rejected',
+              reason: 'connection_limit_exceeded',
             });
             safeClose(ws, 1008, 'connection_limit_exceeded');
             return;
@@ -395,11 +506,18 @@ export function createRelayServer(options = {}) {
           } catch (error) {
             decrementActive(activeKey);
             activeKey = null;
-            auditLogger.event('relay.tcp_connect_failed', {
+            audit('relay.tcp_connect_failed', {
               sessionId: session.sessionId,
               hpc: target.alias,
               tokenFingerprint: session.tokenFingerprint,
               errorCode: error.code || 'tcp_connect_failed',
+            });
+            audit('relay.error', {
+              sessionId: session.sessionId,
+              hpc: target.alias,
+              tokenFingerprint: session.tokenFingerprint,
+              outcome: 'rejected',
+              reason: error.code || 'tcp_connect_failed',
             });
             safeClose(ws, 1011, 'tcp_connect_failed');
             return;
@@ -407,6 +525,8 @@ export function createRelayServer(options = {}) {
 
           tcp.on('data', (chunk) => {
             resetIdleTimer();
+            tcpToWsBytes += chunk.length;
+            metric('slaif_relay_bytes_total', {direction: 'tcp_to_ws'}, chunk.length);
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(chunk, {binary: true});
             }
@@ -421,18 +541,30 @@ export function createRelayServer(options = {}) {
           });
 
           authed = true;
+          connectedAt = Date.now();
           clearTimeout(unauthenticatedTimer);
           startMaxConnectionTimer();
           resetIdleTimer();
           ws.send(JSON.stringify({type: 'ok'}));
 
-          auditLogger.event('relay.connected', {
+          audit('relay.auth.accepted', {
+            sessionId: session.sessionId,
+            hpc: target.alias,
+            tokenFingerprint: session.tokenFingerprint,
+            origin: req.headers.origin || undefined,
+            remoteAddress,
+            outcome: 'accepted',
+          });
+          audit('relay.connected', {
             sessionId: session.sessionId,
             hpc: target.alias,
             tokenFingerprint: session.tokenFingerprint,
             origin: req.headers.origin || undefined,
             remoteAddress,
           });
+          metric('slaif_relay_auth_total', {outcome: 'accepted'});
+          metric('slaif_relay_connections_total', {outcome: 'connected'});
+          gauge('slaif_relay_active_connections', {}, activeConnections.size);
           return;
         }
 
@@ -448,9 +580,11 @@ export function createRelayServer(options = {}) {
 
         // SSH payload bytes are opaque to the relay and must never be logged.
         resetIdleTimer();
+        wsToTcpBytes += Buffer.byteLength(message);
+        metric('slaif_relay_bytes_total', {direction: 'ws_to_tcp'}, Buffer.byteLength(message));
         tcp.write(Buffer.from(message));
       } catch (error) {
-        auditLogger.event('relay.error', {
+        audit('relay.error', {
           sessionId: session?.sessionId,
           hpc: session?.hpc,
           tokenFingerprint: session?.tokenFingerprint,
@@ -467,13 +601,27 @@ export function createRelayServer(options = {}) {
       closed = true;
       clearTimers();
       decrementActive(activeKey);
+      gauge('slaif_relay_active_connections', {}, activeConnections.size);
       if (tcp && !tcp.destroyed) {
         tcp.destroy();
       }
-      auditLogger.event('relay.connection_close', {
+      if (connectedAt) {
+        observe('slaif_relay_connection_duration_seconds', {}, (Date.now() - connectedAt) / 1000);
+      }
+      audit('relay.connection_close', {
         sessionId: session?.sessionId,
         hpc: session?.hpc,
         tokenFingerprint: session?.tokenFingerprint,
+      });
+      audit('relay.closed', {
+        sessionId: session?.sessionId,
+        hpc: session?.hpc,
+        tokenFingerprint: session?.tokenFingerprint,
+        outcome: 'closed',
+        metadata: {
+          wsToTcpBytes,
+          tcpToWsBytes,
+        },
       });
     });
   });

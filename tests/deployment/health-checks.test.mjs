@@ -4,6 +4,8 @@ import {loadDeploymentConfig} from '../../server/config/deployment_config.js';
 import {createTokenStore} from '../../server/tokens/token_store.js';
 import {createRateLimiter} from '../../server/rate_limit/rate_limiter.js';
 import {createAuditLogger} from '../../server/logging/audit_log.js';
+import {createMemoryAuditSink} from '../../server/logging/audit_sink.js';
+import {createMetricsRegistry} from '../../server/metrics/metrics_registry.js';
 
 const health = buildHealthz({clock: () => new Date('2026-04-30T12:00:00.000Z')});
 assert.deepEqual(health, {
@@ -27,12 +29,16 @@ const config = loadDeploymentConfig({
 });
 
 const logs = [];
+const auditSink = createMemoryAuditSink();
+const metricsRegistry = createMetricsRegistry({environment: 'test'});
 const ready = await evaluateReadiness({
   deploymentConfig: config,
   tokenStore: createTokenStore({mode: 'memory'}),
   rateLimiter: createRateLimiter({mode: 'memory'}),
   relayAllowlist: {'test-sshd': {host: '127.0.0.1', port: 22}},
   auditLogger: createAuditLogger({logger: {info: (line) => logs.push(line)}}),
+  auditSink,
+  metricsRegistry,
   requireSignedPolicy: true,
   requireTrustRoots: true,
 });
@@ -45,11 +51,34 @@ const notReady = await evaluateReadiness({
   rateLimiter: createRateLimiter({mode: 'memory'}),
   relayAllowlist: {},
   auditLogger: null,
+  metricsRegistry,
   requireSignedPolicy: true,
 });
 assert.equal(notReady.ok, false);
 assert(notReady.checks.some((check) => check.name === 'relay_allowlist' && !check.ok));
 assert(notReady.checks.some((check) => check.errorCode === 'signed_policy_missing'));
 assert.equal(JSON.stringify(notReady).includes('secret-token-value'), false);
+
+const unhealthyAudit = await evaluateReadiness({
+  deploymentConfig: config,
+  tokenStore: createTokenStore({mode: 'memory'}),
+  rateLimiter: createRateLimiter({mode: 'memory'}),
+  relayAllowlist: {'test-sshd': {host: '127.0.0.1', port: 22}},
+  auditSink: {healthCheck: () => ({ok: false, errorCode: 'audit_sink_down'})},
+  metricsRegistry,
+});
+assert.equal(unhealthyAudit.ok, false);
+assert(unhealthyAudit.checks.some((check) => check.errorCode === 'audit_sink_down'));
+
+const unhealthyMetrics = await evaluateReadiness({
+  deploymentConfig: config,
+  tokenStore: createTokenStore({mode: 'memory'}),
+  rateLimiter: createRateLimiter({mode: 'memory'}),
+  relayAllowlist: {'test-sshd': {host: '127.0.0.1', port: 22}},
+  auditLogger: createAuditLogger({sink: auditSink}),
+  metricsRegistry: {healthCheck: () => ({ok: false, errorCode: 'metrics_down'})},
+});
+assert.equal(unhealthyMetrics.ok, false);
+assert(unhealthyMetrics.checks.some((check) => check.errorCode === 'metrics_down'));
 
 console.log('health checks tests OK');

@@ -64,6 +64,7 @@ npm run test:browser:launch-flow
 npm run test:browser:signed-policy
 npm run test:browser:job-reporting
 npm run test:browser:tokens
+npm run test:browser:observability
 ```
 
 The job-reporting browser test uses the generated signed local-dev policy to run the reference remote launcher mounted into the test sshd container. Success requires both real browser-side SSH output and a received metadata report at the mock SLAIF API.
@@ -72,6 +73,11 @@ The token lifecycle browser test uses the same real browser-side SSH path and
 then verifies one-use behavior for launch, relay, and job-report tokens. It also
 covers expired relay-token and wrong-scope relay-token rejection without
 accepting mocked SSH success.
+
+The observability browser smoke test uses the same real browser-side SSH path,
+then fetches local `/metrics` and inspects the in-memory audit sink. It verifies
+descriptor, relay, token, and job-report observability without exposing full
+token values, SSH payloads, credentials, transcripts, or raw command output.
 
 `npm test` intentionally does not require Playwright or Chromium. Browser validation is explicit because it needs Chromium, Docker, and the generated extension build.
 
@@ -132,7 +138,8 @@ not an SSH credential and must not be logged or placed in URLs.
 
 See [TOKEN_LIFECYCLE.md](TOKEN_LIFECYCLE.md) and
 [RELAY_HARDENING.md](RELAY_HARDENING.md) for the token and relay controls
-validated outside the browser suite.
+validated outside the browser suite. See [OBSERVABILITY.md](OBSERVABILITY.md)
+for audit and metrics privacy rules.
 
 Browser E2E proves local product-path behavior. Production API/relay deployment
 still requires the contract and checklist in

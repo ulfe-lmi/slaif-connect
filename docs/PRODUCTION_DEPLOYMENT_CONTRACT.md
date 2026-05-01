@@ -9,7 +9,7 @@ API and relay:
 - WebSocket-to-TCP relay endpoint;
 - job report endpoint;
 - token issuance, validation, expiry, and replay prevention;
-- audit-safe logging;
+- audit-safe logging and metrics exposition;
 - operational health and readiness checks.
 
 This repository provides reference code and validation for the contract. This
@@ -88,9 +88,9 @@ Liveness only. It means the process is alive.
 ### `GET /readyz`
 
 Readiness means deployment configuration is valid, token store is reachable,
-rate-limit dependency is ready, relay allowlist is loaded, audit logging is
-configured, required policy/trust-root files are configured, and unsafe
-production config has been rejected.
+rate-limit dependency is ready, relay allowlist is loaded, audit sink and
+metrics registry are healthy, required policy/trust-root files are configured,
+and unsafe production config has been rejected.
 
 ## Durable Token Storage
 
@@ -151,23 +151,33 @@ The reference package includes a memory rate limiter for development/test and
 an explicit external placeholder. Production must use infrastructure-backed
 rate limiting unless a single-instance pilot exception is explicitly approved.
 
-## Audit-Safe Logging
+## Audit-Safe Logging And Metrics
 
 Required event types include:
 
-- `descriptor_requested`
-- `descriptor_issued`
-- `descriptor_rejected`
-- `relay_auth_started`
-- `relay_auth_accepted`
-- `relay_auth_rejected`
-- `relay_connected`
-- `relay_closed`
-- `job_report_received`
-- `job_report_rejected`
-- `token_rejected`
-- `policy_config_loaded`
-- `readiness_failed`
+- `descriptor.requested`
+- `descriptor.issued`
+- `descriptor.rejected`
+- `token.issued`
+- `token.validated`
+- `token.consumed`
+- `token.rejected`
+- `token.revoked`
+- `relay.auth.started`
+- `relay.auth.accepted`
+- `relay.auth.rejected`
+- `relay.connected`
+- `relay.closed`
+- `relay.timeout`
+- `relay.error`
+- `jobReport.received`
+- `jobReport.accepted`
+- `jobReport.rejected`
+- `rateLimit.rejected`
+- `config.loaded`
+- `config.rejected`
+- `health.ready`
+- `health.notReady`
 
 Rules:
 
@@ -180,6 +190,12 @@ Rules:
 - retain logs according to site policy;
 - redact payload-like fields.
 
+Metrics must be aggregate and low-cardinality. Prometheus-style metrics may use
+labels such as `outcome`, `reason`, `scope`, `route`, `environment`, and
+`tokenStoreType`. Metrics must not use session IDs, raw tokens, token
+fingerprints, usernames, passwords, OTPs, private keys, SSH payloads,
+transcripts, stdout, stderr, or raw command output as labels.
+
 ## Health and Readiness
 
 `/healthz` reports only that the process is alive.
@@ -189,6 +205,7 @@ is missing:
 
 - deployment configuration valid;
 - token store reachable;
+- metrics registry healthy;
 - signed policy and trust roots configured where required;
 - relay target allowlist loaded;
 - audit sink configured, or degraded mode explicitly approved;
@@ -213,8 +230,15 @@ SLAIF_REDIS_KEY_PREFIX
 SLAIF_REDIS_CONNECT_TIMEOUT_MS
 SLAIF_REDIS_COMMAND_TIMEOUT_MS
 SLAIF_REDIS_TLS_ENABLED
-SLAIF_AUDIT_LOG_MODE=stdout|file|external|disabled
+SLAIF_AUDIT_LOG_MODE=stdout|file|memory|external|disabled
 SLAIF_AUDIT_LOG_PATH
+SLAIF_AUDIT_INCLUDE_SESSION_ID
+SLAIF_METRICS_MODE=prometheus|external|disabled
+SLAIF_METRICS_PATH
+SLAIF_HEALTH_PATH
+SLAIF_READY_PATH
+SLAIF_METRICS_INCLUDE_HPC_LABEL
+SLAIF_OBSERVABILITY_ENV_LABEL
 SLAIF_RELAY_MAX_AUTH_BYTES
 SLAIF_RELAY_UNAUTH_TIMEOUT_MS
 SLAIF_RELAY_IDLE_TIMEOUT_MS
@@ -229,6 +253,8 @@ Production must reject:
 
 - memory token store unless explicitly labeled single-instance pilot mode;
 - disabled rate limiting;
+- disabled production metrics unless an explicitly external monitoring path is configured;
+- memory audit sink in production unless explicitly labeled single-instance pilot mode;
 - `http://` API base URLs;
 - `ws://` relay public URLs;
 - wildcard web origins;
@@ -246,7 +272,7 @@ Future work remains:
 - Postgres token-store adapter, if Postgres is selected later;
 - production secret management;
 - production policy signing key custody;
-- production observability and audit integration;
+- production audit sink deployment and metrics scrape/alerting integration;
 - institutional audit retention policy;
 - infrastructure firewall rules;
 - real-HPC pilot validation;

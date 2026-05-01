@@ -78,8 +78,22 @@ export function createTokenRegistry(options = {}) {
   const {
     clock = () => Date.now(),
     tokenPrefix = 'slaif_tok',
+    auditLogger = null,
+    metricsRegistry = null,
+    tokenStoreType = 'memory',
   } = options;
   const records = new Map();
+
+  function audit(event, fields = {}) {
+    auditLogger?.event?.(event, fields);
+  }
+
+  function metric(name, labels = {}) {
+    metricsRegistry?.increment?.(name, {
+      tokenStoreType,
+      ...labels,
+    });
+  }
 
   function lookup(token) {
     if (typeof token !== 'string' || token.length < 16 || token.length > 4096) {
@@ -153,6 +167,14 @@ export function createTokenRegistry(options = {}) {
         fingerprint: getSafeTokenFingerprint(value),
       };
       records.set(hash, record);
+      audit('token.issued', {
+        scope,
+        sessionId: record.sessionId,
+        hpc: record.hpc,
+        tokenFingerprint: record.fingerprint,
+        outcome: 'issued',
+      });
+      metric('slaif_tokens_issued_total', {scope, outcome: 'issued'});
       return {
         token: value,
         fingerprint: record.fingerprint,
@@ -162,16 +184,65 @@ export function createTokenRegistry(options = {}) {
     },
 
     validateToken(token, expected = {}) {
-      const {record} = lookup(token);
-      checkRecord(record, expected);
-      return cloneRecord(record);
+      try {
+        const {record} = lookup(token);
+        checkRecord(record, expected);
+        audit('token.validated', {
+          scope: record.scope,
+          sessionId: record.sessionId,
+          hpc: record.hpc,
+          tokenFingerprint: record.fingerprint,
+          outcome: 'accepted',
+        });
+        return cloneRecord(record);
+      } catch (error) {
+        audit('token.rejected', {
+          scope: expected.scope,
+          sessionId: expected.sessionId,
+          hpc: expected.hpc,
+          tokenFingerprint: getSafeTokenFingerprint(token),
+          outcome: 'rejected',
+          reason: error.code || 'token_validation_failed',
+        });
+        metric('slaif_tokens_rejected_total', {
+          scope: expected.scope || 'unknown',
+          outcome: 'rejected',
+          reason: error.code || 'token_validation_failed',
+        });
+        throw error;
+      }
     },
 
     consumeToken(token, expected = {}) {
-      const {record} = lookup(token);
-      checkRecord(record, expected);
-      record.used += 1;
-      return cloneRecord(record);
+      try {
+        const {record} = lookup(token);
+        checkRecord(record, expected);
+        record.used += 1;
+        audit('token.consumed', {
+          scope: record.scope,
+          sessionId: record.sessionId,
+          hpc: record.hpc,
+          tokenFingerprint: record.fingerprint,
+          outcome: 'accepted',
+        });
+        metric('slaif_tokens_consumed_total', {scope: record.scope, outcome: 'accepted'});
+        return cloneRecord(record);
+      } catch (error) {
+        audit('token.rejected', {
+          scope: expected.scope,
+          sessionId: expected.sessionId,
+          hpc: expected.hpc,
+          tokenFingerprint: getSafeTokenFingerprint(token),
+          outcome: 'rejected',
+          reason: error.code || 'token_consume_failed',
+        });
+        metric('slaif_tokens_rejected_total', {
+          scope: expected.scope || 'unknown',
+          outcome: 'rejected',
+          reason: error.code || 'token_consume_failed',
+        });
+        throw error;
+      }
     },
 
     revokeToken(tokenOrFingerprint) {
@@ -183,11 +254,25 @@ export function createTokenRegistry(options = {}) {
         tokenHash(tokenOrFingerprint);
       if (hash && records.has(hash)) {
         records.get(hash).revoked = true;
+        audit('token.revoked', {
+          tokenFingerprint: records.get(hash).fingerprint,
+          scope: records.get(hash).scope,
+          sessionId: records.get(hash).sessionId,
+          hpc: records.get(hash).hpc,
+          outcome: 'revoked',
+        });
         return true;
       }
       for (const record of records.values()) {
         if (record.fingerprint === tokenOrFingerprint) {
           record.revoked = true;
+          audit('token.revoked', {
+            tokenFingerprint: record.fingerprint,
+            scope: record.scope,
+            sessionId: record.sessionId,
+            hpc: record.hpc,
+            outcome: 'revoked',
+          });
           return true;
         }
       }

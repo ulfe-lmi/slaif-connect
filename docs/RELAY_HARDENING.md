@@ -46,6 +46,8 @@ The relay must enforce:
 - absolute max connection lifetime;
 - payload bytes never logged;
 - audit-safe structured event logging;
+- aggregate metrics for auth outcomes, connections, active connections, bytes,
+  duration, and timeouts without token/session/credential labels;
 - generic client errors that do not expose sensitive details;
 - production TCP egress controls to approved HPC login nodes.
 
@@ -62,6 +64,8 @@ This repository includes non-Docker relay hardening tests for:
 - idle timeout;
 - max lifetime timeout;
 - audit logs that do not contain SSH payloads.
+- metrics that do not contain tokens, session IDs, credentials, transcripts, or
+  SSH payloads.
 
 Run:
 
@@ -76,4 +80,5 @@ deployment. Production deployment still needs secure Redis operations, rate
 limits, WSS/TLS hardening, firewall egress rules, readiness checks, and
 operational logging review. See
 [PRODUCTION_DEPLOYMENT_CONTRACT.md](PRODUCTION_DEPLOYMENT_CONTRACT.md) and
-[PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md).
+[PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md). The audit and metrics
+schema is defined in [OBSERVABILITY.md](OBSERVABILITY.md).

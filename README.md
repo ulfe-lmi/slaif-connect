@@ -34,6 +34,7 @@ Short version:
 - the remote launcher contract and a safe local/test reference launcher are present;
 - token lifecycle and relay hardening foundations are present for short-lived scoped tokens, replay rejection, relay timeouts, and audit-safe logging;
 - Redis-backed durable token storage is available for shared token state and distributed replay prevention;
+- audit, metrics, observability, and readiness foundations are present for the API/relay reference stack;
 - production deployment, real HPC integration, production trust-root operations, and release packaging are still pending.
 
 ## Architecture
@@ -129,6 +130,7 @@ npm run test:jobs
 npm run test:remote-launcher
 npm run test:tokens
 npm run test:deployment
+npm run test:observability
 ```
 
 Redis token-store validation is explicit because it needs `REDIS_URL` or a
@@ -194,6 +196,7 @@ npm run test:pilot
 - [docs/RELAY_HARDENING.md](docs/RELAY_HARDENING.md): relay timeout, allowlist, token, and audit controls.
 - [docs/PRODUCTION_DEPLOYMENT_CONTRACT.md](docs/PRODUCTION_DEPLOYMENT_CONTRACT.md): API/relay deployment contract, durable token-store requirements, readiness, and unsafe-config rejection.
 - [docs/PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md): production readiness checklist.
+- [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md): audit event schema, metrics model, readiness integration, and production observability rules.
 - [docs/RELAY_E2E_TESTING.md](docs/RELAY_E2E_TESTING.md): local system-SSH relay tests.
 - [docs/BROWSER_E2E_TESTING.md](docs/BROWSER_E2E_TESTING.md): Playwright/Chromium extension tests.
 - [docs/BROWSER_WASSH_RELAY_PROTOTYPE.md](docs/BROWSER_WASSH_RELAY_PROTOTYPE.md): local browser prototype instructions.
@@ -204,4 +207,4 @@ npm run test:pilot
 
 SLAIF Connect is not production-ready yet. Local validation now covers real SSH traffic through the relay, browser-side OpenSSH/WASM startup, strict host-key negative cases, and the product-shaped web launch/session descriptor flow. That is still not the same as deployment against real HPC infrastructure.
 
-The next major security milestone is running a real HPC pilot with independently verified host-key or host-CA data and a site-approved installed launcher command, then operationalizing production SLAIF trust roots, production Redis/secret/audit operations, production authentication UX, production API/relay deployment, and release packaging.
+The next major security milestone is running a real HPC pilot with independently verified host-key or host-CA data and a site-approved installed launcher command, then operationalizing production SLAIF trust roots, production Redis/secret/audit/metrics operations, production authentication UX, production API/relay deployment, and release packaging.

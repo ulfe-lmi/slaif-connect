@@ -309,7 +309,9 @@ Mitigations:
 - short-lived relay tokens;
 - scoped token validation and replay prevention;
 - relay idle and max-lifetime timeouts;
-- audit-safe logging without token values or SSH payload bytes.
+- audit-safe logging without token values or SSH payload bytes;
+- aggregate metrics without token, session, credential, transcript, or payload
+  labels.
 
 ### Compromised browser profile
 
@@ -355,6 +357,8 @@ Before real HPC testing, implement these:
 10. X11 and port forwarding are disabled.
 11. Unsafe production deployment config is rejected.
 12. Production multi-instance deployments use durable shared token state.
+13. Audit events and metrics never include full token values, SSH payloads,
+    terminal transcripts, credentials, or raw command output.
 
 ## Security review rule
 
@@ -378,8 +382,9 @@ deployment operations, credential management, network controls, and monitoring.
 Production API/relay deployments must satisfy
 [PRODUCTION_DEPLOYMENT_CONTRACT.md](PRODUCTION_DEPLOYMENT_CONTRACT.md):
 durable token storage, distributed replay prevention, strict runtime config,
-rate limits, audit-safe logging, health/readiness checks, and relay egress
-controls.
+rate limits, audit-safe logging, Prometheus-style metrics, health/readiness
+checks, and relay egress controls. The observability schema and privacy rules
+are defined in [OBSERVABILITY.md](OBSERVABILITY.md).
 
 Do not claim production readiness from local browser, relay, or deployment
 validator tests alone. Those tests prove contract behavior and unsafe-config

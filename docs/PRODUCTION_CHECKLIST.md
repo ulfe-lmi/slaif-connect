@@ -31,6 +31,7 @@ Connect is already deployed in production.
 - [ ] Token scopes are separated.
 - [ ] Token values are not logged.
 - [ ] Tokens are not placed in URLs.
+- [ ] Token values and token fingerprints are not used as metrics labels.
 - [ ] Redis or equivalent shared adapter is deployed if multiple instances run.
 - [ ] Postgres is not selected unless a real adapter has been implemented and
       tested.
@@ -43,6 +44,8 @@ Connect is already deployed in production.
 - [ ] Per-session connection limits are configured.
 - [ ] Rate limits are configured.
 - [ ] Audit-safe logs are configured.
+- [ ] Metrics for relay auth, active connections, bytes, and timeouts are
+      configured.
 - [ ] SSH payload logging is disabled.
 
 ## Remote Launcher
@@ -56,7 +59,12 @@ Connect is already deployed in production.
 ## Operations
 
 - [ ] `/healthz` and `/readyz` are monitored.
+- [ ] `/metrics` is scraped through protected network/platform controls.
 - [ ] Audit retention policy is defined.
+- [ ] Metrics alerting is configured for readiness, relay errors, token
+      rejections, and job-report rejections.
+- [ ] Observability privacy review confirms logs and metrics exclude tokens,
+      credentials, SSH payloads, and transcripts.
 - [ ] Incident response owner is defined.
 - [ ] Chrome extension distribution path is decided.
 - [ ] Real-HPC pilot is completed with verified host trust and real user auth.

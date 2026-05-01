@@ -205,6 +205,8 @@ export function createRedisTokenStore(config = {}, options = {}) {
     clock = () => Date.now(),
     tokenPrefix = 'slaif_tok',
     expiredRecordGraceMs = DEFAULT_EXPIRED_RECORD_GRACE_MS,
+    auditLogger = null,
+    metricsRegistry = null,
   } = options;
   const client = options.client || config.client || createRedisClient(config);
   client.on?.('error', () => {
@@ -217,6 +219,17 @@ export function createRedisTokenStore(config = {}, options = {}) {
 
   function keyForHash(hash) {
     return `${keyPrefix}:token:${hash}`;
+  }
+
+  function audit(event, fields = {}) {
+    auditLogger?.event?.(event, fields);
+  }
+
+  function metric(name, labels = {}) {
+    metricsRegistry?.increment?.(name, {
+      tokenStoreType: 'redis',
+      ...labels,
+    });
   }
 
   function keyForToken(token) {
@@ -307,6 +320,14 @@ export function createRedisTokenStore(config = {}, options = {}) {
       if (result !== 'OK') {
         throw new TokenRegistryError('duplicate_token', 'duplicate token');
       }
+      audit('token.issued', {
+        scope,
+        sessionId: record.sessionId,
+        hpc: record.hpc,
+        tokenFingerprint: record.fingerprint,
+        outcome: 'issued',
+      });
+      metric('slaif_tokens_issued_total', {scope, outcome: 'issued'});
       return {
         token: value,
         fingerprint: record.fingerprint,
@@ -316,29 +337,79 @@ export function createRedisTokenStore(config = {}, options = {}) {
     },
 
     async validateToken(token, expected = {}) {
-      const {record} = await getRecordByToken(token);
-      checkRecord(record, expected, clock);
-      return cloneRecord(record);
+      try {
+        const {record} = await getRecordByToken(token);
+        checkRecord(record, expected, clock);
+        audit('token.validated', {
+          scope: record.scope,
+          sessionId: record.sessionId,
+          hpc: record.hpc,
+          tokenFingerprint: record.fingerprint,
+          outcome: 'accepted',
+        });
+        return cloneRecord(record);
+      } catch (error) {
+        audit('token.rejected', {
+          scope: expected.scope,
+          sessionId: expected.sessionId,
+          hpc: expected.hpc,
+          tokenFingerprint: getSafeTokenFingerprint(token),
+          outcome: 'rejected',
+          reason: error.code || 'token_validation_failed',
+        });
+        metric('slaif_tokens_rejected_total', {
+          scope: expected.scope || 'unknown',
+          outcome: 'rejected',
+          reason: error.code || 'token_validation_failed',
+        });
+        throw error;
+      }
     },
 
     async consumeToken(token, expected = {}) {
-      const key = keyForToken(token);
-      await ensureConnected();
-      const raw = await client.eval(CONSUME_SCRIPT, {
-        keys: [key],
-        arguments: [
-          String(nowMs(clock)),
-          expected.scope || '',
-          expected.sessionId || '',
-          expected.hpc || '',
-          expected.origin || '',
-        ],
-      });
-      const result = JSON.parse(raw);
-      if (!result.ok) {
-        throw registryErrorFromCode(result.code);
+      try {
+        const key = keyForToken(token);
+        await ensureConnected();
+        const raw = await client.eval(CONSUME_SCRIPT, {
+          keys: [key],
+          arguments: [
+            String(nowMs(clock)),
+            expected.scope || '',
+            expected.sessionId || '',
+            expected.hpc || '',
+            expected.origin || '',
+          ],
+        });
+        const result = JSON.parse(raw);
+        if (!result.ok) {
+          throw registryErrorFromCode(result.code);
+        }
+        const record = parseRecord(JSON.stringify(result.record));
+        audit('token.consumed', {
+          scope: record.scope,
+          sessionId: record.sessionId,
+          hpc: record.hpc,
+          tokenFingerprint: record.fingerprint,
+          outcome: 'accepted',
+        });
+        metric('slaif_tokens_consumed_total', {scope: record.scope, outcome: 'accepted'});
+        return cloneRecord(record);
+      } catch (error) {
+        audit('token.rejected', {
+          scope: expected.scope,
+          sessionId: expected.sessionId,
+          hpc: expected.hpc,
+          tokenFingerprint: getSafeTokenFingerprint(token),
+          outcome: 'rejected',
+          reason: error.code || 'token_consume_failed',
+        });
+        metric('slaif_tokens_rejected_total', {
+          scope: expected.scope || 'unknown',
+          outcome: 'rejected',
+          reason: error.code || 'token_consume_failed',
+        });
+        throw error;
       }
-      return cloneRecord(parseRecord(JSON.stringify(result.record)));
     },
 
     async revokeToken(tokenOrFingerprint) {
@@ -364,6 +435,13 @@ export function createRedisTokenStore(config = {}, options = {}) {
       }
       entry.record.revoked = true;
       await setRecord(entry.key, entry.record);
+      audit('token.revoked', {
+        tokenFingerprint: entry.record.fingerprint,
+        scope: entry.record.scope,
+        sessionId: entry.record.sessionId,
+        hpc: entry.record.hpc,
+        outcome: 'revoked',
+      });
       return true;
     },
 

@@ -6,6 +6,11 @@ import path from 'node:path';
 import process from 'node:process';
 import {fileURLToPath} from 'node:url';
 import {createRelayServer} from '../server/relay/relay.js';
+import {createAuditLogger} from '../server/logging/audit_log.js';
+import {createMemoryAuditSink} from '../server/logging/audit_sink.js';
+import {createMetricsRegistry} from '../server/metrics/metrics_registry.js';
+import {createObservabilityHttpHandler} from '../server/observability/observability_http.js';
+import {createRateLimiter} from '../server/rate_limit/rate_limiter.js';
 import {createTokenRegistry, TOKEN_SCOPES} from '../server/tokens/token_registry.js';
 import {
   policyAllowsApiBaseUrl,
@@ -78,6 +83,9 @@ async function startMockPilotWebApiServer({
   relayToken,
   jobReportToken,
   tokenRegistry,
+  auditLogger,
+  metricsRegistry,
+  readinessOptions,
   relayUrl,
   usernameHint,
   relayTokenExpiresAt,
@@ -85,9 +93,32 @@ async function startMockPilotWebApiServer({
   logger = console,
 }) {
   const jobReports = [];
+  const observabilityHandler = createObservabilityHttpHandler({
+    metricsRegistry,
+    readinessOptions,
+  });
   const server = http.createServer((req, res) => {
     const origin = `http://${host}:${server.address().port}`;
     const url = new URL(req.url, origin);
+
+    observabilityHandler(req, res).then((handled) => {
+      if (!handled) {
+        routeRequest();
+      }
+    }).catch((error) => {
+      res.writeHead(500, {'Content-Type': 'application/json'});
+      res.end(JSON.stringify({error: error.code || 'observability_error'}));
+    });
+
+    function audit(event, fields = {}) {
+      auditLogger?.event?.(event, fields);
+    }
+
+    function metric(name, labels = {}, value = 1) {
+      metricsRegistry?.increment?.(name, labels, value);
+    }
+
+    function routeRequest() {
 
     if (url.pathname === '/launcher.html') {
       const extensionId = url.searchParams.get('extensionId') || '';
@@ -144,6 +175,8 @@ async function startMockPilotWebApiServer({
     }
 
     if (url.pathname === `/api/connect/session/${encodeURIComponent(sessionId)}`) {
+      audit('descriptor.requested', {sessionId, hpc, outcome: 'started'});
+      metric('slaif_descriptor_requests_total', {route: 'session_descriptor', outcome: 'requested'});
       const bearer = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
       try {
         tokenRegistry.consumeToken(bearer, {
@@ -152,10 +185,17 @@ async function startMockPilotWebApiServer({
           hpc,
         });
       } catch (_error) {
+        audit('descriptor.rejected', {sessionId, hpc, outcome: 'rejected', reason: 'unauthorized'});
+        metric('slaif_descriptor_rejections_total', {
+          route: 'session_descriptor',
+          outcome: 'rejected',
+          reason: 'unauthorized',
+        });
         res.writeHead(401, {'Content-Type': 'application/json'});
         res.end(JSON.stringify({error: 'unauthorized'}));
         return;
       }
+      audit('descriptor.issued', {sessionId, hpc, outcome: 'issued'});
       res.writeHead(200, {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-store',
@@ -178,7 +218,14 @@ async function startMockPilotWebApiServer({
     }
 
     if (url.pathname === `/api/connect/session/${encodeURIComponent(sessionId)}/job-report`) {
+      audit('jobReport.received', {sessionId, hpc, outcome: 'received'});
       if (req.method !== 'POST') {
+        audit('jobReport.rejected', {sessionId, hpc, outcome: 'rejected', reason: 'method_not_allowed'});
+        metric('slaif_job_report_rejections_total', {
+          route: 'job_report',
+          outcome: 'rejected',
+          reason: 'method_not_allowed',
+        });
         res.writeHead(405, {'Content-Type': 'application/json'});
         res.end(JSON.stringify({error: 'method_not_allowed'}));
         return;
@@ -191,6 +238,12 @@ async function startMockPilotWebApiServer({
           hpc,
         });
       } catch (_error) {
+        audit('jobReport.rejected', {sessionId, hpc, outcome: 'rejected', reason: 'unauthorized'});
+        metric('slaif_job_report_rejections_total', {
+          route: 'job_report',
+          outcome: 'rejected',
+          reason: 'unauthorized',
+        });
         res.writeHead(401, {'Content-Type': 'application/json'});
         res.end(JSON.stringify({error: 'unauthorized'}));
         return;
@@ -234,10 +287,27 @@ async function startMockPilotWebApiServer({
             hpc,
           });
           jobReports.push(report);
+          audit('jobReport.accepted', {sessionId, hpc, outcome: 'accepted'});
+          metric('slaif_job_reports_total', {
+            route: 'job_report',
+            outcome: 'accepted',
+            scheduler: report.scheduler || 'none',
+          });
           logger.info(`received job metadata report for ${hpc}/${sessionId}: ${report.status}`);
           res.writeHead(200, {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'});
           res.end(JSON.stringify({ok: true}));
         } catch (error) {
+          audit('jobReport.rejected', {
+            sessionId,
+            hpc,
+            outcome: 'rejected',
+            reason: error.message || 'invalid_report',
+          });
+          metric('slaif_job_report_rejections_total', {
+            route: 'job_report',
+            outcome: 'rejected',
+            reason: 'invalid_report',
+          });
           res.writeHead(400, {'Content-Type': 'application/json'});
           res.end(JSON.stringify({error: error.message || 'invalid_report'}));
         }
@@ -247,6 +317,7 @@ async function startMockPilotWebApiServer({
 
     res.writeHead(404, {'Content-Type': 'text/plain'});
     res.end('not found\n');
+    }
   });
 
   await listen(server, {host, port});
@@ -275,7 +346,20 @@ export async function startRealHpcPilotStack(options = {}) {
   const usernameHint = options.usernameHint;
   const expectedOutput = options.expectedOutput || 'slaif-pilot-ok';
   const logger = options.logger || defaultLogger(options.quiet);
-  const tokenRegistry = options.tokenRegistry || createTokenRegistry();
+  const auditSink = options.auditSink || createMemoryAuditSink();
+  const auditLogger = options.auditLogger || createAuditLogger({
+    sink: auditSink,
+    environment: 'local-pilot',
+    includeSessionId: true,
+  });
+  const metricsRegistry = options.metricsRegistry || createMetricsRegistry({
+    environment: 'local-pilot',
+  });
+  const tokenRegistry = options.tokenRegistry || createTokenRegistry({
+    auditLogger,
+    metricsRegistry,
+  });
+  const rateLimiter = options.rateLimiter || createRateLimiter({mode: 'memory'});
   const tokenTtlMs = options.tokenTtlMs || 5 * 60 * 1000;
 
   if (!hpc) {
@@ -369,6 +453,8 @@ export async function startRealHpcPilotStack(options = {}) {
         maxConnectionMs: options.deploymentConfig.relayAbsoluteTimeoutMs,
       } : {}),
       logger,
+      auditLogger,
+      metricsRegistry,
     });
     await relay.listen({host, port: relayPort});
 
@@ -381,6 +467,37 @@ export async function startRealHpcPilotStack(options = {}) {
       relayToken: relayTokenRecord.token,
       jobReportToken: jobReportTokenRecord.token,
       tokenRegistry,
+      auditLogger,
+      metricsRegistry,
+      readinessOptions: {
+        deploymentConfig: {
+          env: 'local-pilot',
+          auditLogMode: 'memory',
+          metricsMode: 'prometheus',
+          signedPolicyFile: options.signedPolicy,
+          policyTrustRootsFile: options.trustRoots,
+        },
+        tokenStore: {
+          healthCheck: () => ({
+            ok: true,
+            mode: 'memory',
+            durable: false,
+            sharedAcrossInstances: false,
+          }),
+        },
+        rateLimiter,
+        relayAllowlist: {
+          [hpc]: {
+            host: policyHost.sshHost,
+            port: policyHost.sshPort,
+          },
+        },
+        auditLogger,
+        auditSink,
+        metricsRegistry,
+        requireSignedPolicy: true,
+        requireTrustRoots: true,
+      },
       relayUrl,
       usernameHint,
       relayTokenExpiresAt: relayTokenRecord.expiresAt,
@@ -417,6 +534,10 @@ export async function startRealHpcPilotStack(options = {}) {
       relayToken: relayTokenRecord.token,
       jobReportToken: jobReportTokenRecord.token,
       tokenRegistry,
+      auditSink,
+      auditLogger,
+      metricsRegistry,
+      rateLimiter,
       relay,
       relayUrl,
       relayPort,

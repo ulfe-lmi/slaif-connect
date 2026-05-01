@@ -28,6 +28,8 @@ export function createMemoryRateLimiter({
   windowMs = 60000,
   max = 60,
   clock = () => Date.now(),
+  auditLogger = null,
+  metricsRegistry = null,
 } = {}) {
   if (!Number.isInteger(windowMs) || windowMs < 100) {
     throw new RateLimitError('invalid_rate_limit_window', 'invalid rate limit window');
@@ -62,9 +64,23 @@ export function createMemoryRateLimiter({
     consume(input) {
       const {bucket} = currentBucket(input);
       if (bucket.count >= max) {
+        auditLogger?.event?.('rateLimit.rejected', {
+          scope: input.scope,
+          outcome: 'rejected',
+          reason: 'rate_limit_exceeded',
+        });
+        metricsRegistry?.increment?.('slaif_rate_limit_rejections_total', {
+          scope: input.scope || 'default',
+          outcome: 'rejected',
+          reason: 'rate_limit_exceeded',
+        });
         throw new RateLimitError('rate_limit_exceeded', 'rate limit exceeded');
       }
       bucket.count += 1;
+      auditLogger?.event?.('rateLimit.accepted', {
+        scope: input.scope,
+        outcome: 'accepted',
+      });
       return {
         ok: true,
         remaining: Math.max(0, max - bucket.count),
@@ -88,6 +104,8 @@ export function createRateLimiter(config = {}, options = {}) {
     return createMemoryRateLimiter({
       windowMs: config.windowMs,
       max: config.max,
+      auditLogger: options.auditLogger,
+      metricsRegistry: options.metricsRegistry,
       ...options,
     });
   }

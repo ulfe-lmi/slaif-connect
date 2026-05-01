@@ -21,7 +21,10 @@ export class TokenStoreNotImplementedError extends TokenStoreError {
 }
 
 export function createMemoryTokenStore(options = {}) {
-  const registry = options.registry || createTokenRegistry(options);
+  const registry = options.registry || createTokenRegistry({
+    ...options,
+    tokenStoreType: 'memory',
+  });
   return {
     mode: 'memory',
     issueToken(request) {

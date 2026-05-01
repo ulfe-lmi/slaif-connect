@@ -22,6 +22,7 @@ const validDevelopment = loadDeploymentConfig({
     SLAIF_TOKEN_STORE: 'memory',
     SLAIF_RATE_LIMIT_MODE: 'disabled',
     SLAIF_AUDIT_LOG_MODE: 'stdout',
+    SLAIF_METRICS_MODE: 'prometheus',
   },
 });
 assert.equal(validDevelopment.env, 'development');
@@ -42,6 +43,7 @@ const validProduction = loadDeploymentConfig({
     SLAIF_REDIS_COMMAND_TIMEOUT_MS: '5000',
     SLAIF_REDIS_TLS_ENABLED: 'true',
     SLAIF_AUDIT_LOG_MODE: 'external',
+    SLAIF_METRICS_MODE: 'external',
     SLAIF_RATE_LIMIT_MODE: 'external',
     SLAIF_POLICY_TRUST_ROOTS_FILE: '/etc/slaif/policy-trust-roots.json',
     SLAIF_SIGNED_POLICY_FILE: '/etc/slaif/hpc-policy.signed.json',
@@ -62,6 +64,7 @@ assertConfigError({
   SLAIF_TOKEN_STORE: 'redis',
   SLAIF_TOKEN_STORE_URL: 'redis://token-store',
   SLAIF_AUDIT_LOG_MODE: 'external',
+  SLAIF_METRICS_MODE: 'external',
   SLAIF_RATE_LIMIT_MODE: 'external',
 }, 'unsafe_apiBaseUrl_protocol');
 
@@ -74,6 +77,7 @@ assertConfigError({
   SLAIF_TOKEN_STORE: 'redis',
   SLAIF_TOKEN_STORE_URL: 'redis://token-store',
   SLAIF_AUDIT_LOG_MODE: 'external',
+  SLAIF_METRICS_MODE: 'external',
   SLAIF_RATE_LIMIT_MODE: 'external',
 }, 'unsafe_relayPublicUrl_protocol');
 
@@ -86,6 +90,7 @@ assertConfigError({
   SLAIF_TOKEN_STORE: 'redis',
   SLAIF_TOKEN_STORE_URL: 'redis://token-store',
   SLAIF_AUDIT_LOG_MODE: 'external',
+  SLAIF_METRICS_MODE: 'external',
   SLAIF_RATE_LIMIT_MODE: 'external',
 }, 'wildcard_allowedWebOrigin');
 
@@ -97,6 +102,7 @@ assertConfigError({
   SLAIF_ALLOWED_RELAY_TARGETS_FILE: 'targets.json',
   SLAIF_TOKEN_STORE: 'memory',
   SLAIF_AUDIT_LOG_MODE: 'external',
+  SLAIF_METRICS_MODE: 'external',
   SLAIF_RATE_LIMIT_MODE: 'external',
 }, 'memory_token_store_not_allowed');
 
@@ -109,6 +115,7 @@ const singleInstancePilot = loadDeploymentConfig({
     SLAIF_ALLOWED_RELAY_TARGETS_FILE: 'targets.json',
     SLAIF_TOKEN_STORE: 'memory',
     SLAIF_AUDIT_LOG_MODE: 'external',
+    SLAIF_METRICS_MODE: 'external',
     SLAIF_RATE_LIMIT_MODE: 'external',
     SLAIF_ALLOW_SINGLE_INSTANCE_PILOT: '1',
   },
@@ -123,6 +130,7 @@ assertConfigError({
   SLAIF_ALLOWED_RELAY_TARGETS_FILE: 'targets.json',
   SLAIF_TOKEN_STORE: 'redis',
   SLAIF_AUDIT_LOG_MODE: 'external',
+  SLAIF_METRICS_MODE: 'external',
   SLAIF_RATE_LIMIT_MODE: 'external',
 }, 'missing_token_store_url');
 
@@ -135,6 +143,7 @@ assertConfigError({
   SLAIF_TOKEN_STORE: 'redis',
   SLAIF_TOKEN_STORE_URL: 'https://token-store.internal',
   SLAIF_AUDIT_LOG_MODE: 'external',
+  SLAIF_METRICS_MODE: 'external',
   SLAIF_RATE_LIMIT_MODE: 'external',
 }, 'invalid_redis_url');
 
@@ -148,6 +157,7 @@ assertConfigError({
   SLAIF_TOKEN_STORE_URL: 'redis://token-store',
   SLAIF_REDIS_KEY_PREFIX: '../bad',
   SLAIF_AUDIT_LOG_MODE: 'external',
+  SLAIF_METRICS_MODE: 'external',
   SLAIF_RATE_LIMIT_MODE: 'external',
 }, 'invalid_redis_key_prefix');
 
@@ -160,6 +170,7 @@ assertConfigError({
   SLAIF_TOKEN_STORE: 'redis',
   SLAIF_TOKEN_STORE_URL: 'redis://token-store',
   SLAIF_AUDIT_LOG_MODE: 'external',
+  SLAIF_METRICS_MODE: 'external',
   SLAIF_RATE_LIMIT_MODE: 'disabled',
 }, 'rate_limit_disabled');
 
@@ -174,6 +185,32 @@ assertConfigError({
   SLAIF_AUDIT_LOG_MODE: 'disabled',
   SLAIF_RATE_LIMIT_MODE: 'external',
 }, 'audit_log_disabled');
+
+assertConfigError({
+  SLAIF_ENV: 'production',
+  SLAIF_API_BASE_URL: 'https://connect.slaif.si',
+  SLAIF_RELAY_PUBLIC_URL: 'wss://connect.slaif.si/ssh-relay',
+  SLAIF_ALLOWED_WEB_ORIGINS: 'https://connect.slaif.si',
+  SLAIF_ALLOWED_RELAY_TARGETS_FILE: 'targets.json',
+  SLAIF_TOKEN_STORE: 'redis',
+  SLAIF_TOKEN_STORE_URL: 'redis://token-store',
+  SLAIF_AUDIT_LOG_MODE: 'memory',
+  SLAIF_METRICS_MODE: 'external',
+  SLAIF_RATE_LIMIT_MODE: 'external',
+}, 'memory_audit_sink_not_allowed');
+
+assertConfigError({
+  SLAIF_ENV: 'production',
+  SLAIF_API_BASE_URL: 'https://connect.slaif.si',
+  SLAIF_RELAY_PUBLIC_URL: 'wss://connect.slaif.si/ssh-relay',
+  SLAIF_ALLOWED_WEB_ORIGINS: 'https://connect.slaif.si',
+  SLAIF_ALLOWED_RELAY_TARGETS_FILE: 'targets.json',
+  SLAIF_TOKEN_STORE: 'redis',
+  SLAIF_TOKEN_STORE_URL: 'redis://token-store',
+  SLAIF_AUDIT_LOG_MODE: 'external',
+  SLAIF_METRICS_MODE: 'disabled',
+  SLAIF_RATE_LIMIT_MODE: 'external',
+}, 'metrics_disabled');
 
 assertConfigError({
   SLAIF_ENV: 'production',

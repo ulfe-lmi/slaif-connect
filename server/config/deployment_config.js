@@ -10,7 +10,8 @@ export class DeploymentConfigError extends Error {
 
 const ENVIRONMENTS = new Set(['development', 'test', 'local-pilot', 'production']);
 const TOKEN_STORES = new Set(['memory', 'redis', 'postgres']);
-const AUDIT_MODES = new Set(['stdout', 'file', 'external', 'disabled']);
+const AUDIT_MODES = new Set(['stdout', 'file', 'memory', 'external', 'disabled']);
+const METRICS_MODES = new Set(['prometheus', 'external', 'disabled']);
 const RATE_LIMIT_MODES = new Set(['disabled', 'memory', 'external']);
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
 const REDIS_PROTOCOLS = new Set(['redis:', 'rediss:']);
@@ -25,6 +26,13 @@ const DEFAULTS = Object.freeze({
   tokenStore: 'memory',
   auditLogMode: 'stdout',
   rateLimitMode: 'memory',
+  auditIncludeSessionId: true,
+  metricsMode: 'prometheus',
+  metricsPath: '/metrics',
+  healthPath: '/healthz',
+  readyPath: '/readyz',
+  metricsIncludeHpcLabel: false,
+  observabilityEnvLabel: 'development',
   redisKeyPrefix: 'slaif',
   redisConnectTimeoutMs: 10000,
   redisCommandTimeoutMs: 10000,
@@ -198,6 +206,31 @@ export function loadDeploymentConfig({
         DEFAULTS.auditLogMode,
     ),
     auditLogPath: coalesce(fileConfig.auditLogPath, env.SLAIF_AUDIT_LOG_PATH),
+    auditIncludeSessionId: parseBoolean(coalesce(
+        fileConfig.auditIncludeSessionId,
+        env.SLAIF_AUDIT_INCLUDE_SESSION_ID,
+        DEFAULTS.auditIncludeSessionId,
+    )),
+    metricsMode: coalesce(
+        fileConfig.metricsMode,
+        env.SLAIF_METRICS_MODE,
+        DEFAULTS.metricsMode,
+    ),
+    metricsPath: coalesce(fileConfig.metricsPath, env.SLAIF_METRICS_PATH, DEFAULTS.metricsPath),
+    healthPath: coalesce(fileConfig.healthPath, env.SLAIF_HEALTH_PATH, DEFAULTS.healthPath),
+    readyPath: coalesce(fileConfig.readyPath, env.SLAIF_READY_PATH, DEFAULTS.readyPath),
+    metricsIncludeHpcLabel: parseBoolean(coalesce(
+        fileConfig.metricsIncludeHpcLabel,
+        env.SLAIF_METRICS_INCLUDE_HPC_LABEL,
+        DEFAULTS.metricsIncludeHpcLabel,
+    )),
+    observabilityEnvLabel: coalesce(
+        fileConfig.observabilityEnvLabel,
+        env.SLAIF_OBSERVABILITY_ENV_LABEL,
+        fileConfig.env,
+        env.SLAIF_ENV,
+        DEFAULTS.observabilityEnvLabel,
+    ),
     relayMaxAuthBytes: parseInteger(coalesce(
         fileConfig.relayMaxAuthBytes,
         env.SLAIF_RELAY_MAX_AUTH_BYTES,
@@ -297,9 +330,30 @@ export function validateDeploymentConfig(config) {
     throw new DeploymentConfigError('audit_log_disabled',
         'audit logging may not be disabled in production');
   }
+  if (production && normalized.auditLogMode === 'memory' && !normalized.allowSingleInstancePilot) {
+    throw new DeploymentConfigError('memory_audit_sink_not_allowed',
+        'memory audit sink is not allowed in production');
+  }
   if (normalized.auditLogMode === 'file' && !normalized.auditLogPath) {
     throw new DeploymentConfigError('missing_audit_log_path',
         'missing audit log path');
+  }
+
+  if (!METRICS_MODES.has(normalized.metricsMode)) {
+    throw new DeploymentConfigError('invalid_metrics_mode', 'invalid metrics mode');
+  }
+  if (production && normalized.metricsMode === 'disabled') {
+    throw new DeploymentConfigError('metrics_disabled',
+        'metrics may not be disabled in production');
+  }
+  for (const [name, value] of [
+    ['metricsPath', normalized.metricsPath],
+    ['healthPath', normalized.healthPath],
+    ['readyPath', normalized.readyPath],
+  ]) {
+    if (typeof value !== 'string' || !/^\/[A-Za-z0-9/_-]{0,128}$/.test(value)) {
+      throw new DeploymentConfigError(`invalid_${name}`, `invalid ${name}`);
+    }
   }
 
   if (!RATE_LIMIT_MODES.has(normalized.rateLimitMode)) {
@@ -353,6 +407,13 @@ export function getSafeDeploymentSummary(config) {
       undefined,
     hasTokenStoreUrl: Boolean(validated.tokenStoreUrl),
     auditLogMode: validated.auditLogMode,
+    auditIncludeSessionId: validated.auditIncludeSessionId,
+    metricsMode: validated.metricsMode,
+    metricsPath: validated.metricsPath,
+    healthPath: validated.healthPath,
+    readyPath: validated.readyPath,
+    metricsIncludeHpcLabel: validated.metricsIncludeHpcLabel,
+    observabilityEnvLabel: validated.observabilityEnvLabel,
     rateLimitMode: validated.rateLimitMode,
     relayMaxAuthBytes: validated.relayMaxAuthBytes,
     relayUnauthTimeoutMs: validated.relayUnauthTimeoutMs,

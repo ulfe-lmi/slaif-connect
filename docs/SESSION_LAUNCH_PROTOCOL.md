@@ -150,6 +150,12 @@ Token lifecycle rules are documented in
 rejects wrong-scope, expired, and replayed launch, relay, and job-report
 tokens.
 
+Descriptor, relay, token, and job-report operations may emit structured audit
+events and aggregate metrics. They must not log full token values, SSH payloads,
+credentials, transcripts, or raw command output, and metrics must not use
+session IDs or token fingerprints as labels. See
+[OBSERVABILITY.md](OBSERVABILITY.md).
+
 The signed policy prevents a compromised web page or session descriptor API from
 silently changing the SSH target, host trust, relay origin, or command template.
 
@@ -171,7 +177,7 @@ Production API and relay services must follow
 [PRODUCTION_DEPLOYMENT_CONTRACT.md](PRODUCTION_DEPLOYMENT_CONTRACT.md). The
 descriptor endpoint, relay endpoint, and job-report endpoint require durable
 token storage, distributed replay prevention, rate limits, audit-safe logging,
-and readiness checks in production.
+metrics, and readiness checks in production.
 
 The in-memory token registry used by local development is not sufficient for a
 multi-instance production deployment.
