@@ -5,8 +5,10 @@ const FORBIDDEN_LABEL_NAMES = new Set([
   'launchToken',
   'relayToken',
   'jobReportToken',
+  'workloadToken',
   'tokenFingerprint',
   'sessionId',
+  'promptId',
   'username',
   'password',
   'otp',
@@ -16,10 +18,12 @@ const FORBIDDEN_LABEL_NAMES = new Set([
   'stdout',
   'stderr',
   'payload',
+  'prompt',
+  'response',
   'command',
 ]);
 const FORBIDDEN_LABEL_VALUE_PATTERN =
-  /slaif_tok_|launchToken|relayToken|jobReportToken|password|otp|private.?key|BEGIN [A-Z ]*PRIVATE KEY|Submitted batch job|SSH_/i;
+  /slaif_tok_|launchToken|relayToken|jobReportToken|workloadToken|password|otp|private.?key|BEGIN [A-Z ]*PRIVATE KEY|Submitted batch job|SSH_/i;
 const DEFAULT_METRICS = Object.freeze({
   counters: [
     'slaif_descriptor_requests_total',
@@ -34,9 +38,15 @@ const DEFAULT_METRICS = Object.freeze({
     'slaif_job_reports_total',
     'slaif_job_report_rejections_total',
     'slaif_rate_limit_rejections_total',
+    'slaif_workload_tokens_issued_total',
+    'slaif_workload_registrations_total',
+    'slaif_workload_prompts_total',
+    'slaif_workload_responses_total',
+    'slaif_workload_errors_total',
   ],
   gauges: [
     'slaif_relay_active_connections',
+    'slaif_workload_active_connections',
     'slaif_readiness_status',
     'slaif_token_store_health',
     'slaif_audit_sink_health',

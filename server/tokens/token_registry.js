@@ -4,6 +4,7 @@ export const TOKEN_SCOPES = Object.freeze({
   LAUNCH: 'slaif.launch',
   RELAY: 'slaif.relay',
   JOB_REPORT: 'slaif.jobReport',
+  WORKLOAD: 'slaif.workload',
 });
 
 const DEFAULT_TOKEN_BYTES = 32;
@@ -124,6 +125,16 @@ export function createTokenRegistry(options = {}) {
     for (const key of ['sessionId', 'hpc', 'origin']) {
       if (expected[key] !== undefined && record[key] !== expected[key]) {
         throw new TokenRegistryError(`wrong_${key}`, `wrong token ${key}`);
+      }
+    }
+    if (expected.metadata !== undefined) {
+      if (!expected.metadata || typeof expected.metadata !== 'object' || Array.isArray(expected.metadata)) {
+        throw new TokenRegistryError('invalid_metadata_binding', 'invalid token metadata binding');
+      }
+      for (const [key, value] of Object.entries(expected.metadata)) {
+        if (record.metadata?.[key] !== value) {
+          throw new TokenRegistryError(`wrong_${key}`, `wrong token ${key}`);
+        }
       }
     }
   }

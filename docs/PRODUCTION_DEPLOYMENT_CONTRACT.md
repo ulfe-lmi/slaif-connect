@@ -18,7 +18,8 @@ does not mean SLAIF Connect is production deployed.
 The current product direction is payload-driven Slurm workloads, not only
 job-ID reporting. See [../SLAIF_WORKLOAD_MVP.md](../SLAIF_WORKLOAD_MVP.md) for
 the fast diagnostics, interactive GaMS chat, workload-token, and deferred YOLO
-mode roadmap.
+mode roadmap, and [WORKLOAD_RUNTIME_PROTOCOL.md](WORKLOAD_RUNTIME_PROTOCOL.md)
+for the initial worker runtime protocol foundation.
 
 ## Production Architecture
 
@@ -48,7 +49,8 @@ descriptors still must not supply SSH host, host key, SSH options, or command.
 Normal workloads are selected by `payloadId` and must resolve to
 site-approved Slurm profiles. Worker nodes are reached through Slurm
 allocation, not SSH. Interactive worker processes may connect outbound to SLAIF
-with a scoped workload token once that protocol is implemented.
+with a scoped `slaif.workload` token; the broker that accepts those connections
+is a future implementation phase.
 
 ## Required Server Endpoints
 

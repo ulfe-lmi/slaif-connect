@@ -60,6 +60,31 @@ export async function assertTokenStoreContract({
       scope: TOKEN_SCOPES.JOB_REPORT,
     }), 'token_use_exceeded');
 
+    const workload = await store.issueToken({
+      scope: TOKEN_SCOPES.WORKLOAD,
+      sessionId: 'sess_store_contract_123',
+      hpc: 'test-sshd',
+      ttlMs: 60000,
+      maxUses: 1,
+      metadata: {
+        payloadId: 'gams_chat_v1',
+        jobId: '424242',
+      },
+    });
+    assert.equal((await store.validateToken(workload.token, {
+      scope: TOKEN_SCOPES.WORKLOAD,
+      sessionId: 'sess_store_contract_123',
+      hpc: 'test-sshd',
+      metadata: {
+        payloadId: 'gams_chat_v1',
+        jobId: '424242',
+      },
+    })).metadata.payloadId, 'gams_chat_v1');
+    await assertTokenError(() => store.consumeToken(workload.token, {
+      scope: TOKEN_SCOPES.WORKLOAD,
+      metadata: {payloadId: 'gpu_diagnostics_v1'},
+    }), 'wrong_payloadId');
+
     const bound = await store.issueToken({
       scope: TOKEN_SCOPES.LAUNCH,
       sessionId: 'sess_store_contract_123',

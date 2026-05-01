@@ -25,6 +25,7 @@ local scope = ARGV[2]
 local sessionId = ARGV[3]
 local hpc = ARGV[4]
 local origin = ARGV[5]
+local metadataJson = ARGV[6]
 if record.revoked then
   return cjson.encode({ok=false, code='revoked_token'})
 end
@@ -45,6 +46,14 @@ if hpc ~= '' and record.hpc ~= hpc then
 end
 if origin ~= '' and record.origin ~= origin then
   return cjson.encode({ok=false, code='wrong_origin'})
+end
+if metadataJson ~= '' then
+  local expectedMetadata = cjson.decode(metadataJson)
+  for key, value in pairs(expectedMetadata) do
+    if record.metadata == nil or record.metadata[key] ~= value then
+      return cjson.encode({ok=false, code='wrong_' .. key})
+    end
+  end
 end
 record.used = tonumber(record.used) + 1
 redis.call('SET', KEYS[1], cjson.encode(record), 'KEEPTTL')
@@ -169,6 +178,16 @@ function checkRecord(record, expected = {}, clock) {
       throw new TokenRegistryError(`wrong_${key}`, `wrong token ${key}`);
     }
   }
+  if (expected.metadata !== undefined) {
+    if (!expected.metadata || typeof expected.metadata !== 'object' || Array.isArray(expected.metadata)) {
+      throw new TokenRegistryError('invalid_metadata_binding', 'invalid token metadata binding');
+    }
+    for (const [key, value] of Object.entries(expected.metadata)) {
+      if (record.metadata?.[key] !== value) {
+        throw new TokenRegistryError(`wrong_${key}`, `wrong token ${key}`);
+      }
+    }
+  }
 }
 
 function registryErrorFromCode(code) {
@@ -181,6 +200,8 @@ function registryErrorFromCode(code) {
     wrong_sessionId: 'wrong token sessionId',
     wrong_hpc: 'wrong token hpc',
     wrong_origin: 'wrong token origin',
+    wrong_payloadId: 'wrong token payloadId',
+    wrong_jobId: 'wrong token jobId',
   };
   return new TokenRegistryError(code, messages[code] || code);
 }
@@ -378,6 +399,7 @@ export function createRedisTokenStore(config = {}, options = {}) {
             expected.sessionId || '',
             expected.hpc || '',
             expected.origin || '',
+            expected.metadata ? JSON.stringify(expected.metadata) : '',
           ],
         });
         const result = JSON.parse(raw);

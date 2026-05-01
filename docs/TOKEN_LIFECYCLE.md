@@ -14,17 +14,19 @@ SLAIF API after an approved web launch.
 session and one HPC alias.
 
 `jobReportToken` allows the extension to post one safe scheduler metadata report
-for one session.
+or bounded result report for one session.
+
+`workloadToken` allows one worker process running inside one Slurm allocation to
+register with SLAIF for one session, payload, and job through the workload
+runtime protocol.
 
 None of these tokens grant SSH access by themselves. SSH authentication remains
 between the browser-side OpenSSH/WASM client and the real `sshd`.
 
-The workload MVP will add a fourth token type, `workloadToken`, for Slurm worker
-processes that connect outbound to SLAIF for interactive payloads such as
-`gams_chat_v1`. That token is not implemented in the current token registry yet.
-When added, it must be scoped, short-lived, payload-bound, not logged, and never
-passed through query strings or printed to Slurm output. See
-[../SLAIF_WORKLOAD_MVP.md](../SLAIF_WORKLOAD_MVP.md).
+`workloadToken` is for application-level worker communication only. It is not a
+relay token, job-report token, SSH password, OTP, private key, or private-key
+passphrase. See [WORKLOAD_RUNTIME_PROTOCOL.md](WORKLOAD_RUNTIME_PROTOCOL.md)
+and [../SLAIF_WORKLOAD_MVP.md](../SLAIF_WORKLOAD_MVP.md).
 
 ## Token Scopes
 
@@ -35,14 +37,12 @@ Tokens are scoped by purpose:
 | `launchToken` | `slaif.launch` |
 | `relayToken` | `slaif.relay` |
 | `jobReportToken` | `slaif.jobReport` |
+| `workloadToken` | `slaif.workload` |
 
 A token with the wrong scope must be rejected. A launch token cannot open a
-relay, a relay token cannot post a job report, and a job-report token cannot
-fetch a session descriptor.
-
-Planned workload runtime tokens should use a separate scope such as
-`slaif.workload` and must not be accepted as launch, relay, or job-report
-tokens.
+relay, a relay token cannot post a job report, a job-report token cannot fetch a
+session descriptor, and a workload token cannot be used as any of those token
+types.
 
 ## Token Binding
 
@@ -63,6 +63,27 @@ The default relay-token policy is one relay connection and one total use.
 Job-report tokens are bound to one report endpoint/session. The default
 job-report-token policy is one final accepted report.
 
+Workload tokens are bound to:
+
+- `sessionId`;
+- HPC alias;
+- `payloadId`;
+- scheduler `jobId` when available;
+- scope `slaif.workload`;
+- issue time;
+- expiry time;
+- max use count, normally 1;
+- optional worker audience or network metadata when available.
+
+The initial normal payload IDs are:
+
+- `gpu_diagnostics_v1`;
+- `cpu_memory_diagnostics_v1`;
+- `gams_chat_v1`.
+
+Payload IDs are not arbitrary command text. They must resolve through signed
+policy and site-approved launcher configuration in later phases.
+
 ## Expiry Policy
 
 Development defaults are intentionally short. Production values require
@@ -73,6 +94,7 @@ deployment review, but the recommended starting point is:
 | `launchToken` | 2-5 minutes |
 | `relayToken` | 2-5 minutes to open, plus a relay connection max lifetime |
 | `jobReportToken` | 5-15 minutes or until the final report is accepted |
+| `workloadToken` | short enough for one worker registration window, commonly 5-15 minutes |
 
 Expired tokens must fail closed.
 
@@ -83,6 +105,7 @@ The reference implementation consumes tokens on successful use:
 - `launchToken` is consumed when the descriptor is fetched;
 - `relayToken` is consumed when relay authentication accepts the connection;
 - `jobReportToken` is consumed when the final job metadata report is accepted.
+- `workloadToken` is consumed when worker registration succeeds.
 
 Reusing a consumed token fails. Failed attempts must not reveal full token
 values.
@@ -100,6 +123,13 @@ Logs must not include:
 - terminal transcripts;
 - passwords, OTPs, private keys, or passphrases;
 - full launch, relay, or job-report token values.
+- full workload-token values;
+- workload tokens printed to Slurm stdout/stderr;
+- workload tokens in URLs, job names, command-line arguments, shell history, or world-readable files.
+
+Preferred workload-token delivery into a Slurm job is a user-owned temporary
+file with restrictive permissions. Passing the token as a visible command-line
+argument should be avoided.
 
 Metrics must use aggregate low-cardinality labels only. Token values, token
 fingerprints, session IDs, usernames, credentials, SSH payloads, transcripts,
@@ -108,8 +138,9 @@ stdout, stderr, and raw command output must not appear as metric labels.
 ## Reference Implementation
 
 `server/tokens/token_registry.js` provides an in-memory development registry for
-issuing, validating, consuming, revoking, and cleaning up scoped tokens. It is
-used by the local browser dev stack and real-HPC pilot stack.
+issuing, validating, consuming, revoking, and cleaning up scoped tokens,
+including `slaif.workload`. It is used by the local browser dev stack and
+real-HPC pilot stack.
 
 `server/tokens/token_store.js` defines the production-facing token-store
 contract, wraps the in-memory registry for development/test, and includes a
