@@ -102,6 +102,8 @@ SLAIF Connect supports both:
   2. a ChatGPT-like interactive GaMS workload.
 ```
 
+This is explained in detail in the file [SLAIF_WORKLOAD_MVP.md](SLAIF_WORKLOAD_MVP.md])  which is required reading before any modifications to the code.
+
 The target interactive model payload is:
 
 ```text
