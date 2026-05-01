@@ -37,6 +37,7 @@ Short version:
 - token lifecycle and relay hardening foundations are present for short-lived scoped tokens, replay rejection, relay timeouts, and audit-safe logging;
 - Redis-backed durable token storage is available for shared token state and distributed replay prevention;
 - audit, metrics, observability, and readiness foundations are present for the API/relay reference stack;
+- workload-token and workload runtime protocol foundations are present for outbound Slurm worker communication;
 - the next product phase is payload-driven Slurm workloads: `gpu_diagnostics_v1`, `cpu_memory_diagnostics_v1`, and `gams_chat_v1`;
 - production deployment, real HPC integration, production trust-root operations, and release packaging are still pending.
 
@@ -132,6 +133,7 @@ npm run test:policy
 npm run test:jobs
 npm run test:remote-launcher
 npm run test:tokens
+npm run test:workloads
 npm run test:deployment
 npm run test:observability
 ```
@@ -196,7 +198,8 @@ npm run test:pilot
 - [docs/REAL_HPC_PILOT.md](docs/REAL_HPC_PILOT.md): manual real-HPC pilot onboarding flow.
 - [docs/JOB_REPORTING.md](docs/JOB_REPORTING.md): fixed-command scheduler metadata reporting.
 - [docs/REMOTE_LAUNCHER_CONTRACT.md](docs/REMOTE_LAUNCHER_CONTRACT.md): HPC-side launcher CLI, output, and deployment contract.
-- [docs/TOKEN_LIFECYCLE.md](docs/TOKEN_LIFECYCLE.md): launch, relay, and job-report token scope, expiry, replay, and logging rules.
+- [docs/WORKLOAD_RUNTIME_PROTOCOL.md](docs/WORKLOAD_RUNTIME_PROTOCOL.md): `slaif.workload` token binding and worker hello/prompt/response/stop protocol validators.
+- [docs/TOKEN_LIFECYCLE.md](docs/TOKEN_LIFECYCLE.md): launch, relay, job-report, and workload token scope, expiry, replay, and logging rules.
 - [docs/RELAY_HARDENING.md](docs/RELAY_HARDENING.md): relay timeout, allowlist, token, and audit controls.
 - [docs/PRODUCTION_DEPLOYMENT_CONTRACT.md](docs/PRODUCTION_DEPLOYMENT_CONTRACT.md): API/relay deployment contract, durable token-store requirements, readiness, and unsafe-config rejection.
 - [docs/PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md): production readiness checklist.
@@ -211,4 +214,4 @@ npm run test:pilot
 
 SLAIF Connect is not production-ready yet. Local validation now covers real SSH traffic through the relay, browser-side OpenSSH/WASM startup, strict host-key negative cases, and the product-shaped web launch/session descriptor flow. That is still not the same as deployment against real HPC infrastructure.
 
-The next major product milestone is the normal payload-driven workload path described in [SLAIF_WORKLOAD_MVP.md](SLAIF_WORKLOAD_MVP.md): workload-token scope, signed-policy payload catalog, remote launcher payload intent, fast diagnostics, and the interactive GaMS worker protocol. Real HPC pilots still require independently verified host-key or host-CA data and a site-approved installed launcher command. Production SLAIF trust roots, Redis/secret/audit/metrics operations, authentication UX, API/relay deployment, and release packaging remain pending.
+The next major product milestone is the normal payload-driven workload path described in [SLAIF_WORKLOAD_MVP.md](SLAIF_WORKLOAD_MVP.md): signed-policy payload catalog, remote launcher payload intent, fast diagnostics, structured results, and the workload registry/broker. Real HPC pilots still require independently verified host-key or host-CA data and a site-approved installed launcher command. Production SLAIF trust roots, Redis/secret/audit/metrics operations, authentication UX, API/relay deployment, and release packaging remain pending.

@@ -11,7 +11,7 @@ deploy a production monitoring stack.
 
 As the product moves from job-ID-only reporting to payload-driven Slurm
 workloads, observability must remain aggregate and safe. Future diagnostic
-payload results and interactive GaMS worker events may add audit event types and
+  payload results and interactive GaMS worker events may add audit event types and
 metrics, but they must not expose SSH credentials, workload tokens, raw prompts
 where policy forbids them, terminal transcripts, or high-cardinality metric
 labels. The workload roadmap is defined in
@@ -20,6 +20,7 @@ labels. The workload roadmap is defined in
 ## Non-Negotiable Privacy And Security Rules
 
 - No raw `launchToken`, `relayToken`, or `jobReportToken` values in logs.
+- No raw `workloadToken` values in logs.
 - No token values or token fingerprints in metrics labels.
 - No SSH passwords, OTPs, private keys, or private-key passphrases in logs or metrics.
 - No raw SSH payload bytes.
@@ -99,6 +100,18 @@ The reference implementation emits or supports these event names:
 - `health.notReady`
 - `config.loaded`
 - `config.rejected`
+- `workload.token.issued`
+- `workload.token.consumed`
+- `workload.hello.received`
+- `workload.hello.accepted`
+- `workload.hello.rejected`
+- `workload.connected`
+- `workload.disconnected`
+- `workload.prompt.received`
+- `workload.response.delta`
+- `workload.response.done`
+- `workload.stop.requested`
+- `workload.error`
 
 ## Required Metrics
 
@@ -118,17 +131,25 @@ The reference metrics registry exposes Prometheus-style text for:
 - `slaif_job_reports_total`
 - `slaif_job_report_rejections_total`
 - `slaif_rate_limit_rejections_total`
+- `slaif_workload_tokens_issued_total`
+- `slaif_workload_registrations_total`
+- `slaif_workload_active_connections`
+- `slaif_workload_prompts_total`
+- `slaif_workload_responses_total`
+- `slaif_workload_errors_total`
 - `slaif_readiness_status`
 - `slaif_token_store_health`
 - `slaif_audit_sink_health`
 
 Allowed labels are low-cardinality values such as `outcome`, `reason`, `scope`,
 bounded `hpc` aliases when explicitly enabled, `environment`, `route`, and
-`tokenStoreType`.
+`tokenStoreType`. Workload metrics may also use bounded low-cardinality labels
+such as `payloadId`, `runtime`, `outcome`, and `reason`.
 
 Forbidden labels include raw tokens, token fingerprints, `sessionId`, username,
 password, OTP, private key, untrusted raw hostnames, raw commands, stdout,
-stderr, transcripts, and output text.
+stderr, transcripts, prompt IDs, raw prompt text, raw response text, and output
+text.
 
 ## Production Operations
 

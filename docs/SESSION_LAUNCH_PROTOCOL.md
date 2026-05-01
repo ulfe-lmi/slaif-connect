@@ -159,6 +159,31 @@ session IDs or token fingerprints as labels. See
 The signed policy prevents a compromised web page or session descriptor API from
 silently changing the SSH target, host trust, relay origin, or command template.
 
+## Future Interactive Workload Runtime
+
+The workload MVP adds interactive payloads such as `gams_chat_v1` after the
+fixed launcher submits a Slurm job. That worker runtime is separate from this
+extension launch descriptor.
+
+Future descriptor or API flows may include workload intent metadata or a
+workload registration hint, but the descriptor still must not provide arbitrary
+command text, job scripts, shell fragments, SSH target details, or worker-node
+SSH instructions.
+
+`workloadToken` is distinct from `relayToken` and `jobReportToken`:
+
+- `relayToken` opens the encrypted SSH byte relay from extension to login-node `sshd`;
+- `jobReportToken` reports safe scheduler metadata or bounded result metadata;
+- `workloadToken` authenticates a Slurm worker process to the application-level
+  workload runtime protocol.
+
+`workloadToken` should be issued by the SLAIF server after job submission or
+when the launcher/worker path needs it. It uses scope `slaif.workload`, is bound
+to `sessionId`, HPC alias, `payloadId`, and `jobId` when available, and must not
+be logged, placed in URLs, printed to Slurm output, or passed as arbitrary
+command text. The broker flow is intentionally left for a later PR. See
+[WORKLOAD_RUNTIME_PROTOCOL.md](WORKLOAD_RUNTIME_PROTOCOL.md).
+
 The same boundary applies to real-HPC pilots. The mock pilot API may issue a
 session descriptor with `relayUrl`, `relayToken`, expiry, and optional
 `usernameHint`, but it must not define or override SSH target details. The

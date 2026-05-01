@@ -52,6 +52,8 @@ fixed launcher and a SLURM job ID, but it may later report bounded structured
 payload results such as `gpu_diagnostics_v1` or `cpu_memory_diagnostics_v1`.
 Interactive payloads such as `gams_chat_v1` should use a workload runtime
 channel from the Slurm worker to SLAIF rather than terminal transcript upload.
+The initial token and message validation foundation for that channel is
+documented in [WORKLOAD_RUNTIME_PROTOCOL.md](WORKLOAD_RUNTIME_PROTOCOL.md).
 
 ## Remote Command Source Of Truth
 

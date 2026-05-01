@@ -141,6 +141,20 @@ The next contract step is to resolve the session to a bounded workload intent
 that includes a signed-policy-approved `payloadId`, initially
 `gpu_diagnostics_v1`, `cpu_memory_diagnostics_v1`, or `gams_chat_v1`.
 
+For interactive payloads, the launcher or SLAIF API may arrange delivery of a
+`workloadToken` into the Slurm job so the worker process can connect outbound to
+SLAIF using the workload runtime protocol. That token must be scoped
+`slaif.workload`, bound to `sessionId`, HPC alias, `payloadId`, and `jobId` when
+available, and delivered through a restrictive mechanism such as a user-owned
+temporary file. It must not be printed to Slurm stdout/stderr, placed in URLs,
+written to world-readable files, or used as permission for arbitrary commands.
+
+The intended future mapping remains:
+
+```text
+sessionId -> session intent -> payloadId -> site-approved Slurm profile -> sbatch
+```
+
 If a future launcher fetches a job spec from the SLAIF API:
 
 - it must authenticate using a site-approved mechanism;

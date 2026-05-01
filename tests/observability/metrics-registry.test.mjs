@@ -17,12 +17,29 @@ registry.increment('slaif_tokens_consumed_total', {
 }, 2);
 registry.setGauge('slaif_relay_active_connections', {}, 1);
 registry.observeHistogram('slaif_relay_connection_duration_seconds', {}, 1.25);
+registry.increment('slaif_workload_tokens_issued_total', {
+  scope: 'slaif.workload',
+  outcome: 'issued',
+  payloadId: 'gams_chat_v1',
+  runtime: 'vllm',
+});
+registry.increment('slaif_workload_registrations_total', {
+  outcome: 'accepted',
+  payloadId: 'gams_chat_v1',
+  runtime: 'vllm',
+});
+registry.setGauge('slaif_workload_active_connections', {
+  payloadId: 'gams_chat_v1',
+}, 1);
 
 const text = registry.renderPrometheus();
 assert.match(text, /slaif_tokens_issued_total/);
 assert.match(text, /slaif_tokens_consumed_total/);
 assert.match(text, /slaif_relay_active_connections/);
 assert.match(text, /slaif_relay_connection_duration_seconds_count/);
+assert.match(text, /slaif_workload_tokens_issued_total/);
+assert.match(text, /slaif_workload_registrations_total/);
+assert.match(text, /slaif_workload_active_connections/);
 assert.equal(text.includes('slaif_tok_secret'), false);
 
 for (const label of [
@@ -30,8 +47,10 @@ for (const label of [
   'launchToken',
   'relayToken',
   'jobReportToken',
+  'workloadToken',
   'tokenFingerprint',
   'sessionId',
+  'promptId',
   'password',
   'otp',
   'privateKey',

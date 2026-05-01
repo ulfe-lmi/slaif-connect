@@ -71,6 +71,31 @@ assertTokenError(() => registry.consumeToken(multi.token, {
   scope: TOKEN_SCOPES.JOB_REPORT,
 }), 'token_use_exceeded');
 
+const workload = registry.issueToken({
+  scope: TOKEN_SCOPES.WORKLOAD,
+  sessionId: 'sess_token_test_123',
+  hpc: 'test-sshd',
+  ttlMs: 60000,
+  maxUses: 1,
+  metadata: {
+    payloadId: 'gams_chat_v1',
+    jobId: '424242',
+  },
+});
+assert.equal(registry.validateToken(workload.token, {
+  scope: TOKEN_SCOPES.WORKLOAD,
+  sessionId: 'sess_token_test_123',
+  hpc: 'test-sshd',
+  metadata: {
+    payloadId: 'gams_chat_v1',
+    jobId: '424242',
+  },
+}).metadata.payloadId, 'gams_chat_v1');
+assertTokenError(() => registry.validateToken(workload.token, {
+  scope: TOKEN_SCOPES.WORKLOAD,
+  metadata: {payloadId: 'gpu_diagnostics_v1'},
+}), 'wrong_payloadId');
+
 const expired = registry.issueToken({
   scope: TOKEN_SCOPES.LAUNCH,
   sessionId: 'sess_token_test_123',
