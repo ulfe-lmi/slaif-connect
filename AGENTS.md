@@ -2436,7 +2436,8 @@ Hard rules:
 - do not claim production readiness based only on local dev/reference config;
 - do not enable production with an in-memory token store except an explicitly
   labeled single-instance pilot mode;
-- do not add Redis/Postgres token-store placeholders that silently succeed;
+- do not add token-store placeholders, such as future Postgres adapters, that
+  silently succeed;
 - production multi-instance deployments require durable shared token state and
   distributed replay prevention;
 - keep readiness checks strict and make them fail on unsafe production config;
@@ -2446,3 +2447,15 @@ Hard rules:
 - keep relay clients unable to supply host or port;
 - update `STATUS.md`, `docs/PRODUCTION_DEPLOYMENT_CONTRACT.md`, and
   `docs/PRODUCTION_CHECKLIST.md` when deployment readiness changes.
+
+## Redis token-store rules
+
+Redis is the first durable/shared token-store adapter. Future agents must:
+
+- never store raw token values in Redis records or keys;
+- never log Redis URLs with credentials;
+- never treat the in-memory token store as multi-instance production storage;
+- keep Redis atomic consume/replay-prevention tests passing;
+- keep Redis tests out of `npm test` unless Redis is reliably provided by CI;
+- leave Postgres explicitly not implemented unless a real tested adapter is
+  added in a separate, clearly scoped change.

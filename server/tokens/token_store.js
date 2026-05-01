@@ -2,6 +2,7 @@ import {
   createTokenRegistry,
   getSafeTokenFingerprint,
 } from './token_registry.js';
+import {createRedisTokenStore} from './redis_token_store.js';
 
 export class TokenStoreError extends Error {
   constructor(code, message = code) {
@@ -55,7 +56,10 @@ export function createTokenStore(config = {}, options = {}) {
   if (mode === 'memory') {
     return createMemoryTokenStore(options);
   }
-  if (mode === 'redis' || mode === 'postgres') {
+  if (mode === 'redis') {
+    return createRedisTokenStore(config, options);
+  }
+  if (mode === 'postgres') {
     throw new TokenStoreNotImplementedError(mode);
   }
   throw new TokenStoreError('invalid_token_store', 'invalid token store');

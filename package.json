@@ -37,11 +37,13 @@
     "test:remote-launcher": "node tests/remote/launcher.test.mjs",
     "test:tokens": "node tests/tokens/token-registry.test.mjs && node tests/tokens/audit-log.test.mjs",
     "test:deployment": "node tests/deployment/deployment-config.test.mjs && node tests/deployment/token-store-contract.test.mjs && node tests/deployment/rate-limiter.test.mjs && node tests/deployment/health-checks.test.mjs",
+    "test:redis-token-store": "node tests/deployment/redis-token-store.test.mjs",
     "upstream:init": "./scripts/init-upstream.sh",
     "vendor:libapps": "./scripts/vendor-libapps.sh",
     "start:relay": "npm --prefix server/relay start"
   },
   "dependencies": {
+    "redis": "^5.12.1",
     "ws": "^8.18.0"
   },
   "devDependencies": {

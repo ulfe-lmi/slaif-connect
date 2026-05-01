@@ -36,7 +36,11 @@ const validProduction = loadDeploymentConfig({
     SLAIF_ALLOWED_WEB_ORIGINS: 'https://connect.slaif.si,https://stare.lmi.link',
     SLAIF_ALLOWED_RELAY_TARGETS_FILE: 'config/relay-targets.production.json',
     SLAIF_TOKEN_STORE: 'redis',
-    SLAIF_TOKEN_STORE_URL: 'redis://token-store.internal:6379/0',
+    SLAIF_TOKEN_STORE_URL: 'redis://:token-store-password@token-store.internal:6379/0',
+    SLAIF_REDIS_KEY_PREFIX: 'slaif_prod',
+    SLAIF_REDIS_CONNECT_TIMEOUT_MS: '5000',
+    SLAIF_REDIS_COMMAND_TIMEOUT_MS: '5000',
+    SLAIF_REDIS_TLS_ENABLED: 'true',
     SLAIF_AUDIT_LOG_MODE: 'external',
     SLAIF_RATE_LIMIT_MODE: 'external',
     SLAIF_POLICY_TRUST_ROOTS_FILE: '/etc/slaif/policy-trust-roots.json',
@@ -45,6 +49,8 @@ const validProduction = loadDeploymentConfig({
 });
 assert.equal(validProduction.env, 'production');
 assert.equal(validProduction.tokenStore, 'redis');
+assert.equal(validProduction.redisKeyPrefix, 'slaif_prod');
+assert.equal(validProduction.redisTlsEnabled, true);
 assert.equal(validProduction.rateLimitMode, 'external');
 
 assertConfigError({
@@ -127,6 +133,31 @@ assertConfigError({
   SLAIF_ALLOWED_WEB_ORIGINS: 'https://connect.slaif.si',
   SLAIF_ALLOWED_RELAY_TARGETS_FILE: 'targets.json',
   SLAIF_TOKEN_STORE: 'redis',
+  SLAIF_TOKEN_STORE_URL: 'https://token-store.internal',
+  SLAIF_AUDIT_LOG_MODE: 'external',
+  SLAIF_RATE_LIMIT_MODE: 'external',
+}, 'invalid_redis_url');
+
+assertConfigError({
+  SLAIF_ENV: 'production',
+  SLAIF_API_BASE_URL: 'https://connect.slaif.si',
+  SLAIF_RELAY_PUBLIC_URL: 'wss://connect.slaif.si/ssh-relay',
+  SLAIF_ALLOWED_WEB_ORIGINS: 'https://connect.slaif.si',
+  SLAIF_ALLOWED_RELAY_TARGETS_FILE: 'targets.json',
+  SLAIF_TOKEN_STORE: 'redis',
+  SLAIF_TOKEN_STORE_URL: 'redis://token-store',
+  SLAIF_REDIS_KEY_PREFIX: '../bad',
+  SLAIF_AUDIT_LOG_MODE: 'external',
+  SLAIF_RATE_LIMIT_MODE: 'external',
+}, 'invalid_redis_key_prefix');
+
+assertConfigError({
+  SLAIF_ENV: 'production',
+  SLAIF_API_BASE_URL: 'https://connect.slaif.si',
+  SLAIF_RELAY_PUBLIC_URL: 'wss://connect.slaif.si/ssh-relay',
+  SLAIF_ALLOWED_WEB_ORIGINS: 'https://connect.slaif.si',
+  SLAIF_ALLOWED_RELAY_TARGETS_FILE: 'targets.json',
+  SLAIF_TOKEN_STORE: 'redis',
   SLAIF_TOKEN_STORE_URL: 'redis://token-store',
   SLAIF_AUDIT_LOG_MODE: 'external',
   SLAIF_RATE_LIMIT_MODE: 'disabled',
@@ -164,5 +195,7 @@ const summary = getSafeDeploymentSummary({
 const serializedSummary = JSON.stringify(summary);
 assert.equal(serializedSummary.includes('secret-token-store-password'), false);
 assert.equal(summary.apiOrigin, 'https://connect.slaif.si');
+assert.equal(summary.hasTokenStoreUrl, true);
+assert.equal(summary.redisKeyPrefix, 'slaif_prod');
 
 console.log('deployment config tests OK');

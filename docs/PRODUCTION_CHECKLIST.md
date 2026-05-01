@@ -24,12 +24,16 @@ Connect is already deployed in production.
 ## API / Tokens
 
 - [ ] Durable token store is configured.
+- [ ] Redis token store, if selected, is reachable only over TLS or a trusted
+      private network with credentials managed outside the repository.
 - [ ] Distributed replay prevention is tested across instances.
 - [ ] Token TTLs are reviewed.
 - [ ] Token scopes are separated.
 - [ ] Token values are not logged.
 - [ ] Tokens are not placed in URLs.
-- [ ] Redis/Postgres or equivalent adapter is deployed if multiple instances run.
+- [ ] Redis or equivalent shared adapter is deployed if multiple instances run.
+- [ ] Postgres is not selected unless a real adapter has been implemented and
+      tested.
 
 ## Relay
 

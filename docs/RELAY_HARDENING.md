@@ -69,9 +69,11 @@ Run:
 npm run test:relay-hardening
 ```
 
-The local development implementation is a reference foundation. Production
-deployment still needs durable token state, distributed replay prevention when
-running multiple instances, rate limits, WSS/TLS hardening, firewall egress
-rules, readiness checks, and operational logging review. See
+The local development implementation is a reference foundation. The Redis token
+store provides durable/shared token state and atomic consume semantics for
+distributed replay prevention when API/relay instances share the same Redis
+deployment. Production deployment still needs secure Redis operations, rate
+limits, WSS/TLS hardening, firewall egress rules, readiness checks, and
+operational logging review. See
 [PRODUCTION_DEPLOYMENT_CONTRACT.md](PRODUCTION_DEPLOYMENT_CONTRACT.md) and
 [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md).
