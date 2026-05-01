@@ -365,6 +365,31 @@ Validation:
 npm run test:deployment
 ```
 
+### 18. Redis durable token-store adapter
+
+The repository now includes a Redis-backed token store implementing the same
+scope/session/HPC/origin binding and max-use semantics as the memory reference
+store. Redis records are keyed by token hash/fingerprint, do not store raw token
+values, and atomic consume is tested across two store instances so replayed
+single-use tokens produce exactly one accepted consume. This is durable/shared
+token-state support, not a production Redis deployment.
+
+Main files and docs:
+
+- [server/tokens/redis_token_store.js](server/tokens/redis_token_store.js)
+- [server/tokens/token_store.js](server/tokens/token_store.js)
+- [server/config/deployment_config.js](server/config/deployment_config.js)
+- [tests/deployment/redis-token-store.test.mjs](tests/deployment/redis-token-store.test.mjs)
+- [tests/deployment/token-store-contract-helper.mjs](tests/deployment/token-store-contract-helper.mjs)
+- [docs/TOKEN_LIFECYCLE.md](docs/TOKEN_LIFECYCLE.md)
+- [docs/PRODUCTION_DEPLOYMENT_CONTRACT.md](docs/PRODUCTION_DEPLOYMENT_CONTRACT.md)
+
+Validation:
+
+```bash
+npm run test:redis-token-store
+```
+
 ## What Is Validated
 
 | Capability | Status | Evidence / command |
@@ -379,6 +404,7 @@ npm run test:deployment
 | Scoped token lifecycle and replay rejection | Working locally | `npm run test:tokens`, `npm run test:browser:tokens` |
 | Relay timeouts and audit-safe hardening controls | Working locally | `npm run test:relay-hardening` |
 | Unsafe production deployment config rejection | Working locally | `npm run test:deployment` |
+| Redis durable token store | Working locally with Redis test instance | `npm run test:redis-token-store` |
 | Production API/relay deployment | Pending | contract/reference validation exists; real deployment is not complete |
 | Web launch/session descriptor flow | Working locally | `npm run test:browser:launch-flow` |
 | Malicious launch fields are rejected | Working locally | `tests/session_descriptor.test.mjs`, browser launch-flow test |
@@ -431,7 +457,10 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 - Local SLURM job metadata reporting is implemented and validated against the local test sshd; real HPC SLURM reporting is not validated yet.
 - Broader result reporting beyond initial scheduler metadata is not production-integrated.
 - Durable production token storage, distributed replay prevention, infrastructure rate limits, and production audit-log operations have documented contracts and reference validation, but remain production deployment work.
-- Redis/Postgres token-store adapters are explicit placeholders and are not implemented yet.
+- Redis durable/shared token-store adapter is implemented and tested for atomic
+  consume/replay prevention, but no production Redis deployment has been
+  performed.
+- Postgres token-store adapter remains explicitly not implemented.
 - Production metrics/audit sink integration, infrastructure rate limits, and readiness wiring into a deployed service are not implemented yet.
 - The current browser prototype includes deterministic generated compatibility files for pinned upstream modules; a later build-system pass may replace these with a fuller upstream build flow.
 
@@ -440,7 +469,8 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 1. Production API/relay deployment contract and unsafe-config validation. This PR.
 2. Real HPC pilot target with independently verified pinned host key or host CA.
 3. Site-approved production SLAIF remote launcher deployment.
-4. Durable production token-store adapter and distributed replay prevention deployment.
+4. Production Redis deployment and distributed replay prevention validation in
+   the target API/relay environment.
 5. Real SLAIF policy signing operations and production trust-root handling.
 6. Production authentication UX.
 7. Production audit/metrics integration and infrastructure rate limiting.

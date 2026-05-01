@@ -113,8 +113,16 @@ The token store must provide:
 Acceptable production options include Redis with atomic Lua/transactions,
 Postgres with row-level locking or atomic updates, or another durable store with
 equivalent atomic consume semantics. The current repository implements the
-memory adapter for development/test and explicit failing placeholders for Redis
-and Postgres.
+memory adapter for development/test and a Redis adapter for durable/shared token
+state. Postgres remains an explicit failing placeholder and must not be treated
+as implemented.
+
+Redis deployment must be operated securely. Use TLS or a trusted private
+network, protect Redis credentials through a secret manager, restrict network
+access to the API/relay services, monitor latency and availability, and define
+backup/retention expectations appropriate for short-lived token records. Redis
+records are keyed by a token hash/fingerprint and must not contain raw token
+values.
 
 ## Distributed Replay Prevention
 
@@ -201,6 +209,10 @@ SLAIF_ALLOWED_WEB_ORIGINS
 SLAIF_ALLOWED_RELAY_TARGETS_FILE
 SLAIF_TOKEN_STORE=memory|redis|postgres
 SLAIF_TOKEN_STORE_URL
+SLAIF_REDIS_KEY_PREFIX
+SLAIF_REDIS_CONNECT_TIMEOUT_MS
+SLAIF_REDIS_COMMAND_TIMEOUT_MS
+SLAIF_REDIS_TLS_ENABLED
 SLAIF_AUDIT_LOG_MODE=stdout|file|external|disabled
 SLAIF_AUDIT_LOG_PATH
 SLAIF_RELAY_MAX_AUTH_BYTES
@@ -223,13 +235,15 @@ Production must reject:
 - missing relay target allowlist;
 - missing audit configuration;
 - missing token store URL when Redis/Postgres is selected;
+- invalid Redis URL or unsafe Redis key prefix when Redis is selected;
 - unsafe timeout or size limits.
 
 ## Production Caveats
 
 Future work remains:
 
-- real Redis/Postgres token-store adapter;
+- production Redis deployment and validation against the target environment;
+- Postgres token-store adapter, if Postgres is selected later;
 - production secret management;
 - production policy signing key custody;
 - production observability and audit integration;

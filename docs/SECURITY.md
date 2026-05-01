@@ -372,7 +372,10 @@ relay is not an open TCP proxy
 ## Production deployment boundary
 
 The development token registry and memory rate limiter are reference
-implementations only. Production API/relay deployments must satisfy
+implementations only. Redis is available as the first durable/shared token-store
+adapter for distributed replay prevention, but it still requires secure
+deployment operations, credential management, network controls, and monitoring.
+Production API/relay deployments must satisfy
 [PRODUCTION_DEPLOYMENT_CONTRACT.md](PRODUCTION_DEPLOYMENT_CONTRACT.md):
 durable token storage, distributed replay prevention, strict runtime config,
 rate limits, audit-safe logging, health/readiness checks, and relay egress

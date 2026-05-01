@@ -8,6 +8,16 @@ They are not production secrets and they are not complete deployment manifests.
   durable token-store mode, external rate limiting, audit logging, signed policy,
   and relay allowlist paths.
 
+The Redis token store is implemented as the first durable/shared token-state
+adapter. The example uses a placeholder Redis URL; real credentials should be
+provided by environment variables or a secret manager, not committed JSON.
+Production Redis should run with TLS or on a trusted private network with
+restricted access, monitoring, and retention/backups reviewed by operators.
+
+The memory token store is only for development/test or an explicitly labeled
+single-instance pilot. Postgres remains intentionally not implemented in this
+repository.
+
 Local runtime configuration must use ignored files such as:
 
 ```text

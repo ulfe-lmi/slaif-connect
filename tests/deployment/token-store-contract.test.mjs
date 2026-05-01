@@ -3,57 +3,28 @@ import {
   createTokenStore,
   TokenStoreNotImplementedError,
 } from '../../server/tokens/token_store.js';
-import {
-  TOKEN_SCOPES,
-  TokenRegistryError,
-} from '../../server/tokens/token_registry.js';
+import {assertTokenStoreContract} from './token-store-contract-helper.mjs';
 
 let now = Date.parse('2026-04-30T12:00:00.000Z');
-const store = createTokenStore({mode: 'memory'}, {clock: () => now});
-assert.equal(store.mode, 'memory');
-assert.equal(store.healthCheck().ok, true);
-assert.equal(store.healthCheck().durable, false);
 
-const issued = store.issueToken({
-  scope: TOKEN_SCOPES.RELAY,
-  sessionId: 'sess_store_contract_123',
-  hpc: 'test-sshd',
-  ttlMs: 60000,
-  maxUses: 1,
-});
-assert.equal(store.validateToken(issued.token, {
-  scope: TOKEN_SCOPES.RELAY,
-  sessionId: 'sess_store_contract_123',
-  hpc: 'test-sshd',
-}).fingerprint, issued.fingerprint);
-
-store.consumeToken(issued.token, {scope: TOKEN_SCOPES.RELAY});
-assert.throws(() => store.consumeToken(issued.token, {
-  scope: TOKEN_SCOPES.RELAY,
-}), (error) => {
-  assert(error instanceof TokenRegistryError);
-  assert.equal(error.code, 'token_use_exceeded');
-  return true;
+await assertTokenStoreContract({
+  mode: 'memory',
+  createStore: () => createTokenStore({mode: 'memory'}, {clock: () => now}),
+  advanceClock: (ms) => {
+    now += ms;
+  },
 });
 
-const expired = store.issueToken({
-  scope: TOKEN_SCOPES.LAUNCH,
-  sessionId: 'sess_store_contract_123',
-  hpc: 'test-sshd',
-  ttlMs: 1000,
+const redisStore = createTokenStore({
+  mode: 'redis',
+  tokenStoreUrl: 'redis://127.0.0.1:6379/15',
+  redisKeyPrefix: 'slaif_contract',
 });
-now += 2000;
-assert.throws(() => store.validateToken(expired.token, {
-  scope: TOKEN_SCOPES.LAUNCH,
-}), (error) => {
-  assert.equal(error.code, 'expired_token');
-  return true;
-});
-assert.equal(store.cleanupExpired() >= 1, true);
+assert.equal(redisStore.mode, 'redis');
+await redisStore.close?.();
 
 assert.throws(() => createTokenStore({mode: 'redis'}), (error) => {
-  assert(error instanceof TokenStoreNotImplementedError);
-  assert.equal(error.mode, 'redis');
+  assert.equal(error.code, 'missing_redis_url');
   return true;
 });
 assert.throws(() => createTokenStore({mode: 'postgres'}), (error) => {
@@ -61,9 +32,5 @@ assert.throws(() => createTokenStore({mode: 'postgres'}), (error) => {
   assert.equal(error.mode, 'postgres');
   return true;
 });
-
-const fingerprint = store.getSafeTokenFingerprint('secret-token-value-for-store');
-assert.match(fingerprint, /^sha256:[a-f0-9]+$/);
-assert.equal(fingerprint.includes('secret-token-value-for-store'), false);
 
 console.log('token store contract tests OK');

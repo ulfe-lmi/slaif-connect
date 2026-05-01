@@ -97,11 +97,16 @@ issuing, validating, consuming, revoking, and cleaning up scoped tokens. It is
 used by the local browser dev stack and real-HPC pilot stack.
 
 `server/tokens/token_store.js` defines the production-facing token-store
-contract and wraps the in-memory registry for development/test. Redis and
-Postgres modes are explicit not-implemented placeholders in this repository so
-they cannot be mistaken for production-ready adapters.
+contract, wraps the in-memory registry for development/test, and includes a
+Redis-backed adapter for durable/shared token state. The Redis adapter stores
+records by hashed token fingerprint, never by raw token value, and uses atomic
+consume semantics so replay attempts fail across API/relay instances that share
+the same Redis deployment. Postgres remains an explicit not-implemented
+placeholder in this repository.
 
-This is not production key custody or a distributed token store. Production
-deployment still needs durable storage, distributed replay prevention, key
-management, rate limits, and operational audit policy. See
+This is not production key custody or a complete production deployment.
+Production Redis use still needs secure operations: TLS or a trusted private
+network, credential management, access controls, monitoring, backup/retention
+policy where applicable, latency/reliability planning, rate limits, and
+operational audit policy. See
 [PRODUCTION_DEPLOYMENT_CONTRACT.md](PRODUCTION_DEPLOYMENT_CONTRACT.md).

@@ -13,6 +13,7 @@ const TOKEN_STORES = new Set(['memory', 'redis', 'postgres']);
 const AUDIT_MODES = new Set(['stdout', 'file', 'external', 'disabled']);
 const RATE_LIMIT_MODES = new Set(['disabled', 'memory', 'external']);
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
+const REDIS_PROTOCOLS = new Set(['redis:', 'rediss:']);
 
 const DEFAULTS = Object.freeze({
   env: 'development',
@@ -24,6 +25,10 @@ const DEFAULTS = Object.freeze({
   tokenStore: 'memory',
   auditLogMode: 'stdout',
   rateLimitMode: 'memory',
+  redisKeyPrefix: 'slaif',
+  redisConnectTimeoutMs: 10000,
+  redisCommandTimeoutMs: 10000,
+  redisTlsEnabled: false,
   allowSingleInstancePilot: false,
 });
 
@@ -97,6 +102,31 @@ function isLocalUrl(value) {
   }
 }
 
+function normalizeRedisUrl(value) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new DeploymentConfigError('missing_token_store_url',
+        'missing token store URL');
+  }
+  try {
+    const url = new URL(value);
+    if (!REDIS_PROTOCOLS.has(url.protocol)) {
+      throw new Error('unsupported Redis protocol');
+    }
+    return url.toString();
+  } catch (_error) {
+    throw new DeploymentConfigError('invalid_redis_url', 'invalid Redis URL');
+  }
+}
+
+function validateRedisKeyPrefix(value) {
+  const prefix = String(value || '').trim();
+  if (!/^[A-Za-z0-9:_-]{1,64}$/.test(prefix) || prefix.includes('..')) {
+    throw new DeploymentConfigError('invalid_redis_key_prefix',
+        'invalid Redis key prefix');
+  }
+  return prefix.replace(/:+$/u, '');
+}
+
 function requireProtocol(value, allowed, name, {allowLocalInsecure = false} = {}) {
   const url = new URL(value);
   if (allowed.includes(url.protocol)) {
@@ -142,6 +172,26 @@ export function loadDeploymentConfig({
     ),
     tokenStore: coalesce(fileConfig.tokenStore, env.SLAIF_TOKEN_STORE, DEFAULTS.tokenStore),
     tokenStoreUrl: coalesce(fileConfig.tokenStoreUrl, env.SLAIF_TOKEN_STORE_URL),
+    redisKeyPrefix: coalesce(
+        fileConfig.redisKeyPrefix,
+        env.SLAIF_REDIS_KEY_PREFIX,
+        DEFAULTS.redisKeyPrefix,
+    ),
+    redisConnectTimeoutMs: parseInteger(coalesce(
+        fileConfig.redisConnectTimeoutMs,
+        env.SLAIF_REDIS_CONNECT_TIMEOUT_MS,
+        DEFAULTS.redisConnectTimeoutMs,
+    ), 'redisConnectTimeoutMs'),
+    redisCommandTimeoutMs: parseInteger(coalesce(
+        fileConfig.redisCommandTimeoutMs,
+        env.SLAIF_REDIS_COMMAND_TIMEOUT_MS,
+        DEFAULTS.redisCommandTimeoutMs,
+    ), 'redisCommandTimeoutMs'),
+    redisTlsEnabled: parseBoolean(coalesce(
+        fileConfig.redisTlsEnabled,
+        env.SLAIF_REDIS_TLS_ENABLED,
+        DEFAULTS.redisTlsEnabled,
+    )),
     auditLogMode: coalesce(
         fileConfig.auditLogMode,
         env.SLAIF_AUDIT_LOG_MODE,
@@ -227,6 +277,18 @@ export function validateDeploymentConfig(config) {
     throw new DeploymentConfigError('missing_token_store_url',
         'missing token store URL');
   }
+  if (normalized.tokenStore === 'redis') {
+    normalized.tokenStoreUrl = normalizeRedisUrl(normalized.tokenStoreUrl);
+    normalized.redisKeyPrefix = validateRedisKeyPrefix(normalized.redisKeyPrefix);
+    assertPositiveBounded(normalized.redisConnectTimeoutMs, 'redisConnectTimeoutMs', {
+      min: 100,
+      max: 60000,
+    });
+    assertPositiveBounded(normalized.redisCommandTimeoutMs, 'redisCommandTimeoutMs', {
+      min: 100,
+      max: 60000,
+    });
+  }
 
   if (!AUDIT_MODES.has(normalized.auditLogMode)) {
     throw new DeploymentConfigError('invalid_audit_log_mode', 'invalid audit log mode');
@@ -285,6 +347,11 @@ export function getSafeDeploymentSummary(config) {
     relayOrigin: new URL(validated.relayPublicUrl).origin,
     allowedWebOrigins: [...validated.allowedWebOrigins],
     tokenStore: validated.tokenStore,
+    redisKeyPrefix: validated.tokenStore === 'redis' ? validated.redisKeyPrefix : undefined,
+    redisTlsEnabled: validated.tokenStore === 'redis' ?
+      Boolean(validated.redisTlsEnabled || new URL(validated.tokenStoreUrl).protocol === 'rediss:') :
+      undefined,
+    hasTokenStoreUrl: Boolean(validated.tokenStoreUrl),
     auditLogMode: validated.auditLogMode,
     rateLimitMode: validated.rateLimitMode,
     relayMaxAuthBytes: validated.relayMaxAuthBytes,

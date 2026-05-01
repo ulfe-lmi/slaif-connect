@@ -33,6 +33,7 @@ Short version:
 - fixed-command SLURM job metadata reporting is locally validated through browser-side output parsing and a session-bound API report token;
 - the remote launcher contract and a safe local/test reference launcher are present;
 - token lifecycle and relay hardening foundations are present for short-lived scoped tokens, replay rejection, relay timeouts, and audit-safe logging;
+- Redis-backed durable token storage is available for shared token state and distributed replay prevention;
 - production deployment, real HPC integration, production trust-root operations, and release packaging are still pending.
 
 ## Architecture
@@ -130,6 +131,13 @@ npm run test:tokens
 npm run test:deployment
 ```
 
+Redis token-store validation is explicit because it needs `REDIS_URL` or a
+disposable Redis container:
+
+```bash
+npm run test:redis-token-store
+```
+
 Relay auth/security tests:
 
 ```bash
@@ -196,4 +204,4 @@ npm run test:pilot
 
 SLAIF Connect is not production-ready yet. Local validation now covers real SSH traffic through the relay, browser-side OpenSSH/WASM startup, strict host-key negative cases, and the product-shaped web launch/session descriptor flow. That is still not the same as deployment against real HPC infrastructure.
 
-The next major security milestone is running a real HPC pilot with independently verified host-key or host-CA data and a site-approved installed launcher command, then operationalizing production SLAIF trust roots, durable token storage and distributed replay prevention, production authentication UX, production API/relay deployment, and release packaging.
+The next major security milestone is running a real HPC pilot with independently verified host-key or host-CA data and a site-approved installed launcher command, then operationalizing production SLAIF trust roots, production Redis/secret/audit operations, production authentication UX, production API/relay deployment, and release packaging.
