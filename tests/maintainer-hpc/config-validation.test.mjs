@@ -7,6 +7,10 @@ import {
   loadMaintainerConfig,
   validateMaintainerConfig,
 } from '../../maintainer/hpc-test-kit/local/validate-maintainer-config.mjs';
+import {
+  buildMaintainerProfileCatalog,
+  buildMaintainerSessionIntent,
+} from '../../maintainer/hpc-test-kit/local/run-maintainer-hpc-test.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '../..');
@@ -68,6 +72,25 @@ assertConfigError({
 }, 'selected_host_not_allowed');
 
 assertConfigError({
+  ...validRealConfig({
+    tests: {
+      ...validRealConfig().tests,
+      launcherIntentPayloadId: 'unknown_payload_v1',
+    },
+  }),
+}, 'invalid_launcher_intent_payload');
+
+assertConfigError({
+  ...validRealConfig({
+    tests: {
+      ...validRealConfig().tests,
+      runLauncherIntentDryRun: false,
+      runLauncherIntentSubmit: true,
+    },
+  }),
+}, 'launcher_intent_submit_without_dry_run');
+
+assertConfigError({
   ...validRealConfig(),
   yolo: {
     command: 'echo should-not-run',
@@ -101,5 +124,25 @@ validateMaintainerConfig({
     iUnderstandThisRunsArbitraryCode: true,
   },
 });
+
+const intentConfig = validRealConfig({
+  tests: {
+    ...validRealConfig().tests,
+    launcherIntentPayloadId: 'gpu_diagnostics_v1',
+    runLauncherIntentDryRun: true,
+    runLauncherIntentSubmit: false,
+  },
+});
+const intent = buildMaintainerSessionIntent(intentConfig);
+assert.equal(intent.payloadId, 'gpu_diagnostics_v1');
+assert.equal(Object.hasOwn(intent, 'command'), false);
+assert.equal(JSON.stringify(intent).includes('Token'), false);
+
+const profiles = buildMaintainerProfileCatalog(intentConfig);
+assert.equal(profiles.profiles.gpu_diagnostics_v1.payloadId, 'gpu_diagnostics_v1');
+assert.equal(profiles.profiles.gpu_diagnostics_v1.template, 'gpu_diagnostics_v1');
+assert.equal(JSON.stringify(profiles).includes('command'), false);
+assert.equal(JSON.stringify(profiles).includes('scriptText'), false);
+assert.equal(JSON.stringify(profiles).includes('privateKey'), false);
 
 console.log('maintainer HPC config validation tests OK');

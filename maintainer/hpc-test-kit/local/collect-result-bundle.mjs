@@ -53,6 +53,7 @@ Copy the non-secret findings into the next issue, PR, or private maintainer repo
 - CPU diagnostic job ID and result JSON
 - GPU diagnostic job ID and result JSON, if run
 - launcher dry-run result
+- launcher payload-intent dry-run or explicit submit result
 - YOLO result only if intentionally run
 - errors encountered
 - whether 2FA/browser-side SSH worked

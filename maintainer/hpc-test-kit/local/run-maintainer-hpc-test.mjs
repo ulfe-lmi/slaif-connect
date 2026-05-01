@@ -11,6 +11,8 @@ const kitRoot = path.resolve(__dirname, '..');
 const repoRoot = path.resolve(kitRoot, '../..');
 const remoteScriptsDir = path.join(kitRoot, 'remote');
 const launcherPath = path.join(repoRoot, 'remote/launcher/slaif-launch');
+const launcherLibDir = path.join(repoRoot, 'remote/launcher/lib');
+const launcherTemplatesDir = path.join(repoRoot, 'remote/launcher/templates');
 
 function parseArgs(argv) {
   const args = {phase: 'discover', allowYolo: false, yoloAck: false};
@@ -81,6 +83,7 @@ function runChecked(command, args, options = {}) {
 
 function remoteEnv(config, phase) {
   const slurm = config.slurm || {};
+  const intentSessionId = 'sess_maintainer_intent';
   const env = {
     REMOTE_BASE_DIR: config.remoteBaseDir,
     SLAIF_TEST_PHASE: phase,
@@ -94,6 +97,10 @@ function remoteEnv(config, phase) {
     SLAIF_SLURM_GPUS: String(slurm.gpus ?? 1),
     SLAIF_SLURM_GPU_GRES: slurm.gpuGres || '',
     SLAIF_WAIT_FOR_COMPLETION: config.tests?.waitForCompletion ? '1' : '0',
+    SLAIF_LAUNCHER_INTENT_SESSION_ID: intentSessionId,
+    SLAIF_LAUNCHER_INTENT_FILE: `${config.remoteBaseDir}/kit/launcher-intent/session-intent.json`,
+    SLAIF_LAUNCHER_PROFILE_FILE: `${config.remoteBaseDir}/kit/launcher-intent/slurm-profiles.json`,
+    SLAIF_LAUNCHER_INTENT_SUBMIT: config.tests?.runLauncherIntentSubmit ? '1' : '0',
   };
   if (phase === 'yolo') {
     env.SLAIF_ALLOW_YOLO = config.yolo?.allowYolo ? '1' : '0';
@@ -104,13 +111,83 @@ function remoteEnv(config, phase) {
   return Object.entries(env).map(([key, value]) => `${key}=${q(value)}`).join(' ');
 }
 
+function launcherIntentPayloadId(config) {
+  const requested = config.tests?.launcherIntentPayloadId || 'cpu_memory_diagnostics_v1';
+  if (!['cpu_memory_diagnostics_v1', 'gpu_diagnostics_v1', 'gams_chat_v1'].includes(requested)) {
+    throw new Error('tests.launcherIntentPayloadId must be an allowed normal payloadId');
+  }
+  return requested;
+}
+
+export function buildMaintainerSessionIntent(config) {
+  const payloadId = launcherIntentPayloadId(config);
+  const now = new Date();
+  const expires = new Date(now.getTime() + 15 * 60 * 1000);
+  return {
+    type: 'slaif.sessionIntent',
+    version: 1,
+    sessionId: 'sess_maintainer_intent',
+    hpc: config.system === 'custom' ? 'customhpc' : `${config.system}hpc`,
+    payloadId,
+    createdAt: now.toISOString(),
+    expiresAt: expires.toISOString(),
+    launcher: {
+      mode: 'normal',
+    },
+  };
+}
+
+function profileForPayload(config, payloadId) {
+  const slurm = config.slurm || {};
+  const gpuPayload = payloadId === 'gpu_diagnostics_v1' || payloadId === 'gams_chat_v1';
+  const profileId = payloadId === 'gams_chat_v1' ? 'gams_chat_v1_scaffold' : `${payloadId}_maintainer`;
+  return {
+    profileId,
+    payloadId,
+    scheduler: 'slurm',
+    jobName: payloadId === 'gams_chat_v1' ? 'slaif-gams-chat' :
+      (gpuPayload ? 'slaif-gpu-diag' : 'slaif-cpu-diag'),
+    timeLimit: slurm.timeLimit || (payloadId === 'gams_chat_v1' ? '00:10:00' : '00:05:00'),
+    cpusPerTask: slurm.cpusPerTask ?? 1,
+    memory: slurm.memory || (payloadId === 'gams_chat_v1' ? '2G' : '1G'),
+    partition: gpuPayload ? (slurm.gpuPartition || '') : (slurm.cpuPartition || ''),
+    account: slurm.account || '',
+    qos: slurm.qos || '',
+    ...(gpuPayload && slurm.gpuGres ? {gres: slurm.gpuGres} : {}),
+    ...(gpuPayload && slurm.gpus ? {gpus: slurm.gpus} : {}),
+    maxOutputBytes: 65536,
+    template: payloadId === 'gams_chat_v1' ? 'gams_chat_v1_scaffold' : payloadId,
+  };
+}
+
+export function buildMaintainerProfileCatalog(config) {
+  const payloadId = launcherIntentPayloadId(config);
+  return {
+    type: 'slaif.slurmProfileCatalog',
+    version: 1,
+    profiles: {
+      [payloadId]: profileForPayload(config, payloadId),
+    },
+  };
+}
+
+function writeLauncherIntentFiles(config, bundleDir) {
+  const localDir = path.join(bundleDir, 'launcher-intent');
+  fs.mkdirSync(localDir, {recursive: true, mode: 0o700});
+  const intentPath = path.join(localDir, 'session-intent.json');
+  const profilePath = path.join(localDir, 'slurm-profiles.json');
+  fs.writeFileSync(intentPath, `${JSON.stringify(buildMaintainerSessionIntent(config), null, 2)}\n`);
+  fs.writeFileSync(profilePath, `${JSON.stringify(buildMaintainerProfileCatalog(config), null, 2)}\n`);
+  return {localDir, intentPath, profilePath};
+}
+
 function uploadKit(config) {
   const target = sshTarget(config);
   const remoteBase = config.remoteBaseDir;
   runChecked('ssh', [
     ...sshBaseArgs(config),
     target,
-    `mkdir -p ${q(remoteBase)}/kit/remote ${q(remoteBase)}/bin ${q(remoteBase)}/results`,
+    `mkdir -p ${q(remoteBase)}/kit/remote ${q(remoteBase)}/kit/launcher-intent ${q(remoteBase)}/bin/lib ${q(remoteBase)}/bin/templates ${q(remoteBase)}/results`,
   ]);
   runChecked('scp', [
     ...sshBaseArgs(config),
@@ -122,10 +199,31 @@ function uploadKit(config) {
     launcherPath,
     `${target}:${remoteBase}/bin/slaif-launch`,
   ]);
+  runChecked('scp', [
+    ...sshBaseArgs(config),
+    ...fs.readdirSync(launcherLibDir).map((entry) => path.join(launcherLibDir, entry)),
+    `${target}:${remoteBase}/bin/lib/`,
+  ]);
+  runChecked('scp', [
+    ...sshBaseArgs(config),
+    ...fs.readdirSync(launcherTemplatesDir).map((entry) => path.join(launcherTemplatesDir, entry)),
+    `${target}:${remoteBase}/bin/templates/`,
+  ]);
   runChecked('ssh', [
     ...sshBaseArgs(config),
     target,
-    `chmod 700 ${q(remoteBase)}/kit/remote/*.sh ${q(remoteBase)}/bin/slaif-launch`,
+    `chmod 700 ${q(remoteBase)}/kit/remote/*.sh ${q(remoteBase)}/bin/slaif-launch ${q(remoteBase)}/bin/lib/* ${q(remoteBase)}/bin/templates/*`,
+  ]);
+}
+
+function uploadLauncherIntent(config, bundleDir) {
+  const target = sshTarget(config);
+  const files = writeLauncherIntentFiles(config, bundleDir);
+  runChecked('scp', [
+    ...sshBaseArgs(config),
+    files.intentPath,
+    files.profilePath,
+    `${target}:${config.remoteBaseDir}/kit/launcher-intent/`,
   ]);
 }
 
@@ -135,6 +233,7 @@ function runRemotePhase(config, phase, bundleDir) {
     cpu: 'slaif-hpc-test-cpu.sh',
     gpu: 'slaif-hpc-test-gpu.sh',
     launcher: 'slaif-hpc-test-launcher-dry-run.sh',
+    'launcher-intent': 'slaif-hpc-test-launcher-intent.sh',
     yolo: 'slaif-hpc-test-yolo.sh',
   };
   const script = scriptByPhase[phase];
@@ -168,6 +267,9 @@ function phasesFor(args, config) {
     if (config.tests?.runLauncherDryRun !== false) {
       phases.push('launcher');
     }
+    if (config.tests?.runLauncherIntentDryRun) {
+      phases.push('launcher-intent');
+    }
     return phases;
   }
   if (args.phase === 'all-with-yolo') {
@@ -188,38 +290,45 @@ function assertYoloAllowed(args, config) {
   }
 }
 
-try {
-  const args = parseArgs(process.argv);
-  if (!args.config) {
-    throw new Error('--config is required');
+export function runMaintainerHpcTestCli(argv = process.argv) {
+  try {
+    const args = parseArgs(argv);
+    if (!args.config) {
+      throw new Error('--config is required');
+    }
+    const config = loadMaintainerConfig(args.config, {
+      allowCustomHost: args.allowCustomHost,
+      requireVerifiedKnownHosts: true,
+      phase: args.phase,
+    });
+    assertYoloAllowed(args, config);
+    const bundleDir = path.join(repoRoot, 'maintainer-results', `${config.system}-${timestamp()}`);
+    fs.mkdirSync(bundleDir, {recursive: true, mode: 0o700});
+    uploadKit(config);
+    uploadLauncherIntent(config, bundleDir);
+    const completedPhases = [];
+    for (const phase of phasesFor(args, config)) {
+      runRemotePhase(config, phase, bundleDir);
+      completedPhases.push(phase);
+    }
+    fs.writeFileSync(path.join(bundleDir, 'summary.json'), `${JSON.stringify({
+      type: 'slaif.maintainerHpcRunSummary',
+      version: 1,
+      createdAt: new Date().toISOString(),
+      system: config.system,
+      selectedLoginHost: config.selectedLoginHost,
+      remoteBaseDir: config.remoteBaseDir,
+      completedPhases,
+      note: 'Remote result files remain under remoteBaseDir/results; use collect-result-bundle.mjs to copy them locally.',
+    }, null, 2)}\n`);
+    console.log(`local maintainer run summary: ${bundleDir}`);
+    console.log('maintainer HPC test phase complete');
+  } catch (error) {
+    console.error(`maintainer HPC test failed: ${error.message}`);
+    process.exit(1);
   }
-  const config = loadMaintainerConfig(args.config, {
-    allowCustomHost: args.allowCustomHost,
-    requireVerifiedKnownHosts: true,
-    phase: args.phase,
-  });
-  assertYoloAllowed(args, config);
-  const bundleDir = path.join(repoRoot, 'maintainer-results', `${config.system}-${timestamp()}`);
-  fs.mkdirSync(bundleDir, {recursive: true, mode: 0o700});
-  uploadKit(config);
-  const completedPhases = [];
-  for (const phase of phasesFor(args, config)) {
-    runRemotePhase(config, phase, bundleDir);
-    completedPhases.push(phase);
-  }
-  fs.writeFileSync(path.join(bundleDir, 'summary.json'), `${JSON.stringify({
-    type: 'slaif.maintainerHpcRunSummary',
-    version: 1,
-    createdAt: new Date().toISOString(),
-    system: config.system,
-    selectedLoginHost: config.selectedLoginHost,
-    remoteBaseDir: config.remoteBaseDir,
-    completedPhases,
-    note: 'Remote result files remain under remoteBaseDir/results; use collect-result-bundle.mjs to copy them locally.',
-  }, null, 2)}\n`);
-  console.log(`local maintainer run summary: ${bundleDir}`);
-  console.log('maintainer HPC test phase complete');
-} catch (error) {
-  console.error(`maintainer HPC test failed: ${error.message}`);
-  process.exit(1);
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runMaintainerHpcTestCli(process.argv);
 }

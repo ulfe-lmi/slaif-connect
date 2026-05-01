@@ -19,7 +19,8 @@ The launcher runs on the HPC side after the user authenticates through browser-s
 - rejects unknown flags, including arbitrary command/script flags;
 - accepts no SSH credentials, passwords, OTPs, private keys, launch tokens, relay tokens, or job-report tokens;
 - uses test/dry-run mode to print `Submitted batch job <id>`;
-- can call `sbatch "$SLAIF_SLURM_SCRIPT"` only when a site-owned absolute script path is configured.
+- can call `sbatch "$SLAIF_SLURM_SCRIPT"` only when a site-owned absolute script path is configured;
+- can validate local/test session intent and Slurm profile files, render repository-owned templates, and submit through `sbatch`.
 
 Local test mode:
 
@@ -31,6 +32,17 @@ Dry run:
 
 ```bash
 ./remote/launcher/slaif-launch --dry-run --session sess_manual123
+```
+
+Payload-intent dry run:
+
+```bash
+./remote/launcher/slaif-launch \
+  --session sess_examplecpu123 \
+  --intent-file remote/launcher/examples/session-intent.cpu.example.json \
+  --profile-file remote/launcher/examples/slurm-profiles.example.json \
+  --work-dir ~/.slaif-connect/launcher \
+  --dry-run
 ```
 
 Real SLURM mode requires an HPC site-owned script:

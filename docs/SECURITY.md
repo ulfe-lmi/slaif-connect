@@ -220,6 +220,12 @@ catalog entries must not contain shell commands, Slurm script text, SSH
 credentials, tokens, or endpoint overrides. See
 [PAYLOAD_CATALOG.md](PAYLOAD_CATALOG.md).
 
+The remote launcher payload-intent path keeps that separation on the login
+node. Session intent may carry `payloadId` and safe metadata only; Slurm
+profiles carry site-approved resource settings only; repository-owned templates
+provide the executable diagnostic/scaffold code. Intent and profile files must
+not carry commands, scripts, SSH credentials, tokens, or host overrides.
+
 Maintainer-only YOLO test tooling is separate from normal mode. It intentionally
 runs arbitrary code under the maintainer's own authenticated HPC account for
 manual diagnostics and requires explicit local/config/environment gates. It must

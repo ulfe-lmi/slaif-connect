@@ -29,6 +29,53 @@ export const DEFAULT_PAYLOAD_ID = 'gpu_diagnostics_v1';
 export const DEFAULT_EXPECTED_JOB_ID = '424242';
 export const DEFAULT_EXPECTED_OUTPUT = `Submitted batch job ${DEFAULT_EXPECTED_JOB_ID}`;
 
+function localIntentForPayload({sessionId, hpc, payloadId}) {
+  const createdAt = new Date(Date.now() - 60 * 1000);
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  return {
+    type: 'slaif.sessionIntent',
+    version: 1,
+    sessionId,
+    hpc,
+    payloadId,
+    createdAt: createdAt.toISOString(),
+    expiresAt: expiresAt.toISOString(),
+    launcher: {
+      mode: 'normal',
+    },
+  };
+}
+
+function localProfileForPayload(payloadId) {
+  const gpuPayload = payloadId === 'gpu_diagnostics_v1' || payloadId === 'gams_chat_v1';
+  return {
+    profileId: payloadId === 'gams_chat_v1' ? 'gams_chat_v1_scaffold' : `${payloadId}_local_dev`,
+    payloadId,
+    scheduler: 'slurm',
+    jobName: payloadId === 'gams_chat_v1' ? 'slaif-gams-chat' :
+      (gpuPayload ? 'slaif-gpu-diag' : 'slaif-cpu-diag'),
+    timeLimit: payloadId === 'gams_chat_v1' ? '00:10:00' : '00:05:00',
+    cpusPerTask: 1,
+    memory: payloadId === 'gams_chat_v1' ? '2G' : '1G',
+    partition: '',
+    account: '',
+    qos: '',
+    ...(gpuPayload ? {gres: 'gpu:1', gpus: 1} : {}),
+    maxOutputBytes: 65536,
+    template: payloadId === 'gams_chat_v1' ? 'gams_chat_v1_scaffold' : payloadId,
+  };
+}
+
+function localProfileCatalog(payloadId) {
+  return {
+    type: 'slaif.slurmProfileCatalog',
+    version: 1,
+    profiles: {
+      [payloadId]: localProfileForPayload(payloadId),
+    },
+  };
+}
+
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: options.cwd || defaultRoot,
@@ -591,6 +638,32 @@ export async function startExtensionDevStack(options = {}) {
     const launcherTarget = path.join(tempDir, 'slaif-launch');
     fs.copyFileSync(launcherSource, launcherTarget);
     fs.chmodSync(launcherTarget, 0o555);
+    fs.cpSync(path.join(root, 'remote/launcher/lib'), path.join(tempDir, 'lib'), {
+      recursive: true,
+    });
+    fs.cpSync(path.join(root, 'remote/launcher/templates'), path.join(tempDir, 'templates'), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+        path.join(tempDir, 'session-intent.json'),
+        `${JSON.stringify(localIntentForPayload({sessionId, hpc, payloadId}), null, 2)}\n`,
+    );
+    fs.writeFileSync(
+        path.join(tempDir, 'slurm-profiles.json'),
+        `${JSON.stringify(localProfileCatalog(payloadId), null, 2)}\n`,
+    );
+    const fakeSbatch = path.join(tempDir, 'sbatch');
+    fs.writeFileSync(fakeSbatch, [
+      '#!/bin/sh',
+      'for arg in "$@"; do',
+      '  case "$arg" in',
+      "    *';'*|*'`'*|*'$('*|*'|'*|*'&'*) exit 64 ;;",
+      '  esac',
+      'done',
+      `printf 'Submitted batch job ${expectedJobId}\\n'`,
+      '',
+    ].join('\n'));
+    fs.chmodSync(fakeSbatch, 0o555);
     run('ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-f', hostKey], {cwd: root});
     run('ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-f', wrongHostKey], {cwd: root});
     run('ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-f', clientKey], {cwd: root});
@@ -766,7 +839,7 @@ export async function startExtensionDevStack(options = {}) {
           knownHosts: [knownHostsLine],
           remoteCommandTemplate: options.noSlurmJobOutput ?
             '/bin/sh -lc "printf \'SLAIF session ${SESSION_ID}\\n\'"' :
-            `SLAIF_LAUNCHER_TEST_JOB_ID=${expectedJobId} /keys/slaif-launch --session ${'${SESSION_ID}'}`,
+            `PATH=/keys:$PATH /keys/slaif-launch --session ${'${SESSION_ID}'} --intent-file /keys/session-intent.json --profile-file /keys/slurm-profiles.json`,
           allowInteractiveTerminal: false,
           allowedPayloadIds: options.allowedPayloadIds || [payloadId],
           developmentOnly: true,

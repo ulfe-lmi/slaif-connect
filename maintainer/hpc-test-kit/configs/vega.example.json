@@ -27,6 +27,9 @@
     "runCpuDiagnostics": true,
     "runGpuDiagnostics": false,
     "runLauncherDryRun": true,
+    "runLauncherIntentDryRun": true,
+    "runLauncherIntentSubmit": false,
+    "launcherIntentPayloadId": "cpu_memory_diagnostics_v1",
     "runYolo": false
   },
   "yolo": {

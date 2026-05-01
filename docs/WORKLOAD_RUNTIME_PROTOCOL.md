@@ -205,3 +205,8 @@ Maintainer real-HPC diagnostics in this repository currently exercise Slurm
 discovery, CPU/GPU diagnostic jobs, and launcher dry-run behavior. Interactive
 worker runtime tests, outbound worker connections, GaMS/vLLM serving, and the
 broker are not part of the maintainer test kit foundation.
+
+The remote launcher payload-intent path is the login-node precursor to this
+runtime protocol. It validates `payloadId`, maps it to a site-approved Slurm
+profile, and submits the job. The workload broker, remote workload agent, and
+GaMS/vLLM serving remain future work.

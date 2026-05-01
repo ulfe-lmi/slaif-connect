@@ -1,0 +1,52 @@
+{
+  "type": "slaif.slurmProfileCatalog",
+  "version": 1,
+  "profiles": {
+    "cpu_memory_diagnostics_v1": {
+      "profileId": "cpu_memory_diagnostics_v1_default",
+      "payloadId": "cpu_memory_diagnostics_v1",
+      "scheduler": "slurm",
+      "jobName": "slaif-cpu-diag",
+      "timeLimit": "00:05:00",
+      "cpusPerTask": 1,
+      "memory": "1G",
+      "partition": "",
+      "account": "",
+      "qos": "",
+      "maxOutputBytes": 65536,
+      "template": "cpu_memory_diagnostics_v1"
+    },
+    "gpu_diagnostics_v1": {
+      "profileId": "gpu_diagnostics_v1_default",
+      "payloadId": "gpu_diagnostics_v1",
+      "scheduler": "slurm",
+      "jobName": "slaif-gpu-diag",
+      "timeLimit": "00:05:00",
+      "cpusPerTask": 1,
+      "memory": "1G",
+      "partition": "",
+      "account": "",
+      "qos": "",
+      "gres": "gpu:1",
+      "gpus": 1,
+      "maxOutputBytes": 65536,
+      "template": "gpu_diagnostics_v1"
+    },
+    "gams_chat_v1": {
+      "profileId": "gams_chat_v1_scaffold",
+      "payloadId": "gams_chat_v1",
+      "scheduler": "slurm",
+      "jobName": "slaif-gams-chat",
+      "timeLimit": "00:10:00",
+      "cpusPerTask": 1,
+      "memory": "2G",
+      "partition": "",
+      "account": "",
+      "qos": "",
+      "gres": "gpu:1",
+      "gpus": 1,
+      "maxOutputBytes": 65536,
+      "template": "gams_chat_v1_scaffold"
+    }
+  }
+}

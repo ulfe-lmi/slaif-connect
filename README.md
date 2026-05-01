@@ -40,7 +40,7 @@ Short version:
 - workload-token and workload runtime protocol foundations are present for outbound Slurm worker communication;
 - signed HPC policy payload catalog validation is present for `gpu_diagnostics_v1`, `cpu_memory_diagnostics_v1`, and `gams_chat_v1`;
 - maintainer-owned real-HPC test kit docs/scripts are present for manual Vega, Arnes HPC, and NSC discovery before adding site profiles;
-- the next product phase is remote launcher payload intent and site-approved Slurm profiles;
+- remote launcher payload-intent validation maps `payloadId` to site-approved Slurm profiles and repository-owned templates in local/mock tests and the local browser dev stack;
 - production deployment, real HPC integration, production trust-root operations, and release packaging are still pending.
 
 ## Architecture
@@ -203,6 +203,7 @@ by CI.
 - [docs/UPSTREAM_LINKING.md](docs/UPSTREAM_LINKING.md): upstream `libapps` vendoring model.
 - [docs/HPC_POLICY.md](docs/HPC_POLICY.md): signed HPC policy format and tools.
 - [docs/PAYLOAD_CATALOG.md](docs/PAYLOAD_CATALOG.md): signed-policy allowed payload catalog and host-level payload restrictions.
+- [docs/REMOTE_LAUNCHER_PAYLOAD_INTENT.md](docs/REMOTE_LAUNCHER_PAYLOAD_INTENT.md): session intent, Slurm profile, and repository-owned template launcher contract.
 - [docs/MAINTAINER_HPC_TESTING.md](docs/MAINTAINER_HPC_TESTING.md): maintainer-owned real-HPC discovery, host-key verification, diagnostics, and result bundle flow.
 - [docs/HOST_KEY_ROTATION.md](docs/HOST_KEY_ROTATION.md): host-key and host-CA rotation foundation.
 - [docs/REAL_HPC_PILOT.md](docs/REAL_HPC_PILOT.md): manual real-HPC pilot onboarding flow.
