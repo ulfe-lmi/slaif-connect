@@ -15,6 +15,11 @@ API and relay:
 This repository provides reference code and validation for the contract. This
 does not mean SLAIF Connect is production deployed.
 
+The current product direction is payload-driven Slurm workloads, not only
+job-ID reporting. See [../SLAIF_WORKLOAD_MVP.md](../SLAIF_WORKLOAD_MVP.md) for
+the fast diagnostics, interactive GaMS chat, workload-token, and deferred YOLO
+mode roadmap.
+
 ## Production Architecture
 
 ```text
@@ -24,7 +29,9 @@ SLAIF web app
   -> shared token store
   -> relay endpoint
   -> approved HPC sshd
-  -> job report endpoint
+  -> fixed remote launcher on login node
+  -> Slurm worker allocation
+  -> payload result / job report endpoints
   -> audit logs / metrics
 ```
 
@@ -37,6 +44,11 @@ The relay egress path must be restricted to approved HPC login nodes. The
 signed extension-side HPC policy remains authoritative for SSH host, SSH port,
 host-key trust, relay origin, API origin, and remote command template. Session
 descriptors still must not supply SSH host, host key, SSH options, or command.
+
+Normal workloads are selected by `payloadId` and must resolve to
+site-approved Slurm profiles. Worker nodes are reached through Slurm
+allocation, not SSH. Interactive worker processes may connect outbound to SLAIF
+with a scoped workload token once that protocol is implemented.
 
 ## Required Server Endpoints
 

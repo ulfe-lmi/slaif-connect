@@ -24,6 +24,55 @@ passwords, OTPs, private keys, decrypted terminal data, or arbitrary user shell
 access.
 ```
 
+## Workload MVP Direction
+
+The project direction has moved beyond "submit a job and return a SLURM job ID."
+Scheduler job metadata reporting remains important, but it is now one part of a
+larger payload-result and interactive workload path.
+
+The normal MVP workload classes are:
+
+- fast Slurm-launched diagnostics;
+- interactive ChatGPT-like GaMS chat.
+
+Initial normal payload IDs:
+
+- `gpu_diagnostics_v1`;
+- `cpu_memory_diagnostics_v1`;
+- `gams_chat_v1`.
+
+Normal mode is `payloadId`-driven. The SLAIF web app, session descriptor, relay,
+and user-facing launcher must not provide arbitrary command text. Payload IDs
+must resolve through signed policy and site-approved launcher configuration to
+fixed Slurm profiles.
+
+Normal workload execution remains:
+
+```text
+SLAIF web app
+  -> extension external launch
+  -> browser-side OpenSSH/WASM
+  -> SSH to HPC login node
+  -> fixed signed-policy remote launcher
+  -> sbatch from login node
+  -> Slurm worker allocation
+  -> payload runs on worker node
+```
+
+Worker nodes are reached through Slurm allocations, not SSH. The extension must
+not SSH into worker nodes, and the SLAIF server must not become the SSH client.
+
+Interactive worker processes, such as `gams_chat_v1`, may connect outbound to
+SLAIF over HTTPS/WSS using a scoped `workloadToken`. That protocol is separate
+from SSH and must not expose SSH credentials.
+
+YOLO mode is future development/demo-only work. It must stay disabled by
+default, visually separated from normal mode, and must not be implemented before
+the normal payload path is stable.
+
+The current product direction is defined in
+[SLAIF_WORKLOAD_MVP.md](SLAIF_WORKLOAD_MVP.md).
+
 ## Completed Milestones
 
 ### 1. Clean non-fork repository baseline
@@ -278,6 +327,11 @@ This is onboarding support only. No real HPC host has been validated in this rep
 
 The browser launch path now parses bounded output from the signed-policy fixed remote command, extracts SLURM job IDs, and posts safe job metadata to the SLAIF API with a session-bound job report token. This is metadata reporting, not terminal transcript upload.
 
+This milestone proves the scheduler metadata leg of the path. It is not the
+complete workload MVP: fast diagnostics and interactive GaMS chat still need
+payload-result reporting, a workload runtime protocol, and site-approved Slurm
+payload profiles.
+
 Main files and docs:
 
 - [extension/js/job_output_parser.js](extension/js/job_output_parser.js)
@@ -428,6 +482,9 @@ npm run test:browser:observability
 | Browser observes real remote command output | Working locally | expected output includes `Submitted batch job 424242` |
 | SLURM job ID parsing | Working locally | `npm run test:jobs` |
 | Mock SLAIF API receives safe job metadata report | Working locally | `npm run test:browser:job-reporting` |
+| Payload-driven workload MVP | Direction documented | [SLAIF_WORKLOAD_MVP.md](SLAIF_WORKLOAD_MVP.md); implementation pending |
+| Fast diagnostics payloads | Pending | `gpu_diagnostics_v1` and `cpu_memory_diagnostics_v1` profiles/tests not implemented yet |
+| Interactive GaMS chat payload | Pending | `gams_chat_v1`, workload registry/broker, and worker agent not implemented yet |
 | Remote launcher contract/reference implementation | Working locally | `npm run test:remote-launcher`; browser job-reporting E2E mounts the reference launcher |
 | Scoped token lifecycle and replay rejection | Working locally | `npm run test:tokens`, `npm run test:browser:tokens` |
 | Relay timeouts and audit-safe hardening controls | Working locally | `npm run test:relay-hardening` |
@@ -485,7 +542,8 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 - Browser E2E uses a disposable local-only password for the test sshd container; this is not production credential storage.
 - Chrome Web Store packaging and release workflow are not implemented.
 - User-facing UX is still prototype-level.
-- Local SLURM job metadata reporting is implemented and validated against the local test sshd; real HPC SLURM reporting is not validated yet.
+- Local SLURM job metadata reporting is implemented and validated against the local test sshd; this is only the scheduler metadata slice of the workload MVP, and real HPC SLURM reporting is not validated yet.
+- Fast diagnostic payload profiles, structured diagnostic result reporting, workload tokens, workload registry/broker behavior, a remote workload agent, and interactive GaMS chat are not implemented yet.
 - Broader result reporting beyond initial scheduler metadata is not production-integrated.
 - Durable production token storage, distributed replay prevention, infrastructure rate limits, and production audit-log operations have documented contracts and reference validation, but remain production deployment work.
 - Redis durable/shared token-store adapter is implemented and tested for atomic
@@ -499,16 +557,23 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 
 ## Next Milestones
 
-1. Audit/metrics/observability foundations and readiness integration. This PR.
-2. Real HPC pilot target with independently verified pinned host key or host CA.
-3. Site-approved production SLAIF remote launcher deployment.
-4. Production Redis deployment and distributed replay prevention validation in
-   the target API/relay environment.
-5. Real SLAIF policy signing operations and production trust-root handling.
-6. Production authentication UX.
-7. Production audit sink, metrics scrape/alerting, and infrastructure rate limiting.
-8. Chrome extension packaging and release workflow.
-9. Security review.
+1. Workload token scope and workload runtime protocol.
+2. Payload catalog in signed policy.
+3. Remote launcher payload intent contract.
+4. Fast diagnostic payload profiles and tests.
+5. Structured diagnostic result reporting.
+6. Workload registry and WSS broker.
+7. Remote workload agent skeleton.
+8. GaMS chat payload profile with fake/local model.
+9. GaMS/vLLM integration scaffold.
+10. Real-HPC diagnostic pilot.
+11. Real-HPC GaMS pilot.
+12. YOLO mode only after normal payload path is stable.
+
+Production readiness work remains ongoing alongside these milestones: production
+Redis deployment, production trust-root/signing operations, production
+audit/metrics/secret management, Chrome extension release packaging, and
+security review are still not complete.
 
 The production-style web launch/session descriptor flow is already present on `main`.
 

@@ -6,13 +6,15 @@
 
 # SLAIF Connect
 
-SLAIF Connect is a Chrome-compatible extension for launching approved SLAIF/HPC workflows through browser-side SSH. The SSH client runs in the extension, SSH credentials stay between the user's browser-side SSH client and the real HPC SSH server, and the SLAIF web server may act only as a WebSocket-to-TCP relay for encrypted SSH bytes.
+SLAIF Connect is a Chrome-compatible extension for launching approved SLAIF/HPC workloads through browser-side SSH. The SSH client runs in the extension, SSH credentials stay between the user's browser-side SSH client and the real HPC SSH server, and the SLAIF web server may act only as a WebSocket-to-TCP relay for encrypted SSH bytes.
 
 The project currently has a locally validated browser-side OpenSSH/WASM relay prototype. It is not production-ready HPC integration yet.
 
 ## Why This Exists
 
 SLAIF needs to initiate and track HPC workloads without becoming the user's SSH client or credential holder. Direct Chrome TCP sockets are not a reliable foundation for a new extension identity, so SLAIF Connect uses browser-side SSH over a mandatory WebSocket-to-TCP relay.
+
+The current MVP direction is broader than job submission metadata: normal workloads are selected by signed-policy-approved `payloadId` values, launched through Slurm from the login node, and run on worker nodes allocated by Slurm. The initial workload targets are fast GPU and CPU/memory diagnostics plus an interactive ChatGPT-like GaMS chat payload. Arbitrary command text is not normal mode, and compute worker nodes are not reached by SSH. See [SLAIF_WORKLOAD_MVP.md](SLAIF_WORKLOAD_MVP.md).
 
 The project also avoids maintaining a long-lived fork of Chromium Secure Shell / `nassh`. Upstream Chromium `libapps` is pinned as a build-time dependency, selected runtime pieces are generated into the extension package, and SLAIF-specific behavior lives in this repository's own extension, relay, tooling, and tests.
 
@@ -35,6 +37,7 @@ Short version:
 - token lifecycle and relay hardening foundations are present for short-lived scoped tokens, replay rejection, relay timeouts, and audit-safe logging;
 - Redis-backed durable token storage is available for shared token state and distributed replay prevention;
 - audit, metrics, observability, and readiness foundations are present for the API/relay reference stack;
+- the next product phase is payload-driven Slurm workloads: `gpu_diagnostics_v1`, `cpu_memory_diagnostics_v1`, and `gams_chat_v1`;
 - production deployment, real HPC integration, production trust-root operations, and release packaging are still pending.
 
 ## Architecture
@@ -182,6 +185,7 @@ npm run test:pilot
 ## Important Docs
 
 - [STATUS.md](STATUS.md): current progress, validation evidence, limitations, and roadmap.
+- [SLAIF_WORKLOAD_MVP.md](SLAIF_WORKLOAD_MVP.md): current workload MVP direction, payload IDs, GaMS chat, worker outbound protocol, and deferred YOLO mode.
 - [AGENTS.md](AGENTS.md): operational rules for coding agents.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): relay-only target architecture.
 - [docs/SECURITY.md](docs/SECURITY.md): security model and boundaries.
@@ -207,4 +211,4 @@ npm run test:pilot
 
 SLAIF Connect is not production-ready yet. Local validation now covers real SSH traffic through the relay, browser-side OpenSSH/WASM startup, strict host-key negative cases, and the product-shaped web launch/session descriptor flow. That is still not the same as deployment against real HPC infrastructure.
 
-The next major security milestone is running a real HPC pilot with independently verified host-key or host-CA data and a site-approved installed launcher command, then operationalizing production SLAIF trust roots, production Redis/secret/audit/metrics operations, production authentication UX, production API/relay deployment, and release packaging.
+The next major product milestone is the normal payload-driven workload path described in [SLAIF_WORKLOAD_MVP.md](SLAIF_WORKLOAD_MVP.md): workload-token scope, signed-policy payload catalog, remote launcher payload intent, fast diagnostics, and the interactive GaMS worker protocol. Real HPC pilots still require independently verified host-key or host-CA data and a site-approved installed launcher command. Production SLAIF trust roots, Redis/secret/audit/metrics operations, authentication UX, API/relay deployment, and release packaging remain pending.

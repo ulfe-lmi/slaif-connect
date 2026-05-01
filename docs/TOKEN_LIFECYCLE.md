@@ -19,6 +19,13 @@ for one session.
 None of these tokens grant SSH access by themselves. SSH authentication remains
 between the browser-side OpenSSH/WASM client and the real `sshd`.
 
+The workload MVP will add a fourth token type, `workloadToken`, for Slurm worker
+processes that connect outbound to SLAIF for interactive payloads such as
+`gams_chat_v1`. That token is not implemented in the current token registry yet.
+When added, it must be scoped, short-lived, payload-bound, not logged, and never
+passed through query strings or printed to Slurm output. See
+[../SLAIF_WORKLOAD_MVP.md](../SLAIF_WORKLOAD_MVP.md).
+
 ## Token Scopes
 
 Tokens are scoped by purpose:
@@ -32,6 +39,10 @@ Tokens are scoped by purpose:
 A token with the wrong scope must be rejected. A launch token cannot open a
 relay, a relay token cannot post a job report, and a job-report token cannot
 fetch a session descriptor.
+
+Planned workload runtime tokens should use a separate scope such as
+`slaif.workload` and must not be accepted as launch, relay, or job-report
+tokens.
 
 ## Token Binding
 

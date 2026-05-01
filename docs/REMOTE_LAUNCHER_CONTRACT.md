@@ -23,6 +23,18 @@ It should:
 
 The launcher is not an SSH client. It runs after the browser-side SSH client authenticates to the real HPC `sshd`.
 
+The launcher contract is evolving from "submit a fixed test command and print a
+SLURM job ID" toward the normal SLAIF workload path:
+
+```text
+sessionId -> session intent -> payloadId -> site-approved Slurm profile -> sbatch
+```
+
+That evolution is documented in [../SLAIF_WORKLOAD_MVP.md](../SLAIF_WORKLOAD_MVP.md).
+It is not permission to accept arbitrary commands. Payload intent must resolve
+to a site-approved profile, and worker nodes must be reached through Slurm
+allocation rather than SSH.
+
 ## Invocation Contract
 
 Minimum stable CLI:
@@ -125,13 +137,17 @@ Rules:
 ## SLAIF Job Spec Contract
 
 For now, the launcher may use only the session ID and local/site configuration.
+The next contract step is to resolve the session to a bounded workload intent
+that includes a signed-policy-approved `payloadId`, initially
+`gpu_diagnostics_v1`, `cpu_memory_diagnostics_v1`, or `gams_chat_v1`.
 
 If a future launcher fetches a job spec from the SLAIF API:
 
 - it must authenticate using a site-approved mechanism;
 - it must validate returned job specs;
 - it must not blindly execute commands from the API;
-- it must restrict execution to site-approved job templates;
+- it must restrict execution to signed-policy-approved payload IDs and
+  site-approved Slurm templates;
 - this repository must add a separate reviewed contract before enabling that behavior.
 
 ## Security Invariants

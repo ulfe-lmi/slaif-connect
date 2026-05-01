@@ -9,6 +9,14 @@ report endpoint, rate limiting, health/readiness, and deployment diagnostics.
 This PR adds reference observability modules and tests. It does not by itself
 deploy a production monitoring stack.
 
+As the product moves from job-ID-only reporting to payload-driven Slurm
+workloads, observability must remain aggregate and safe. Future diagnostic
+payload results and interactive GaMS worker events may add audit event types and
+metrics, but they must not expose SSH credentials, workload tokens, raw prompts
+where policy forbids them, terminal transcripts, or high-cardinality metric
+labels. The workload roadmap is defined in
+[../SLAIF_WORKLOAD_MVP.md](../SLAIF_WORKLOAD_MVP.md).
+
 ## Non-Negotiable Privacy And Security Rules
 
 - No raw `launchToken`, `relayToken`, or `jobReportToken` values in logs.
