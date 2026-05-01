@@ -4,11 +4,11 @@ SLAIF Connect reports scheduler metadata, not terminal transcripts.
 
 Job reporting is now one part of the broader SLAIF workload MVP. The scheduler
 metadata path proves that the extension can run a fixed signed-policy launcher,
-parse bounded SLURM output, and report safe job state. Future fast diagnostics
-will add structured payload results, and interactive GaMS chat will use a
-separate worker runtime protocol. Those additions must preserve the same rule:
-metadata and structured results are allowed, raw terminal transcripts and SSH
-credentials are not.
+parse bounded SLURM output, and report safe job state. Fast diagnostics now add
+structured payload results, and interactive GaMS chat will use a separate
+worker runtime protocol. Those additions preserve the same rule: metadata and
+structured results are allowed, raw terminal transcripts and SSH credentials
+are not.
 
 ## Purpose
 
@@ -46,10 +46,10 @@ signed policy remoteCommandTemplate
 
 The captured output is used locally for parsing and UI diagnostics. It is not uploaded as the job report payload.
 
-For the workload MVP, this path should evolve from job metadata only toward
-payload-aware reporting. A normal diagnostic launch will still start with the
-fixed launcher and a SLURM job ID, but it may later report bounded structured
-payload results such as `gpu_diagnostics_v1` or `cpu_memory_diagnostics_v1`.
+For the workload MVP, this path now supports payload-aware reporting for fast
+diagnostics. A normal diagnostic launch still starts with the fixed launcher
+and a SLURM job ID, and may also report bounded structured payload results such
+as `gpu_diagnostics_v1` or `cpu_memory_diagnostics_v1`.
 Interactive payloads such as `gams_chat_v1` should use a workload runtime
 channel from the Slurm worker to SLAIF rather than terminal transcript upload.
 The initial token and message validation foundation for that channel is
@@ -151,7 +151,9 @@ Rules:
 - `jobReportToken` is not an SSH credential.
 - `jobReportToken` must be short-lived and session-bound.
 - `jobReportToken` has scope `slaif.jobReport`.
-- `jobReportToken` is one-use by default for the final accepted report.
+- `jobReportToken` is bounded-use for accepted scheduler/payload reports in the
+  current MVP; local diagnostic flows allow one job report plus one payload
+  result report.
 - `jobReportToken` must not be logged.
 - `jobReportToken` must not be placed in query strings.
 - The report endpoint is derived from trusted API base and session ID.
@@ -177,6 +179,20 @@ Submitted batch job 424242
 ```
 
 and verifies the mock SLAIF API receives exactly one metadata report without stdout, stderr, transcript, tokens, passwords, OTPs, or private keys.
+
+Fast diagnostics may additionally emit:
+
+```text
+SLAIF_PAYLOAD_RESULT_BEGIN
+{ "type": "slaif.payloadResult", ... }
+SLAIF_PAYLOAD_RESULT_END
+```
+
+The extension parses only the framed JSON object, validates it, and posts it to
+`/api/connect/session/<sessionId>/payload-result` using the reporting token in
+the `Authorization` header. The payload result is structured workload data, not
+terminal transcript upload. See
+[DIAGNOSTIC_PAYLOAD_RESULTS.md](DIAGNOSTIC_PAYLOAD_RESULTS.md).
 
 The token lifecycle browser test also verifies that a consumed job-report token
 cannot be replayed for a second accepted report.

@@ -36,7 +36,7 @@ Initial payload classes are:
       "requiresGpu": true,
       "maxRuntimeSeconds": 300,
       "maxOutputBytes": 65536,
-      "resultSchema": "slaif.gpuDiagnosticsResult.v1"
+      "resultSchema": "slaif.payloadResult.gpuDiagnostics.v1"
     },
     "cpu_memory_diagnostics_v1": {
       "type": "fast_diagnostic",
@@ -44,7 +44,7 @@ Initial payload classes are:
       "requiresGpu": false,
       "maxRuntimeSeconds": 300,
       "maxOutputBytes": 65536,
-      "resultSchema": "slaif.cpuMemoryDiagnosticsResult.v1"
+      "resultSchema": "slaif.payloadResult.cpuMemoryDiagnostics.v1"
     },
     "gams_chat_v1": {
       "type": "interactive_llm",
@@ -105,3 +105,8 @@ The reference payload-intent launcher path now validates session intent,
 resolves `payloadId` to a site-approved Slurm profile, and renders
 repository-owned templates. That mapping must remain site-approved and
 policy-controlled. It must not become arbitrary command execution.
+
+Fast diagnostics now use the `slaif.payloadResult` envelope documented in
+[DIAGNOSTIC_PAYLOAD_RESULTS.md](DIAGNOSTIC_PAYLOAD_RESULTS.md). The result
+schema string names the expected validated result shape; it is not script text
+or a command fragment.

@@ -13,7 +13,8 @@ SLAIF API after an approved web launch.
 `relayToken` allows one approved WebSocket-to-TCP relay connection for one
 session and one HPC alias.
 
-`jobReportToken` allows the extension to post one safe scheduler metadata report
+`jobReportToken` allows the extension to post safe scheduler metadata and, for
+fast diagnostics, one bounded structured payload result
 or bounded result report for one session.
 
 `workloadToken` allows one worker process running inside one Slurm allocation to
@@ -104,7 +105,8 @@ The reference implementation consumes tokens on successful use:
 
 - `launchToken` is consumed when the descriptor is fetched;
 - `relayToken` is consumed when relay authentication accepts the connection;
-- `jobReportToken` is consumed when the final job metadata report is accepted.
+- `jobReportToken` is consumed on accepted reporting uses. Diagnostic MVP flows
+  may allow a bounded use count for one job report plus one payload result.
 - `workloadToken` is consumed when worker registration succeeds.
 
 Reusing a consumed token fails. Failed attempts must not reveal full token

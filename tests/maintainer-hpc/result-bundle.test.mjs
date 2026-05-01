@@ -25,6 +25,8 @@ assert.match(nextSteps, /verified host-key fingerprint/);
 assert.match(nextSteps, /CPU diagnostic job ID/);
 assert.match(nextSteps, /GPU diagnostic job ID/);
 assert.match(nextSteps, /launcher dry-run result/);
+assert.match(nextSteps, /cpu_payload_result\.json/);
+assert.match(nextSteps, /gpu_payload_result\.json/);
 assert.equal(nextSteps.includes('id_ed25519'), false);
 
 console.log('maintainer HPC result bundle tests OK');

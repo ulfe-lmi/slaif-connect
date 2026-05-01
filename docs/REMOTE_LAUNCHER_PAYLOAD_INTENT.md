@@ -26,7 +26,8 @@ command text from the web app, descriptor, relay, or user UI.
 7. The launcher writes a bounded Slurm script from a repository-owned template.
 8. The launcher submits with `sbatch`.
 9. The launcher emits `Submitted batch job 12345`.
-10. Fast diagnostics may later wait briefly and emit structured payload results.
+10. Fast diagnostics may wait briefly, read bounded generated Slurm output, and
+    emit structured payload results.
 11. Interactive payload workers later connect outbound with `workloadToken`.
 
 ## Session Intent
@@ -104,3 +105,8 @@ out-of-band verification, and remote work directories under the user home.
 
 This PR adds a local/mock reference path and maintainer dry-run alignment. It
 does not claim live real-HPC validation.
+
+The diagnostic result path is documented in
+[DIAGNOSTIC_PAYLOAD_RESULTS.md](DIAGNOSTIC_PAYLOAD_RESULTS.md). It uses the
+same payload-intent mapping and repository-owned templates; it only adds a
+bounded `slaif.payloadResult` block for fast diagnostics.

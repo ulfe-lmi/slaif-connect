@@ -51,7 +51,7 @@ async function runSuccessfulLaunch(stack) {
 }
 
 test.describe('SLAIF token lifecycle browser validation', () => {
-  test('uses one-use launch, relay, and job-report tokens for a successful session', async () => {
+  test('uses scoped launch, relay, and reporting tokens for a successful session', async () => {
     const stack = await startBrowserRelayDevStack();
     let extensionHarness = null;
     try {

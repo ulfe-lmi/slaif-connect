@@ -97,7 +97,9 @@ Rules:
 - `relayToken` must be short-lived and session-bound.
 - `relayToken` has scope `slaif.relay` and cannot be reused after a relay
   connection is accepted.
-- `jobReportToken` is not an SSH credential. It authorizes posting one session-bound job metadata report.
+- `jobReportToken` is not an SSH credential. It authorizes posting
+  session-bound job metadata and, for fast diagnostics, bounded structured
+  payload result metadata.
 - `jobReportToken` must be short-lived and session-bound.
 - `jobReportToken` is required for launch-flow job reporting.
 - `jobReportToken` has scope `slaif.jobReport` and is consumed when the final

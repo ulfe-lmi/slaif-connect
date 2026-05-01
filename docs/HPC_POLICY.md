@@ -37,7 +37,7 @@ Signed policies use ECDSA P-256 with SHA-256. The public trust root is bundled w
         "requiresGpu": true,
         "maxRuntimeSeconds": 300,
         "maxOutputBytes": 65536,
-        "resultSchema": "slaif.gpuDiagnosticsResult.v1"
+        "resultSchema": "slaif.payloadResult.gpuDiagnostics.v1"
       },
       "cpu_memory_diagnostics_v1": {
         "type": "fast_diagnostic",
@@ -45,7 +45,7 @@ Signed policies use ECDSA P-256 with SHA-256. The public trust root is bundled w
         "requiresGpu": false,
         "maxRuntimeSeconds": 300,
         "maxOutputBytes": 65536,
-        "resultSchema": "slaif.cpuMemoryDiagnosticsResult.v1"
+        "resultSchema": "slaif.payloadResult.cpuMemoryDiagnostics.v1"
       },
       "gams_chat_v1": {
         "type": "interactive_llm",

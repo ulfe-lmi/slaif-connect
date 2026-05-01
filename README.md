@@ -32,7 +32,7 @@ Short version:
 - the product-shaped SLAIF web launch and session descriptor flow is validated locally;
 - signed HPC policy verification and host-key rotation foundations are present;
 - real-HPC pilot onboarding tooling and docs are present, but no real HPC target is validated yet;
-- fixed-command SLURM job metadata reporting is locally validated through browser-side output parsing and a session-bound API report token;
+- fixed-command SLURM job metadata and structured fast diagnostic payload result reporting are locally validated through browser-side output parsing and a session-bound API report token;
 - the remote launcher contract and a safe local/test reference launcher are present;
 - token lifecycle and relay hardening foundations are present for short-lived scoped tokens, replay rejection, relay timeouts, and audit-safe logging;
 - Redis-backed durable token storage is available for shared token state and distributed replay prevention;
@@ -41,6 +41,7 @@ Short version:
 - signed HPC policy payload catalog validation is present for `gpu_diagnostics_v1`, `cpu_memory_diagnostics_v1`, and `gams_chat_v1`;
 - maintainer-owned real-HPC test kit docs/scripts are present for manual Vega, Arnes HPC, and NSC discovery before adding site profiles;
 - remote launcher payload-intent validation maps `payloadId` to site-approved Slurm profiles and repository-owned templates in local/mock tests and the local browser dev stack;
+- GitHub Actions CI is configured for safe local validation jobs, without real-HPC tests or real credentials;
 - production deployment, real HPC integration, production trust-root operations, and release packaging are still pending.
 
 ## Architecture
@@ -204,6 +205,8 @@ by CI.
 - [docs/HPC_POLICY.md](docs/HPC_POLICY.md): signed HPC policy format and tools.
 - [docs/PAYLOAD_CATALOG.md](docs/PAYLOAD_CATALOG.md): signed-policy allowed payload catalog and host-level payload restrictions.
 - [docs/REMOTE_LAUNCHER_PAYLOAD_INTENT.md](docs/REMOTE_LAUNCHER_PAYLOAD_INTENT.md): session intent, Slurm profile, and repository-owned template launcher contract.
+- [docs/DIAGNOSTIC_PAYLOAD_RESULTS.md](docs/DIAGNOSTIC_PAYLOAD_RESULTS.md): structured CPU/GPU diagnostic result framing, validation, and reporting.
+- [docs/CI.md](docs/CI.md): GitHub Actions CI jobs and branch-protection check names.
 - [docs/MAINTAINER_HPC_TESTING.md](docs/MAINTAINER_HPC_TESTING.md): maintainer-owned real-HPC discovery, host-key verification, diagnostics, and result bundle flow.
 - [docs/HOST_KEY_ROTATION.md](docs/HOST_KEY_ROTATION.md): host-key and host-CA rotation foundation.
 - [docs/REAL_HPC_PILOT.md](docs/REAL_HPC_PILOT.md): manual real-HPC pilot onboarding flow.
@@ -225,4 +228,4 @@ by CI.
 
 SLAIF Connect is not production-ready yet. Local validation now covers real SSH traffic through the relay, browser-side OpenSSH/WASM startup, strict host-key negative cases, and the product-shaped web launch/session descriptor flow. That is still not the same as deployment against real HPC infrastructure.
 
-The next major product milestone is the normal payload-driven workload path described in [SLAIF_WORKLOAD_MVP.md](SLAIF_WORKLOAD_MVP.md): remote launcher payload intent, fast diagnostics, structured results, and the workload registry/broker. Real HPC pilots still require independently verified host-key or host-CA data and a site-approved installed launcher command. Production SLAIF trust roots, Redis/secret/audit/metrics operations, authentication UX, API/relay deployment, and release packaging remain pending.
+The next major product milestone is the normal payload-driven workload path described in [SLAIF_WORKLOAD_MVP.md](SLAIF_WORKLOAD_MVP.md): richer fast diagnostics, structured result UX, and the workload registry/broker. Real HPC pilots still require independently verified host-key or host-CA data and a site-approved installed launcher command. Production SLAIF trust roots, Redis/secret/audit/metrics operations, authentication UX, API/relay deployment, and release packaging remain pending.

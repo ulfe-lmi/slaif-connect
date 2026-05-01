@@ -101,6 +101,7 @@ function remoteEnv(config, phase) {
     SLAIF_LAUNCHER_INTENT_FILE: `${config.remoteBaseDir}/kit/launcher-intent/session-intent.json`,
     SLAIF_LAUNCHER_PROFILE_FILE: `${config.remoteBaseDir}/kit/launcher-intent/slurm-profiles.json`,
     SLAIF_LAUNCHER_INTENT_SUBMIT: config.tests?.runLauncherIntentSubmit ? '1' : '0',
+    SLAIF_HPC_ALIAS: config.system === 'custom' ? 'customhpc' : `${config.system}hpc`,
   };
   if (phase === 'yolo') {
     env.SLAIF_ALLOW_YOLO = config.yolo?.allowYolo ? '1' : '0';

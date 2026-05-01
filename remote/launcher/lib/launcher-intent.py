@@ -7,6 +7,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -228,6 +229,7 @@ def render_script(template_dir, profile, intent, work_dir):
         "#!/bin/sh",
         "set -eu",
         f"export SLAIF_SESSION_ID={json.dumps(intent['sessionId'])}",
+        f"export SLAIF_HPC_ALIAS={json.dumps(intent['hpc'])}",
         f"export SLAIF_PAYLOAD_ID={json.dumps(profile['payloadId'])}",
         f"export SLAIF_WORK_DIR={json.dumps(str(work_dir))}",
         "",
@@ -263,6 +265,44 @@ def build_sbatch_args(profile, script_path):
     return args
 
 
+def parse_job_id(output):
+    match = re.search(r"^Submitted batch job ([0-9]+)$", output or "", re.MULTILINE)
+    if not match:
+        fail("missing_scheduler_output", "sbatch did not print canonical scheduler output")
+    return match.group(1)
+
+
+def read_bounded(path, max_bytes):
+    try:
+        size = path.stat().st_size
+    except FileNotFoundError:
+        fail("missing_result_output", "Slurm output file was not found")
+    if size > max_bytes:
+        fail("oversized_result_output", "Slurm output exceeds configured payload result limit")
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
+def emit_payload_result_if_available(script_path, timeout_seconds, max_bytes):
+    output_path = Path(f"{script_path}.out")
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        if output_path.exists():
+            output = read_bounded(output_path, max_bytes)
+            begin = output.find("SLAIF_PAYLOAD_RESULT_BEGIN")
+            end = output.find("SLAIF_PAYLOAD_RESULT_END")
+            if begin >= 0 and end > begin:
+                sys.stdout.write(output[begin:end + len("SLAIF_PAYLOAD_RESULT_END")])
+                if not output.endswith("\n"):
+                    sys.stdout.write("\n")
+                elif not output[begin:end + len("SLAIF_PAYLOAD_RESULT_END")].endswith("\n"):
+                    sys.stdout.write("\n")
+                return
+            fail("missing_payload_result", "Slurm output did not contain a payload result block")
+        if time.monotonic() >= deadline:
+            fail("result_timeout", "timed out waiting for payload result output")
+        time.sleep(0.25)
+
+
 def main():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--session", required=True)
@@ -271,6 +311,9 @@ def main():
     parser.add_argument("--work-dir", required=True)
     parser.add_argument("--template-dir", required=True)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--wait-result", action="store_true")
+    parser.add_argument("--result-timeout-seconds", type=int, default=10)
+    parser.add_argument("--max-output-bytes", type=int, default=65536)
     args = parser.parse_args()
 
     if not SESSION_RE.match(args.session):
@@ -294,6 +337,10 @@ def main():
             "sbatchArgc": len(sbatch_args) - 1,
         }, sort_keys=True))
         return 0
+    if args.result_timeout_seconds < 1 or args.result_timeout_seconds > 300:
+        fail("invalid_result_timeout", "result timeout must be between 1 and 300 seconds")
+    if args.max_output_bytes < 1024 or args.max_output_bytes > profile["maxOutputBytes"]:
+        fail("invalid_max_output_bytes", "max output bytes exceeds profile limit")
 
     if shutil.which("sbatch") is None:
         fail("missing_sbatch", "sbatch not found")
@@ -304,8 +351,9 @@ def main():
         sys.stderr.write(result.stderr)
     if result.returncode != 0:
         return result.returncode
-    if not re.search(r"^Submitted batch job [0-9]+$", result.stdout or "", re.MULTILINE):
-        fail("missing_scheduler_output", "sbatch did not print canonical scheduler output")
+    parse_job_id(result.stdout)
+    if args.wait_result and profile["payloadId"] in {"cpu_memory_diagnostics_v1", "gpu_diagnostics_v1"}:
+        emit_payload_result_if_available(script_path, args.result_timeout_seconds, args.max_output_bytes)
     return 0
 
 

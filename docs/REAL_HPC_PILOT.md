@@ -50,6 +50,11 @@ generated intent/profile files under the configured home-directory test path.
 Dry-run is the default; real `sbatch` submission requires an explicit
 maintainer config flag. Do not use YOLO output as a normal payload profile.
 
+For diagnostic payloads, also inspect the structured `slaif.payloadResult`
+JSON emitted by the maintainer CPU/GPU phases or launcher-intent submit. Do not
+turn YOLO output or raw Slurm transcripts into normal payload profile
+definitions.
+
 ## Host-Key Verification Requirement
 
 `ssh-keyscan` can collect candidate host keys, but it does not prove authenticity. A network attacker can answer `ssh-keyscan` with attacker-controlled keys.

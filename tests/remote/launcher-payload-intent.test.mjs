@@ -115,7 +115,7 @@ try {
     payloadId: 'cpu_memory_diagnostics_v1',
     workDir: tempDir,
   });
-  assert.match(rendered, /slaif\.cpuMemoryDiagnosticsResult\.v1/);
+  assert.match(rendered, /slaif\.payloadResult/);
   assert.doesNotMatch(rendered, /privateKey|workloadToken|relayToken/);
 
   const intentPath = path.join(tempDir, 'intent.json');
@@ -178,7 +178,7 @@ printf 'Submitted batch job 424242\\n'
   assert(sbatchArgs.includes('--job-name'));
   assert.match(sbatchArgs.at(-1), /cpu_memory_diagnostics_v1\.sbatch\.sh$/);
   const generatedScript = fs.readFileSync(sbatchArgs.at(-1), 'utf8');
-  assert.match(generatedScript, /slaif\.cpuMemoryDiagnosticsResult\.v1/);
+  assert.match(generatedScript, /slaif\.payloadResult/);
   assert.doesNotMatch(generatedScript, /echo bad|privateKey|workloadToken/);
 } finally {
   fs.rmSync(tempDir, {recursive: true, force: true});
@@ -196,6 +196,7 @@ for (const flag of ['--command', '--shell', '--script', '--job-command', '--defi
 assert.match(devStackSource, /--intent-file \/keys\/session-intent\.json/);
 assert.match(devStackSource, /--profile-file \/keys\/slurm-profiles\.json/);
 assert.match(devStackSource, /PATH=\/keys:\$PATH \/keys\/slaif-launch/);
+assert.match(devStackSource, /--wait-result/);
 assert.doesNotMatch(devStackSource, /SLAIF_LAUNCHER_TEST_JOB_ID=\$\{expectedJobId\}/);
 assert.match(testSshdDockerfile, /\bpython3\b/);
 

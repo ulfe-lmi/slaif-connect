@@ -24,15 +24,43 @@ python3 - <<'PY'
 import json
 import os
 import platform
+node = platform.node() or "unknown"
+memory_mib = None
+try:
+    with open("/proc/meminfo", "r", encoding="utf-8") as handle:
+        for line in handle:
+            if line.startswith("MemTotal:"):
+                memory_mib = max(1, int(line.split()[1]) // 1024)
+                break
+except Exception:
+    memory_mib = None
 payload = {
-    "type": "slaif.cpuMemoryDiagnosticsResult.v1",
-    "hostname": platform.node(),
-    "cpuCount": os.cpu_count(),
+    "type": "slaif.payloadResult",
+    "version": 1,
+    "sessionId": os.environ.get("SLAIF_DIAGNOSTIC_SESSION_ID", "sess_maintainer_cpu"),
+    "hpc": os.environ.get("SLAIF_HPC_ALIAS", "maintainerhpc"),
+    "payloadId": "cpu_memory_diagnostics_v1",
+    "scheduler": "slurm",
+    "jobId": os.environ.get("SLURM_JOB_ID", ""),
+    "status": "completed",
+    "result": {
+        "node": node,
+        "cpuCount": os.cpu_count() or 1,
+        "architecture": platform.machine() or "unknown",
+    },
 }
+if memory_mib:
+    payload["result"]["memoryTotalMiB"] = memory_mib
+if not payload["jobId"]:
+    payload.pop("jobId")
+print("SLAIF_PAYLOAD_RESULT_BEGIN")
 print(json.dumps(payload, sort_keys=True))
+print("SLAIF_PAYLOAD_RESULT_END")
 PY
 else
-  echo '{"type":"slaif.cpuMemoryDiagnosticsResult.v1","python3Available":false}'
+  echo 'SLAIF_PAYLOAD_RESULT_BEGIN'
+  printf '{"type":"slaif.payloadResult","version":1,"sessionId":"sess_maintainer_cpu","hpc":"%s","payloadId":"cpu_memory_diagnostics_v1","scheduler":"slurm","jobId":"%s","status":"completed","result":{"node":"unknown","cpuCount":1,"memoryTotalMiB":1}}\n' "${SLAIF_HPC_ALIAS:-maintainerhpc}" "${SLURM_JOB_ID:-}"
+  echo 'SLAIF_PAYLOAD_RESULT_END'
 fi
 echo "slaif_cpu_diagnostic_done=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 SBATCH
@@ -59,5 +87,17 @@ if [ -z "$JOB_ID" ]; then
 fi
 if [ "${SLAIF_WAIT_FOR_COMPLETION:-0}" = "1" ]; then
   slaif_wait_for_job "$JOB_ID" 300 || true
+  if [ -f "$RESULT_DIR/slurm-$JOB_ID.out" ] && command -v python3 >/dev/null 2>&1; then
+    python3 - "$RESULT_DIR/slurm-$JOB_ID.out" "$RESULT_DIR/cpu_payload_result.json" <<'PY' || true
+import pathlib
+import sys
+text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
+begin = text.find("SLAIF_PAYLOAD_RESULT_BEGIN")
+end = text.find("SLAIF_PAYLOAD_RESULT_END", begin)
+if begin >= 0 and end > begin:
+    body = text[begin + len("SLAIF_PAYLOAD_RESULT_BEGIN"):end].strip()
+    pathlib.Path(sys.argv[2]).write_text(body + "\n", encoding="utf-8")
+PY
+  fi
 fi
 slaif_write_result_json "$RESULT_DIR/result.json" "submitted" "Submitted batch job $JOB_ID"
