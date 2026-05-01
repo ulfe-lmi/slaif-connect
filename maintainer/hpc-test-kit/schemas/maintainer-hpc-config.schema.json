@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://slaif.si/schemas/maintainer-hpc-config.schema.json",
+  "title": "SLAIF maintainer HPC test config",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "version",
+    "system",
+    "loginHostCandidates",
+    "selectedLoginHost",
+    "username",
+    "sshKeyPath",
+    "verifiedKnownHostsFile",
+    "remoteBaseDir",
+    "slurm",
+    "tests",
+    "yolo"
+  ],
+  "properties": {
+    "type": {"const": "slaif.maintainerHpcTestConfig"},
+    "version": {"const": 1},
+    "system": {"enum": ["vega", "arnes", "nsc", "custom"]},
+    "loginHostCandidates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string"}
+    },
+    "selectedLoginHost": {"type": "string"},
+    "username": {"type": "string"},
+    "sshKeyPath": {"type": "string"},
+    "hostKeyAlias": {"type": "string"},
+    "verifiedKnownHostsFile": {"type": "string"},
+    "remoteBaseDir": {"type": "string"},
+    "slurm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "account",
+        "cpuPartition",
+        "gpuPartition",
+        "qos",
+        "timeLimit",
+        "memory",
+        "cpusPerTask",
+        "gpus",
+        "gpuGres"
+      ],
+      "properties": {
+        "account": {"type": "string"},
+        "cpuPartition": {"type": "string"},
+        "gpuPartition": {"type": "string"},
+        "qos": {"type": "string"},
+        "timeLimit": {"type": "string"},
+        "memory": {"type": "string"},
+        "cpusPerTask": {"type": "integer"},
+        "gpus": {"type": "integer"},
+        "gpuGres": {"type": "string"}
+      }
+    },
+    "tests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runCpuDiagnostics",
+        "runGpuDiagnostics",
+        "runLauncherDryRun",
+        "runYolo"
+      ],
+      "properties": {
+        "runCpuDiagnostics": {"type": "boolean"},
+        "runGpuDiagnostics": {"type": "boolean"},
+        "runLauncherDryRun": {"type": "boolean"},
+        "runYolo": {"type": "boolean"},
+        "waitForCompletion": {"type": "boolean"}
+      }
+    },
+    "yolo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command",
+        "allowYolo",
+        "iUnderstandThisRunsArbitraryCode"
+      ],
+      "properties": {
+        "command": {"type": "string"},
+        "allowYolo": {"type": "boolean"},
+        "iUnderstandThisRunsArbitraryCode": {"type": "boolean"}
+      }
+    }
+  }
+}

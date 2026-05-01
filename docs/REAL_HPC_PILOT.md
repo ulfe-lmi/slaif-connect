@@ -29,6 +29,21 @@ A pilot operator must provide:
 
 User passwords, OTPs, passphrases, and private keys are not pilot inputs. User authentication happens inside the browser-side SSH session.
 
+## Maintainer Site Discovery Before Policy Creation
+
+Before adding real signed policy profiles or production-style payload values,
+use the maintainer-owned real-HPC test path:
+
+- [MAINTAINER_HPC_TESTING.md](MAINTAINER_HPC_TESTING.md)
+- [../maintainer/hpc-test-kit/README.md](../maintainer/hpc-test-kit/README.md)
+
+That kit lets a maintainer with real accounts collect candidate host keys,
+verify fingerprints out of band, discover Slurm configuration, run conservative
+CPU/GPU diagnostics, and test the reference launcher from the user home
+directory. It does not auto-trust `ssh-keyscan` output and it does not run in
+CI. Its result bundle is the intended input for future signed policy or MVP
+payload-profile PRs.
+
 ## Host-Key Verification Requirement
 
 `ssh-keyscan` can collect candidate host keys, but it does not prove authenticity. A network attacker can answer `ssh-keyscan` with attacker-controlled keys.

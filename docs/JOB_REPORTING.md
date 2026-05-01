@@ -54,6 +54,9 @@ Interactive payloads such as `gams_chat_v1` should use a workload runtime
 channel from the Slurm worker to SLAIF rather than terminal transcript upload.
 The initial token and message validation foundation for that channel is
 documented in [WORKLOAD_RUNTIME_PROTOCOL.md](WORKLOAD_RUNTIME_PROTOCOL.md).
+Real diagnostic result limits, Slurm profiles, and expected fields should be
+informed by maintainer-owned real-HPC tests rather than guessed from public
+examples alone. See [MAINTAINER_HPC_TESTING.md](MAINTAINER_HPC_TESTING.md).
 
 ## Remote Command Source Of Truth
 

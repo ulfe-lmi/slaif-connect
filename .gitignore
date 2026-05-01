@@ -25,3 +25,12 @@ server/relay/allowed_hpc_hosts.json
 *.zip
 test-results/
 playwright-report/
+.slaif-connect/
+maintainer-results/
+*.candidate-known-hosts
+*.verified-known-hosts
+*.maintainer.local.json
+*hpc-test-results*
+hpc-test-results/
+*.yolo.local.*
+*.hpc.local.json

@@ -193,3 +193,11 @@ Recommended ownership and permissions:
 - logs configured according to HPC site policy.
 
 The first pilot should use a harmless command before deploying real `sbatch` behavior. A site can then configure a fixed, site-approved SLURM script or wrapper and verify that the launcher prints exactly one parseable submission line.
+
+Before site installation under a production path, maintainers can test the
+reference launcher from their own home directory with the maintainer HPC test
+kit. The dry-run phase uploads the reference launcher under the configured
+`remoteBaseDir`, runs it with a safe `sess_maintainer_test_*` session ID, and
+checks for the canonical `Submitted batch job <id>` line. This is a manual
+homedir test only; it is not a claim that the site production launcher has been
+installed or validated.

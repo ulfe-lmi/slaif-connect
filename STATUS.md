@@ -533,6 +533,38 @@ npm run test:payload-catalog
 npm run test:policy
 ```
 
+### 22. Maintainer-owned real-HPC test kit
+
+The repository now has documentation and homedir-scoped maintainer tooling for
+manual Vega, Arnes HPC, and NSC discovery before adding real signed policies or
+payload profiles. The kit can collect unverified host-key candidates, require
+strict verified known-host SSH for real phases, upload scripts under the user's
+configured `remoteBaseDir`, run Slurm discovery, submit conservative CPU/GPU
+diagnostic jobs, dry-run the reference launcher from the user's home directory,
+and collect a non-secret result bundle.
+
+It also includes an explicitly gated maintainer-only YOLO script for manual
+debugging. That YOLO path is not part of normal product mode, is not in signed
+payload catalog, and is not wired into the extension launch flow or session
+descriptor. Normal MVP execution remains `payloadId`-based.
+
+This is tooling/docs only. No real-HPC validation has been completed in this
+repository.
+
+Main files and docs:
+
+- [docs/MAINTAINER_HPC_TESTING.md](docs/MAINTAINER_HPC_TESTING.md)
+- [maintainer/hpc-test-kit/README.md](maintainer/hpc-test-kit/README.md)
+- [maintainer/hpc-test-kit/local/](maintainer/hpc-test-kit/local)
+- [maintainer/hpc-test-kit/remote/](maintainer/hpc-test-kit/remote)
+- [tests/maintainer-hpc/](tests/maintainer-hpc)
+
+Validation:
+
+```bash
+npm run test:maintainer-hpc
+```
+
 ## What Is Validated
 
 | Capability | Status | Evidence / command |
@@ -546,6 +578,7 @@ npm run test:policy
 | Payload-driven workload MVP | Direction documented | [SLAIF_WORKLOAD_MVP.md](SLAIF_WORKLOAD_MVP.md); broker/agent implementation pending |
 | Workload token scope and runtime protocol | Working locally at reference/protocol level | `npm run test:workloads` |
 | Signed-policy payload catalog | Working locally | `npm run test:payload-catalog`, `npm run test:policy` |
+| Maintainer real-HPC test kit | Scaffolded and locally validated as tooling | `npm run test:maintainer-hpc`; real runs require maintainer credentials and verified host data |
 | Fast diagnostics payloads | Pending | `gpu_diagnostics_v1` and `cpu_memory_diagnostics_v1` profiles/tests not implemented yet |
 | Interactive GaMS chat payload | Pending | `gams_chat_v1`, workload registry/broker, and worker agent not implemented yet |
 | Remote launcher contract/reference implementation | Working locally | `npm run test:remote-launcher`; browser job-reporting E2E mounts the reference launcher |
@@ -600,6 +633,7 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 
 - SLAIF Connect is not production-ready.
 - Real HPC hosts are not integrated or validated yet; pilot tooling exists for an operator-supplied verified host key or host CA.
+- Maintainer-owned real-HPC test kit scripts exist for Vega, Arnes HPC, and NSC, but the repository has not run them against real systems. Credentials, verified host keys, and user-specific Slurm/account config are still required.
 - The remote launcher contract and reference implementation exist, but no real HPC site has installed or validated `/opt/slaif/bin/slaif-launch`.
 - Signed policy verification exists, but production trust-root operations are not deployed.
 - Production host-key rotation and emergency revocation procedures are documented as foundations, not operated against real HPC yet.
@@ -639,7 +673,9 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 Production readiness work remains ongoing alongside these milestones: production
 Redis deployment, production trust-root/signing operations, production
 audit/metrics/secret management, Chrome extension release packaging, and
-security review are still not complete.
+security review are still not complete. Maintainer real-HPC test results should
+feed the remote launcher payload intent contract and site-approved Slurm profile
+work before product behavior is expanded.
 
 The production-style web launch/session descriptor flow is already present on `main`.
 
@@ -677,6 +713,7 @@ Merged PRs visible from GitHub at the time of this update:
 - [docs/HPC_POLICY.md](docs/HPC_POLICY.md): signed HPC policy format and tooling.
 - [docs/HOST_KEY_ROTATION.md](docs/HOST_KEY_ROTATION.md): host-key and host-CA rotation foundation.
 - [docs/REAL_HPC_PILOT.md](docs/REAL_HPC_PILOT.md): manual real-HPC pilot onboarding.
+- [docs/MAINTAINER_HPC_TESTING.md](docs/MAINTAINER_HPC_TESTING.md): maintainer-owned Vega/Arnes/NSC discovery and diagnostic test kit.
 - [docs/REMOTE_LAUNCHER_CONTRACT.md](docs/REMOTE_LAUNCHER_CONTRACT.md): HPC-side launcher contract.
 - [docs/TOKEN_LIFECYCLE.md](docs/TOKEN_LIFECYCLE.md): token scopes, expiry, replay, and logging.
 - [docs/RELAY_HARDENING.md](docs/RELAY_HARDENING.md): relay timeout, allowlist, token, and audit controls.

@@ -200,3 +200,8 @@ This PR does not implement the workload registry, broker, remote worker agent,
 GaMS/vLLM serving, or YOLO mode. The next implementation phase should add a
 workload registry and WebSocket broker that use this token scope and message
 validation foundation without adding arbitrary command execution.
+
+Maintainer real-HPC diagnostics in this repository currently exercise Slurm
+discovery, CPU/GPU diagnostic jobs, and launcher dry-run behavior. Interactive
+worker runtime tests, outbound worker connections, GaMS/vLLM serving, and the
+broker are not part of the maintainer test kit foundation.

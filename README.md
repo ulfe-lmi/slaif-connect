@@ -39,6 +39,7 @@ Short version:
 - audit, metrics, observability, and readiness foundations are present for the API/relay reference stack;
 - workload-token and workload runtime protocol foundations are present for outbound Slurm worker communication;
 - signed HPC policy payload catalog validation is present for `gpu_diagnostics_v1`, `cpu_memory_diagnostics_v1`, and `gams_chat_v1`;
+- maintainer-owned real-HPC test kit docs/scripts are present for manual Vega, Arnes HPC, and NSC discovery before adding site profiles;
 - the next product phase is remote launcher payload intent and site-approved Slurm profiles;
 - production deployment, real HPC integration, production trust-root operations, and release packaging are still pending.
 
@@ -181,9 +182,15 @@ npm run pilot:verify-host-key
 npm run pilot:create-policy
 npm run pilot:stack
 npm run test:pilot
+npm run test:maintainer-hpc
 ```
 
 `ssh-keyscan` output is candidate data only. Do not sign a real-HPC pilot policy until the host key or host CA has been independently verified.
+Maintainer-owned Vega/Arnes/NSC discovery and diagnostic commands live in
+[docs/MAINTAINER_HPC_TESTING.md](docs/MAINTAINER_HPC_TESTING.md) and
+[maintainer/hpc-test-kit/README.md](maintainer/hpc-test-kit/README.md). Those
+manual tests require real accounts and verified known-host data and are not run
+by CI.
 
 ## Important Docs
 
@@ -196,6 +203,7 @@ npm run test:pilot
 - [docs/UPSTREAM_LINKING.md](docs/UPSTREAM_LINKING.md): upstream `libapps` vendoring model.
 - [docs/HPC_POLICY.md](docs/HPC_POLICY.md): signed HPC policy format and tools.
 - [docs/PAYLOAD_CATALOG.md](docs/PAYLOAD_CATALOG.md): signed-policy allowed payload catalog and host-level payload restrictions.
+- [docs/MAINTAINER_HPC_TESTING.md](docs/MAINTAINER_HPC_TESTING.md): maintainer-owned real-HPC discovery, host-key verification, diagnostics, and result bundle flow.
 - [docs/HOST_KEY_ROTATION.md](docs/HOST_KEY_ROTATION.md): host-key and host-CA rotation foundation.
 - [docs/REAL_HPC_PILOT.md](docs/REAL_HPC_PILOT.md): manual real-HPC pilot onboarding flow.
 - [docs/JOB_REPORTING.md](docs/JOB_REPORTING.md): fixed-command scheduler metadata reporting.
