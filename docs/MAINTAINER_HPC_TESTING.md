@@ -89,9 +89,11 @@ or a maintainer-provided directory that is still under the user account. The scr
 6. CPU diagnostic `sbatch`.
 7. GPU diagnostic `sbatch` if available.
 8. Remote launcher dry-run from the user home directory.
-9. Maintainer-only YOLO test, explicitly gated.
-10. Collect result bundle.
-11. Convert findings into pilot config, signed policy inputs, or future MVP payload profiles.
+9. Remote launcher payload-intent dry-run from the user home directory.
+10. Optional launcher payload-intent `sbatch`, only when the maintainer config explicitly enables it.
+11. Maintainer-only YOLO test, explicitly gated.
+12. Collect result bundle.
+13. Convert findings into pilot config, signed policy inputs, or future MVP payload profiles.
 
 ## YOLO Mode Warning
 
@@ -123,6 +125,7 @@ Copy these non-secret artifacts into an issue/PR or private report:
 - GPU test job ID if run;
 - GPU test result JSON;
 - launcher dry-run result;
+- launcher payload-intent dry-run or explicit submit result;
 - YOLO result if run;
 - errors encountered;
 - whether 2FA/browser-side SSH worked;

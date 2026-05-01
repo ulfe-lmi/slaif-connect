@@ -66,12 +66,24 @@
         "runCpuDiagnostics",
         "runGpuDiagnostics",
         "runLauncherDryRun",
+        "runLauncherIntentDryRun",
+        "runLauncherIntentSubmit",
+        "launcherIntentPayloadId",
         "runYolo"
       ],
       "properties": {
         "runCpuDiagnostics": {"type": "boolean"},
         "runGpuDiagnostics": {"type": "boolean"},
         "runLauncherDryRun": {"type": "boolean"},
+        "runLauncherIntentDryRun": {"type": "boolean"},
+        "runLauncherIntentSubmit": {"type": "boolean"},
+        "launcherIntentPayloadId": {
+          "enum": [
+            "cpu_memory_diagnostics_v1",
+            "gpu_diagnostics_v1",
+            "gams_chat_v1"
+          ]
+        },
         "runYolo": {"type": "boolean"},
         "waitForCompletion": {"type": "boolean"}
       }

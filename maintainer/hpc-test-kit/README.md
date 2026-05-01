@@ -66,6 +66,19 @@ node maintainer/hpc-test-kit/local/run-maintainer-hpc-test.mjs \
   --phase launcher
 ```
 
+Run launcher payload-intent dry-run:
+
+```bash
+node maintainer/hpc-test-kit/local/run-maintainer-hpc-test.mjs \
+  --config ~/.slaif-connect/vega.local.json \
+  --phase launcher-intent
+```
+
+This uploads the reference launcher, repository-owned templates, and generated
+non-secret session intent/profile files under the configured `remoteBaseDir`.
+It does not submit with real `sbatch` unless `tests.runLauncherIntentSubmit` is
+explicitly set in the maintainer config.
+
 Run YOLO only if explicitly intended:
 
 ```bash

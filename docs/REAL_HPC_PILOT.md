@@ -44,6 +44,12 @@ directory. It does not auto-trust `ssh-keyscan` output and it does not run in
 CI. Its result bundle is the intended input for future signed policy or MVP
 payload-profile PRs.
 
+Before adding a real site payload profile, run the maintainer `launcher-intent`
+phase. It uploads the reference launcher, repository-owned templates, and
+generated intent/profile files under the configured home-directory test path.
+Dry-run is the default; real `sbatch` submission requires an explicit
+maintainer config flag. Do not use YOLO output as a normal payload profile.
+
 ## Host-Key Verification Requirement
 
 `ssh-keyscan` can collect candidate host keys, but it does not prove authenticity. A network attacker can answer `ssh-keyscan` with attacker-controlled keys.

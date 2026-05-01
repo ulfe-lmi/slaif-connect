@@ -1,0 +1,12 @@
+{
+  "type": "slaif.sessionIntent",
+  "version": 1,
+  "sessionId": "sess_examplegams123",
+  "hpc": "vegahpc",
+  "payloadId": "gams_chat_v1",
+  "createdAt": "2026-05-01T12:00:00.000Z",
+  "expiresAt": "2099-05-01T12:15:00.000Z",
+  "launcher": {
+    "mode": "normal"
+  }
+}

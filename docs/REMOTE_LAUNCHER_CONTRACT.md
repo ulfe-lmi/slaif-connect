@@ -36,6 +36,14 @@ It is not permission to accept arbitrary commands. Payload intent must resolve
 to a signed-policy-approved payload ID and site-approved profile, and worker
 nodes must be reached through Slurm allocation rather than SSH.
 
+The payload-intent foundation is now defined in
+[REMOTE_LAUNCHER_PAYLOAD_INTENT.md](REMOTE_LAUNCHER_PAYLOAD_INTENT.md). The
+reference launcher can validate local/test intent and profile files with
+`--intent-file` and `--profile-file`, render repository-owned Slurm templates,
+and submit through `sbatch`. The local browser dev stack exercises this path
+with signed-policy fixed paths and a fake `sbatch`; the normal web launch and
+session descriptor still do not carry command text or script text.
+
 ## Invocation Contract
 
 Minimum stable CLI:
@@ -49,6 +57,9 @@ Optional safe flags:
 ```text
 --api-base <URL>
 --scheduler slurm
+--intent-file <PATH>
+--profile-file <PATH>
+--work-dir <PATH>
 --dry-run
 --verbose
 --version
@@ -64,6 +75,8 @@ Rules:
 - No shell evaluation of the session ID is allowed.
 - No SSH credentials are accepted as CLI arguments.
 - No tokens or passwords should be passed on the command line in production unless a later security review approves it.
+- `--intent-file` and `--profile-file` are local/test/maintainer integration
+  inputs and must contain safe JSON only.
 
 ## Environment Contract
 
@@ -201,3 +214,8 @@ kit. The dry-run phase uploads the reference launcher under the configured
 checks for the canonical `Submitted batch job <id>` line. This is a manual
 homedir test only; it is not a claim that the site production launcher has been
 installed or validated.
+
+The maintainer kit also has a `launcher-intent` phase that uploads the
+reference launcher, repository-owned templates, and generated intent/profile
+files under the configured home-directory test path. Dry-run is the default;
+real `sbatch` submission requires explicit maintainer config.

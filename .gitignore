@@ -34,3 +34,6 @@ maintainer-results/
 hpc-test-results/
 *.yolo.local.*
 *.hpc.local.json
+*.launcher-intent.local.json
+session-intent.local.json
+slurm-profiles.local.json

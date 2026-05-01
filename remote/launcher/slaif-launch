@@ -7,10 +7,17 @@ SCHEDULER="${SLAIF_SCHEDULER:-slurm}"
 API_BASE="${SLAIF_API_BASE:-}"
 DRY_RUN=0
 VERBOSE=0
+INTENT_FILE=""
+PROFILE_FILE=""
+WORK_DIR="${SLAIF_LAUNCHER_WORK_DIR:-${HOME:-}/.slaif-connect/launcher}"
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+TEMPLATE_DIR="${SLAIF_LAUNCHER_TEMPLATE_DIR:-$SCRIPT_DIR/templates}"
+INTENT_HELPER="${SLAIF_LAUNCHER_INTENT_HELPER:-$SCRIPT_DIR/lib/launcher-intent.py}"
 
 usage() {
   cat <<'EOF'
 Usage: slaif-launch --session <SESSION_ID> [--scheduler slurm] [--dry-run] [--verbose]
+       slaif-launch --session <SESSION_ID> --intent-file <PATH> --profile-file <PATH> [--work-dir <PATH>] [--dry-run]
 
 Runs a site-approved SLAIF launcher flow under the authenticated HPC user.
 This reference launcher does not accept arbitrary commands, job scripts,
@@ -43,6 +50,16 @@ validate_script_path() {
   return 0
 }
 
+validate_input_path() {
+  input_path="$1"
+  [ -n "$input_path" ] || return 1
+  case "$input_path" in
+    -*|*..*|*\'*|*\"*|*' '*|*';'*|*'`'*|*'$'*|*'|'*|*'&'*) return 1 ;;
+  esac
+  [ -f "$input_path" ] || return 1
+  return 0
+}
+
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --session)
@@ -58,6 +75,21 @@ while [ "$#" -gt 0 ]; do
     --api-base)
       [ "$#" -ge 2 ] || fail 2 "missing value for --api-base"
       API_BASE="$2"
+      shift 2
+      ;;
+    --intent-file)
+      [ "$#" -ge 2 ] || fail 2 "missing value for --intent-file"
+      INTENT_FILE="$2"
+      shift 2
+      ;;
+    --profile-file)
+      [ "$#" -ge 2 ] || fail 2 "missing value for --profile-file"
+      PROFILE_FILE="$2"
+      shift 2
+      ;;
+    --work-dir)
+      [ "$#" -ge 2 ] || fail 2 "missing value for --work-dir"
+      WORK_DIR="$2"
       shift 2
       ;;
     --dry-run)
@@ -91,6 +123,31 @@ case "$SCHEDULER" in
   slurm) ;;
   *) fail 2 "unsupported scheduler: $SCHEDULER" ;;
 esac
+
+if [ -n "$INTENT_FILE" ] || [ -n "$PROFILE_FILE" ]; then
+  [ -n "$INTENT_FILE" ] || fail 2 "--intent-file is required with --profile-file"
+  [ -n "$PROFILE_FILE" ] || fail 2 "--profile-file is required with --intent-file"
+  validate_input_path "$INTENT_FILE" || fail 4 "--intent-file must be an existing safe file path"
+  validate_input_path "$PROFILE_FILE" || fail 4 "--profile-file must be an existing safe file path"
+  command -v python3 >/dev/null 2>&1 || fail 4 "python3 is required for launcher intent mode"
+  [ -f "$INTENT_HELPER" ] || fail 4 "launcher intent helper is missing"
+  [ -d "$TEMPLATE_DIR" ] || fail 4 "launcher template directory is missing"
+  if [ "$DRY_RUN" -eq 1 ]; then
+    exec python3 "$INTENT_HELPER" \
+      --session "$SESSION_ID" \
+      --intent-file "$INTENT_FILE" \
+      --profile-file "$PROFILE_FILE" \
+      --work-dir "$WORK_DIR" \
+      --template-dir "$TEMPLATE_DIR" \
+      --dry-run
+  fi
+  exec python3 "$INTENT_HELPER" \
+    --session "$SESSION_ID" \
+    --intent-file "$INTENT_FILE" \
+    --profile-file "$PROFILE_FILE" \
+    --work-dir "$WORK_DIR" \
+    --template-dir "$TEMPLATE_DIR"
+fi
 
 if [ -n "$API_BASE" ] && [ "$VERBOSE" -eq 1 ]; then
   printf 'Using SLAIF API base configured by site policy\n' >&2

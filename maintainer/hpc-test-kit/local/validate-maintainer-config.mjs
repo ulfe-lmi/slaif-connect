@@ -28,6 +28,11 @@ const FORBIDDEN_FIELD_NAMES = new Set([
   'Authorization',
 ]);
 const SAFE_SLURM_VALUE = /^[A-Za-z0-9_@%+=:.,/ -]*$/;
+const ALLOWED_LAUNCHER_INTENT_PAYLOAD_IDS = new Set([
+  'cpu_memory_diagnostics_v1',
+  'gpu_diagnostics_v1',
+  'gams_chat_v1',
+]);
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -117,6 +122,21 @@ function validateYolo(config, options) {
   }
 }
 
+function validateLauncherIntent(config) {
+  const tests = config.tests || {};
+  assert(isPlainObject(tests), 'invalid_tests', 'tests must be an object');
+  if (tests.launcherIntentPayloadId !== undefined) {
+    assert(ALLOWED_LAUNCHER_INTENT_PAYLOAD_IDS.has(tests.launcherIntentPayloadId),
+        'invalid_launcher_intent_payload',
+        'tests.launcherIntentPayloadId must be one of the normal MVP payload IDs');
+  }
+  if (tests.runLauncherIntentSubmit === true) {
+    assert(tests.runLauncherIntentDryRun === true,
+        'launcher_intent_submit_without_dry_run',
+        'launcher intent submit must be paired with dry-run config');
+  }
+}
+
 export function validateMaintainerConfig(config, options = {}) {
   const mergedOptions = {
     exampleMode: false,
@@ -164,6 +184,7 @@ export function validateMaintainerConfig(config, options = {}) {
   }
 
   validateSlurm(config.slurm || {});
+  validateLauncherIntent(config);
   validateYolo(config, mergedOptions);
 
   return {

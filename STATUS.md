@@ -565,6 +565,44 @@ Validation:
 npm run test:maintainer-hpc
 ```
 
+### 23. Remote launcher payload-intent contract
+
+The reference launcher now supports a local/mock payload-intent path. It
+validates `slaif.sessionIntent`, rejects command/script/token/credential/SSH
+target override fields, resolves `payloadId` to a site-approved Slurm profile,
+renders repository-owned CPU, GPU, or GaMS scaffold templates, and submits with
+`sbatch` in fake-scheduler tests.
+
+The local signed-policy browser dev stack now mounts the launcher, helper
+library, templates, session intent, profile catalog, and a fake `sbatch` into
+the test `sshd` container. Browser job-reporting E2E therefore exercises the
+payload-intent launcher path while still using a signed-policy-controlled fixed
+remote command.
+
+The maintainer test kit also has a `launcher-intent` phase that uploads the
+reference launcher, templates, and generated non-secret intent/profile files
+under the configured home-directory test path. Dry-run is the default; real
+`sbatch` requires an explicit maintainer flag.
+
+This is local/mock contract validation. It is not live Vega, Arnes, or NSC
+validation, and it does not implement the workload broker, remote worker agent,
+GaMS/vLLM serving, or YOLO product mode.
+
+Main files and docs:
+
+- [docs/REMOTE_LAUNCHER_PAYLOAD_INTENT.md](docs/REMOTE_LAUNCHER_PAYLOAD_INTENT.md)
+- [server/workloads/session_intent.js](server/workloads/session_intent.js)
+- [server/workloads/slurm_profile.js](server/workloads/slurm_profile.js)
+- [remote/launcher/slaif-launch](remote/launcher/slaif-launch)
+- [remote/launcher/templates/](remote/launcher/templates)
+- [tests/remote/launcher-payload-intent.test.mjs](tests/remote/launcher-payload-intent.test.mjs)
+
+Validation:
+
+```bash
+npm run test:launcher-intent
+```
+
 ## What Is Validated
 
 | Capability | Status | Evidence / command |
@@ -579,6 +617,7 @@ npm run test:maintainer-hpc
 | Workload token scope and runtime protocol | Working locally at reference/protocol level | `npm run test:workloads` |
 | Signed-policy payload catalog | Working locally | `npm run test:payload-catalog`, `npm run test:policy` |
 | Maintainer real-HPC test kit | Scaffolded and locally validated as tooling | `npm run test:maintainer-hpc`; real runs require maintainer credentials and verified host data |
+| Remote launcher payload-intent contract | Working locally | `npm run test:launcher-intent`; maintainer kit includes `launcher-intent` dry-run phase |
 | Fast diagnostics payloads | Pending | `gpu_diagnostics_v1` and `cpu_memory_diagnostics_v1` profiles/tests not implemented yet |
 | Interactive GaMS chat payload | Pending | `gams_chat_v1`, workload registry/broker, and worker agent not implemented yet |
 | Remote launcher contract/reference implementation | Working locally | `npm run test:remote-launcher`; browser job-reporting E2E mounts the reference launcher |
@@ -641,11 +680,11 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 - Chrome Web Store packaging and release workflow are not implemented.
 - User-facing UX is still prototype-level.
 - Local SLURM job metadata reporting is implemented and validated against the local test sshd; this is only the scheduler metadata slice of the workload MVP, and real HPC SLURM reporting is not validated yet.
-- Fast diagnostic payload profiles, structured diagnostic result reporting,
-  workload registry/broker behavior, a remote workload agent, and interactive
-  GaMS chat are not implemented yet. Workload-token scope, runtime protocol,
-  and signed-policy payload catalog validators exist at reference/protocol
-  level only.
+- Fast diagnostic payload profiles against real site resources, structured
+  diagnostic result reporting, workload registry/broker behavior, a remote
+  workload agent, and interactive GaMS chat are not implemented yet.
+  Workload-token scope, runtime protocol, signed-policy payload catalog, and
+  launcher payload-intent validators exist at reference/protocol level only.
 - Broader result reporting beyond initial scheduler metadata is not production-integrated.
 - Durable production token storage, distributed replay prevention, infrastructure rate limits, and production audit-log operations have documented contracts and reference validation, but remain production deployment work.
 - Redis durable/shared token-store adapter is implemented and tested for atomic
@@ -659,16 +698,15 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 
 ## Next Milestones
 
-1. Remote launcher payload intent contract.
-2. Fast diagnostic payload profiles.
-3. Structured diagnostic result reporting.
-4. Workload registry and WebSocket broker.
-5. Remote workload agent skeleton.
-6. GaMS chat fake/model-placeholder flow.
-7. GaMS/vLLM scaffold.
-8. Real-HPC diagnostics pilot.
-9. Real-HPC GaMS pilot.
-10. YOLO mode only after normal payload path is stable.
+1. Fast diagnostic payload profiles.
+2. Structured diagnostic result reporting.
+3. Workload registry and WebSocket broker.
+4. Remote workload agent skeleton.
+5. GaMS chat fake/model-placeholder flow.
+6. GaMS/vLLM scaffold.
+7. Real-HPC diagnostics pilot.
+8. Real-HPC GaMS pilot.
+9. YOLO mode only after normal payload path is stable.
 
 Production readiness work remains ongoing alongside these milestones: production
 Redis deployment, production trust-root/signing operations, production

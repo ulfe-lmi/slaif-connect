@@ -166,7 +166,11 @@ Rules:
 
 ## Local Validation
 
-The browser job-reporting E2E test starts the local signed-policy dev stack, mounts the reference launcher into the test sshd container, runs browser-side OpenSSH/WASM through the relay, observes real remote output, parses:
+The browser job-reporting E2E test starts the local signed-policy dev stack,
+mounts the reference launcher, repository-owned templates, local session intent,
+local Slurm profile catalog, and a fake `sbatch` into the test sshd container,
+runs browser-side OpenSSH/WASM through the relay, observes real remote output,
+parses:
 
 ```text
 Submitted batch job 424242
@@ -176,6 +180,10 @@ and verifies the mock SLAIF API receives exactly one metadata report without std
 
 The token lifecycle browser test also verifies that a consumed job-report token
 cannot be replayed for a second accepted report.
+
+The remote launcher payload-intent foundation preserves the canonical Slurm
+line `Submitted batch job <id>` so existing job ID parsing and metadata
+reporting can continue while diagnostic payload result schemas are added later.
 
 Run:
 

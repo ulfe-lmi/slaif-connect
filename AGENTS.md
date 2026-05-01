@@ -2616,9 +2616,15 @@ Hard rules:
 - keep signed policy authoritative for the launcher command template;
 - do not replace `/opt/slaif/bin/slaif-launch --session ${SESSION_ID}` style
   fixed commands with arbitrary command execution;
+- launcher normal mode maps `payloadId` to a site-approved Slurm profile and
+  repository-owned template;
+- session intent must not contain commands, scripts, SSH credentials, tokens, or
+  SSH target overrides;
+- Slurm profiles must not contain arbitrary shell commands or raw job scripts;
 - do not allow the web launch message or session descriptor to pass job scripts,
   shell commands, scheduler commands, or launcher arguments beyond validated
   identifiers already approved by policy;
+- maintainer YOLO remains separate from normal launcher payload intent;
 - keep the reference launcher tests passing when changing the launcher contract;
 - do not add `sshpass`, password environment variables, scripted OTP entry, or
   credential-bearing launcher environment variables;
