@@ -110,6 +110,42 @@ function requireCommand(command) {
   }
 }
 
+export function prepareLauncherKeysDirectory({root = defaultRoot, tempDir}) {
+  if (!tempDir) {
+    throw new Error('missing tempDir for launcher keys directory');
+  }
+
+  fs.mkdirSync(tempDir, {recursive: true});
+  fs.chmodSync(tempDir, 0o755);
+
+  const launcherSource = path.join(root, 'remote/launcher/slaif-launch');
+  if (!fs.existsSync(launcherSource)) {
+    throw new Error(`missing launcher source: ${launcherSource}`);
+  }
+  if ((fs.statSync(launcherSource).mode & 0o111) === 0) {
+    throw new Error(`launcher source is not executable: ${launcherSource}`);
+  }
+
+  const launcherTarget = path.join(tempDir, 'slaif-launch');
+  fs.copyFileSync(launcherSource, launcherTarget);
+  fs.chmodSync(launcherTarget, 0o555);
+  fs.cpSync(path.join(root, 'remote/launcher/lib'), path.join(tempDir, 'lib'), {
+    recursive: true,
+  });
+  fs.cpSync(path.join(root, 'remote/launcher/templates'), path.join(tempDir, 'templates'), {
+    recursive: true,
+  });
+
+  if ((fs.statSync(launcherTarget).mode & 0o111) === 0) {
+    throw new Error(`generated launcher is not executable: ${launcherTarget}`);
+  }
+
+  return {
+    launcherSource,
+    launcherTarget,
+  };
+}
+
 function dockerPort(containerId, root) {
   const result = run('docker', ['port', containerId, '22/tcp'], {cwd: root});
   const line = result.stdout.trim().split('\n')[0];
@@ -721,16 +757,7 @@ export async function startExtensionDevStack(options = {}) {
     const hostKey = path.join(tempDir, 'ssh_host_ed25519_key');
     const wrongHostKey = path.join(tempDir, 'wrong_ssh_host_ed25519_key');
     const clientKey = path.join(tempDir, 'unused_client_ed25519');
-    const launcherSource = path.join(root, 'remote/launcher/slaif-launch');
-    const launcherTarget = path.join(tempDir, 'slaif-launch');
-    fs.copyFileSync(launcherSource, launcherTarget);
-    fs.chmodSync(launcherTarget, 0o555);
-    fs.cpSync(path.join(root, 'remote/launcher/lib'), path.join(tempDir, 'lib'), {
-      recursive: true,
-    });
-    fs.cpSync(path.join(root, 'remote/launcher/templates'), path.join(tempDir, 'templates'), {
-      recursive: true,
-    });
+    prepareLauncherKeysDirectory({root, tempDir});
     fs.writeFileSync(
         path.join(tempDir, 'session-intent.json'),
         `${JSON.stringify(localIntentForPayload({sessionId, hpc, payloadId}), null, 2)}\n`,
@@ -780,6 +807,23 @@ export async function startExtensionDevStack(options = {}) {
       '-e', `SLAIF_TEST_PASSWORD=${password}`,
       imageTag,
     ], {cwd: root}).stdout.trim();
+
+    try {
+      run('docker', [
+        'exec',
+        '--user',
+        'testuser',
+        containerId,
+        '/bin/sh',
+        '-c',
+        'test -x /keys/slaif-launch && /keys/slaif-launch --version >/dev/null',
+      ], {cwd: root});
+    } catch (error) {
+      throw new Error([
+        'local dev stack error: /keys/slaif-launch is not executable inside test sshd container',
+        error.message,
+      ].filter(Boolean).join('\n'));
+    }
 
     const sshdPort = dockerPort(containerId, root);
     await waitForPort(ssdPortOrThrow(sshdPort));

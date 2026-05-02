@@ -102,6 +102,9 @@ jobs:
       - run: npm run plugin:install
       - run: npm run plugin:verify
       - run: npm run build:extension
+      - run: |
+          git ls-files --stage remote/launcher/slaif-launch
+          ls -l remote/launcher/slaif-launch
       - run: npx playwright install --with-deps chromium
       - run: npm run test:browser
       - run: npm run test:browser:launch-flow

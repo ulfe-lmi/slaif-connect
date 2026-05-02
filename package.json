@@ -37,7 +37,7 @@
     "pilot:stack": "node tools/start-real-hpc-pilot-stack.mjs",
     "test:pilot": "node tests/pilot/pilot-input-validation.test.mjs && node tests/pilot/pilot-policy-creation.test.mjs && node tests/pilot/host-key-fingerprint.test.mjs && node tests/pilot/real-hpc-pilot-smoke.test.mjs",
     "test:jobs": "node tests/jobs/job-output-parser.test.mjs && node tests/jobs/job-reporter.test.mjs && node tests/jobs/payload-result-reporter.test.mjs",
-    "test:remote-launcher": "node tests/remote/launcher.test.mjs",
+    "test:remote-launcher": "node tests/remote/launcher.test.mjs && node tests/remote/launcher-permissions.test.mjs",
     "test:launcher-intent": "node tests/remote/launcher-payload-intent.test.mjs",
     "test:diagnostic-results": "node tests/workloads/diagnostic-result.test.mjs",
     "test:diagnostic-launcher": "node tests/remote/launcher-diagnostic-results.test.mjs",
