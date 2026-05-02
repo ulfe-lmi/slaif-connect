@@ -13,11 +13,14 @@ WORK_DIR="${SLAIF_LAUNCHER_WORK_DIR:-${HOME:-}/.slaif-connect/launcher}"
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 TEMPLATE_DIR="${SLAIF_LAUNCHER_TEMPLATE_DIR:-$SCRIPT_DIR/templates}"
 INTENT_HELPER="${SLAIF_LAUNCHER_INTENT_HELPER:-$SCRIPT_DIR/lib/launcher-intent.py}"
+WAIT_RESULT=0
+RESULT_TIMEOUT_SECONDS="${SLAIF_LAUNCHER_RESULT_TIMEOUT_SECONDS:-10}"
+MAX_OUTPUT_BYTES="${SLAIF_LAUNCHER_MAX_OUTPUT_BYTES:-65536}"
 
 usage() {
   cat <<'EOF'
 Usage: slaif-launch --session <SESSION_ID> [--scheduler slurm] [--dry-run] [--verbose]
-       slaif-launch --session <SESSION_ID> --intent-file <PATH> --profile-file <PATH> [--work-dir <PATH>] [--dry-run]
+       slaif-launch --session <SESSION_ID> --intent-file <PATH> --profile-file <PATH> [--work-dir <PATH>] [--dry-run] [--wait-result]
 
 Runs a site-approved SLAIF launcher flow under the authenticated HPC user.
 This reference launcher does not accept arbitrary commands, job scripts,
@@ -96,6 +99,20 @@ while [ "$#" -gt 0 ]; do
       DRY_RUN=1
       shift
       ;;
+    --wait-result)
+      WAIT_RESULT=1
+      shift
+      ;;
+    --result-timeout-seconds)
+      [ "$#" -ge 2 ] || fail 2 "missing value for --result-timeout-seconds"
+      RESULT_TIMEOUT_SECONDS="$2"
+      shift 2
+      ;;
+    --max-output-bytes)
+      [ "$#" -ge 2 ] || fail 2 "missing value for --max-output-bytes"
+      MAX_OUTPUT_BYTES="$2"
+      shift 2
+      ;;
     --verbose)
       VERBOSE=1
       shift
@@ -141,12 +158,18 @@ if [ -n "$INTENT_FILE" ] || [ -n "$PROFILE_FILE" ]; then
       --template-dir "$TEMPLATE_DIR" \
       --dry-run
   fi
-  exec python3 "$INTENT_HELPER" \
+  set -- python3 "$INTENT_HELPER" \
     --session "$SESSION_ID" \
     --intent-file "$INTENT_FILE" \
     --profile-file "$PROFILE_FILE" \
     --work-dir "$WORK_DIR" \
-    --template-dir "$TEMPLATE_DIR"
+    --template-dir "$TEMPLATE_DIR" \
+    --result-timeout-seconds "$RESULT_TIMEOUT_SECONDS" \
+    --max-output-bytes "$MAX_OUTPUT_BYTES"
+  if [ "$WAIT_RESULT" -eq 1 ]; then
+    set -- "$@" --wait-result
+  fi
+  exec "$@"
 fi
 
 if [ -n "$API_BASE" ] && [ "$VERBOSE" -eq 1 ]; then

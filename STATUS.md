@@ -618,7 +618,8 @@ npm run test:launcher-intent
 | Signed-policy payload catalog | Working locally | `npm run test:payload-catalog`, `npm run test:policy` |
 | Maintainer real-HPC test kit | Scaffolded and locally validated as tooling | `npm run test:maintainer-hpc`; real runs require maintainer credentials and verified host data |
 | Remote launcher payload-intent contract | Working locally | `npm run test:launcher-intent`; maintainer kit includes `launcher-intent` dry-run phase |
-| Fast diagnostics payloads | Pending | `gpu_diagnostics_v1` and `cpu_memory_diagnostics_v1` profiles/tests not implemented yet |
+| Fast diagnostic structured payload results | Working locally | `npm run test:diagnostic-results`, `npm run test:diagnostic-launcher`, `npm run test:browser:diagnostic-results` |
+| GitHub Actions CI checks | Configured | `.github/workflows/ci.yml`; branch protection must be enabled by maintainers in GitHub settings |
 | Interactive GaMS chat payload | Pending | `gams_chat_v1`, workload registry/broker, and worker agent not implemented yet |
 | Remote launcher contract/reference implementation | Working locally | `npm run test:remote-launcher`; browser job-reporting E2E mounts the reference launcher |
 | Scoped token lifecycle and replay rejection | Working locally | `npm run test:tokens`, `npm run test:browser:tokens` |
@@ -680,12 +681,14 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 - Chrome Web Store packaging and release workflow are not implemented.
 - User-facing UX is still prototype-level.
 - Local SLURM job metadata reporting is implemented and validated against the local test sshd; this is only the scheduler metadata slice of the workload MVP, and real HPC SLURM reporting is not validated yet.
-- Fast diagnostic payload profiles against real site resources, structured
-  diagnostic result reporting, workload registry/broker behavior, a remote
-  workload agent, and interactive GaMS chat are not implemented yet.
-  Workload-token scope, runtime protocol, signed-policy payload catalog, and
-  launcher payload-intent validators exist at reference/protocol level only.
-- Broader result reporting beyond initial scheduler metadata is not production-integrated.
+- Fast diagnostic structured payload result reporting is implemented and
+  locally validated for CPU and GPU/no-GPU-safe paths, but not validated against
+  real Vega, Arnes, or NSC allocations.
+- Workload registry/broker behavior, a remote workload agent, and interactive
+  GaMS chat are not implemented yet. Workload-token scope, runtime protocol,
+  signed-policy payload catalog, and launcher payload-intent validators exist
+  at reference/protocol level only.
+- Broader result reporting beyond initial fast diagnostics is not production-integrated.
 - Durable production token storage, distributed replay prevention, infrastructure rate limits, and production audit-log operations have documented contracts and reference validation, but remain production deployment work.
 - Redis durable/shared token-store adapter is implemented and tested for atomic
   consume/replay prevention, but no production Redis deployment has been
@@ -698,8 +701,8 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 
 ## Next Milestones
 
-1. Fast diagnostic payload profiles.
-2. Structured diagnostic result reporting.
+1. Fast diagnostic payload profiles against real site resources.
+2. Structured diagnostic result UX and result history.
 3. Workload registry and WebSocket broker.
 4. Remote workload agent skeleton.
 5. GaMS chat fake/model-placeholder flow.

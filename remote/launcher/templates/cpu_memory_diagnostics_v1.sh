@@ -1,21 +1,43 @@
-printf 'slaif_payload_result_begin\n'
-printf '{"type":"slaif.cpuMemoryDiagnosticsResult.v1","sessionId":"%s","payloadId":"%s","status":"ok","hostname":"%s","timestamp":"%s"' \
-  "${SLAIF_SESSION_ID:-}" \
-  "${SLAIF_PAYLOAD_ID:-cpu_memory_diagnostics_v1}" \
-  "$(hostname 2>/dev/null || printf unknown)" \
-  "$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || printf unknown)"
+node="$(hostname 2>/dev/null | tr -cd 'A-Za-z0-9_.:-' | cut -c1-128)"
+[ -n "$node" ] || node="unknown"
+arch="$(uname -m 2>/dev/null | tr -cd 'A-Za-z0-9_.:-' | cut -c1-64 || true)"
+cpu_count=""
 if command -v nproc >/dev/null 2>&1; then
-  printf ',"cpuCount":%s' "$(nproc)"
+  cpu_count="$(nproc 2>/dev/null || true)"
 fi
-if command -v uname >/dev/null 2>&1; then
-  printf ',"architecture":"%s"' "$(uname -m | tr -cd 'A-Za-z0-9_.-')"
-fi
-if command -v free >/dev/null 2>&1; then
-  mem_kb="$(free -k | awk '/^Mem:/ {print $2; exit}')"
-  case "$mem_kb" in
+case "$cpu_count" in
+  ''|*[!0-9]*) cpu_count=1 ;;
+esac
+memory_mib=""
+if [ -r /proc/meminfo ]; then
+  memory_kib="$(awk '/^MemTotal:/ {print $2; exit}' /proc/meminfo 2>/dev/null || true)"
+  case "$memory_kib" in
     ''|*[!0-9]*) ;;
-    *) printf ',"memoryKiB":%s' "$mem_kb" ;;
+    *) memory_mib=$((memory_kib / 1024)) ;;
   esac
 fi
-printf '}\n'
-printf 'slaif_payload_result_end\n'
+case "$memory_mib" in
+  ''|*[!0-9]*) memory_mib=1 ;;
+esac
+job_id="${SLAIF_SLURM_JOB_ID:-${SLURM_JOB_ID:-}}"
+case "$job_id" in
+  ''|*[!0-9]*) job_id_json="" ;;
+  *) job_id_json=",\"jobId\":\"$job_id\"" ;;
+esac
+partition="${SLURM_JOB_PARTITION:-}"
+partition="$(printf '%s' "$partition" | tr -cd 'A-Za-z0-9_.:@%+=,/-' | cut -c1-128)"
+partition_json=""
+[ -n "$partition" ] && partition_json=",\"slurmPartition\":\"$partition\""
+
+printf '%s\n' 'SLAIF_PAYLOAD_RESULT_BEGIN'
+printf '{"type":"slaif.payloadResult","version":1,"sessionId":"%s","hpc":"%s","payloadId":"cpu_memory_diagnostics_v1","scheduler":"slurm"%s,"status":"completed","result":{"node":"%s","cpuCount":%s,"memoryTotalMiB":%s' \
+  "${SLAIF_SESSION_ID:-}" \
+  "${SLAIF_HPC_ALIAS:-}" \
+  "$job_id_json" \
+  "$node" \
+  "$cpu_count" \
+  "$memory_mib"
+[ -n "$arch" ] && printf ',"architecture":"%s"' "$arch"
+printf '%s' "$partition_json"
+printf '}}\n'
+printf '%s\n' 'SLAIF_PAYLOAD_RESULT_END'

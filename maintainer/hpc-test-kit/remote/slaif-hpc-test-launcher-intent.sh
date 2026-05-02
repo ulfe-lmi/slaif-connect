@@ -27,7 +27,8 @@ if [ "${SLAIF_LAUNCHER_INTENT_SUBMIT:-0}" = "1" ]; then
     --session "${SLAIF_LAUNCHER_INTENT_SESSION_ID:-sess_maintainer_intent}" \
     --intent-file "$INTENT_FILE" \
     --profile-file "$PROFILE_FILE" \
-    --work-dir "$WORK_DIR" | tee "$RESULT_DIR/launcher-intent-output.txt"
+    --work-dir "$WORK_DIR" \
+    --wait-result | tee "$RESULT_DIR/launcher-intent-output.txt"
 else
   "$LAUNCHER" \
     --session "${SLAIF_LAUNCHER_INTENT_SESSION_ID:-sess_maintainer_intent}" \

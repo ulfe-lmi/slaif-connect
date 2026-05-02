@@ -2711,3 +2711,24 @@ Hard rules:
   touching observability, token, relay, descriptor, or job-report paths;
 - update `STATUS.md` and `docs/OBSERVABILITY.md` when observability readiness
   changes.
+
+## Diagnostic payload result rules
+
+Fast diagnostics may report only validated `slaif.payloadResult` JSON framed by
+`SLAIF_PAYLOAD_RESULT_BEGIN` and `SLAIF_PAYLOAD_RESULT_END`. Do not upload raw
+stdout, stderr, terminal transcripts, token values, credentials, command text,
+or script text as payload results. The extension must parse only the marked
+JSON block, validate bounded CPU/GPU result shapes, and send reporting tokens
+only in `Authorization` headers.
+
+Normal diagnostic payloads remain `payloadId`-based and Slurm-launched:
+`cpu_memory_diagnostics_v1` and `gpu_diagnostics_v1`. A local no-GPU result is
+acceptable test evidence, but it is not real GPU validation.
+
+## CI rules
+
+GitHub Actions workflows must not use `pull_request_target` for untrusted PR
+code, must not use real HPC credentials or repository secrets for normal CI,
+and must not run real-HPC or maintainer YOLO tests. Keep CI jobs aligned with
+package scripts, and do not mark core validation jobs `continue-on-error` to
+hide failures.

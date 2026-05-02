@@ -54,6 +54,14 @@ SLURM job ID from real remote output and that the mock SLAIF API receives one
 safe metadata report. That report must not include stdout, stderr, terminal
 transcript, tokens, passwords, OTPs, or private keys.
 
+The browser diagnostic-result test uses the same real local OpenSSH/WASM path,
+the payload-intent launcher, repository-owned diagnostic templates, and a fake
+local `sbatch`. It verifies that the extension parses a framed
+`slaif.payloadResult` block and that the mock SLAIF API receives one structured
+payload result without stdout, stderr, transcript, tokens, credentials, or
+command/script fields. The GPU case is no-GPU-safe and does not claim real GPU
+validation.
+
 ## Commands
 
 ```bash
@@ -65,6 +73,7 @@ npm run test:browser:hostkey-negative
 npm run test:browser:launch-flow
 npm run test:browser:signed-policy
 npm run test:browser:job-reporting
+npm run test:browser:diagnostic-results
 npm run test:browser:tokens
 npm run test:browser:observability
 ```

@@ -64,6 +64,9 @@ Optional safe flags:
 --verbose
 --version
 --help
+--wait-result
+--result-timeout-seconds <N>
+--max-output-bytes <N>
 ```
 
 Rules:
@@ -77,6 +80,9 @@ Rules:
 - No tokens or passwords should be passed on the command line in production unless a later security review approves it.
 - `--intent-file` and `--profile-file` are local/test/maintainer integration
   inputs and must contain safe JSON only.
+- `--wait-result` is for fast diagnostic payloads. It must wait only for a
+  bounded time and read only launcher-generated Slurm output under the work
+  directory.
 
 ## Environment Contract
 
@@ -105,6 +111,9 @@ Submitted batch job 12345
 ```
 
 The launcher may print additional non-secret informational lines, but should avoid unnecessary output.
+For fast diagnostics it may also print one framed `slaif.payloadResult` block
+after the scheduler submission line. The block format is defined in
+[DIAGNOSTIC_PAYLOAD_RESULTS.md](DIAGNOSTIC_PAYLOAD_RESULTS.md).
 
 Rules:
 

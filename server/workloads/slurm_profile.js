@@ -240,6 +240,7 @@ export function buildSbatchScriptFromTemplate(templateId, context = {}, options 
   return `#!/bin/sh
 set -eu
 export SLAIF_SESSION_ID=${JSON.stringify(sessionId)}
+export SLAIF_HPC_ALIAS=${JSON.stringify(context.hpc || context.hpcAlias || '')}
 export SLAIF_PAYLOAD_ID=${JSON.stringify(context.payloadId || '')}
 export SLAIF_WORK_DIR=${JSON.stringify(context.workDir || '')}
 

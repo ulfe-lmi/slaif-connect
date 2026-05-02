@@ -27,14 +27,67 @@ fi
 if command -v python3 >/dev/null 2>&1; then
 python3 - <<'PY'
 import json
+import os
+import platform
+import shutil
+import subprocess
+node = platform.node() or "unknown"
+gpus = []
+status = "no_gpu_detected"
+gpu_available = False
+reason = "nvidia-smi not available"
+if shutil.which("nvidia-smi"):
+    try:
+        query = subprocess.run(
+            ["nvidia-smi", "--query-gpu=name,memory.total,driver_version", "--format=csv,noheader,nounits"],
+            check=False,
+            text=True,
+            capture_output=True,
+            timeout=20,
+        )
+        if query.returncode == 0:
+            for line in query.stdout.splitlines()[:64]:
+                parts = [part.strip() for part in line.split(",")]
+                if len(parts) >= 2:
+                    entry = {"name": parts[0] or "unknown GPU"}
+                    if parts[1].isdigit():
+                        entry["memoryTotalMiB"] = int(parts[1])
+                    if len(parts) >= 3 and parts[2]:
+                        entry["driverVersion"] = parts[2]
+                    gpus.append(entry)
+            if gpus:
+                status = "completed"
+                gpu_available = True
+                reason = None
+    except Exception:
+        pass
 payload = {
-    "type": "slaif.gpuDiagnosticsResult.v1",
-    "python3Available": True,
+    "type": "slaif.payloadResult",
+    "version": 1,
+    "sessionId": os.environ.get("SLAIF_DIAGNOSTIC_SESSION_ID", "sess_maintainer_gpu"),
+    "hpc": os.environ.get("SLAIF_HPC_ALIAS", "maintainerhpc"),
+    "payloadId": "gpu_diagnostics_v1",
+    "scheduler": "slurm",
+    "jobId": os.environ.get("SLURM_JOB_ID", ""),
+    "status": status,
+    "result": {
+        "node": node,
+        "gpus": gpus,
+        "gpuAvailable": gpu_available,
+    },
 }
+if reason:
+    payload["result"]["reason"] = reason
+if not payload["jobId"]:
+    payload.pop("jobId")
+print("SLAIF_PAYLOAD_RESULT_BEGIN")
 print(json.dumps(payload, sort_keys=True))
+print("SLAIF_PAYLOAD_RESULT_END")
 PY
 else
-  echo '{"type":"slaif.gpuDiagnosticsResult.v1","python3Available":false}'
+  echo 'SLAIF_PAYLOAD_RESULT_BEGIN'
+  printf '{"type":"slaif.payloadResult","version":1,"sessionId":"sess_maintainer_gpu","hpc":"%s","payloadId":"gpu_diagnostics_v1","scheduler":"slurm","jobId":"%s","status":"no_gpu_detected","result":{"node":"unknown","gpus":[],"gpuAvailable":false,"reason":"python3 not available"}}\n' "${SLAIF_HPC_ALIAS:-maintainerhpc}" "${SLURM_JOB_ID:-}"
+  echo 'SLAIF_PAYLOAD_RESULT_END'
 fi
 echo "slaif_gpu_diagnostic_done=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 SBATCH
@@ -65,5 +118,17 @@ if [ -z "$JOB_ID" ]; then
 fi
 if [ "${SLAIF_WAIT_FOR_COMPLETION:-0}" = "1" ]; then
   slaif_wait_for_job "$JOB_ID" 600 || true
+  if [ -f "$RESULT_DIR/slurm-$JOB_ID.out" ] && command -v python3 >/dev/null 2>&1; then
+    python3 - "$RESULT_DIR/slurm-$JOB_ID.out" "$RESULT_DIR/gpu_payload_result.json" <<'PY' || true
+import pathlib
+import sys
+text = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
+begin = text.find("SLAIF_PAYLOAD_RESULT_BEGIN")
+end = text.find("SLAIF_PAYLOAD_RESULT_END", begin)
+if begin >= 0 and end > begin:
+    body = text[begin + len("SLAIF_PAYLOAD_RESULT_BEGIN"):end].strip()
+    pathlib.Path(sys.argv[2]).write_text(body + "\n", encoding="utf-8")
+PY
+  fi
 fi
 slaif_write_result_json "$RESULT_DIR/result.json" "submitted" "Submitted batch job $JOB_ID"

@@ -15,6 +15,7 @@ import {createObservabilityHttpHandler} from '../server/observability/observabil
 import {createRateLimiter} from '../server/rate_limit/rate_limiter.js';
 import {createTokenRegistry, TOKEN_SCOPES} from '../server/tokens/token_registry.js';
 import {buildDefaultPayloadCatalog} from '../server/workloads/payload_catalog.js';
+import {validatePayloadResult} from '../server/workloads/diagnostic_result.js';
 import {
   base64urlEncode,
   canonicalPolicySigningInput,
@@ -107,6 +108,42 @@ function requireCommand(command) {
   if (result.status !== 0) {
     throw new Error(`missing prerequisite: ${command}`);
   }
+}
+
+export function prepareLauncherKeysDirectory({root = defaultRoot, tempDir}) {
+  if (!tempDir) {
+    throw new Error('missing tempDir for launcher keys directory');
+  }
+
+  fs.mkdirSync(tempDir, {recursive: true});
+  fs.chmodSync(tempDir, 0o755);
+
+  const launcherSource = path.join(root, 'remote/launcher/slaif-launch');
+  if (!fs.existsSync(launcherSource)) {
+    throw new Error(`missing launcher source: ${launcherSource}`);
+  }
+  if ((fs.statSync(launcherSource).mode & 0o111) === 0) {
+    throw new Error(`launcher source is not executable: ${launcherSource}`);
+  }
+
+  const launcherTarget = path.join(tempDir, 'slaif-launch');
+  fs.copyFileSync(launcherSource, launcherTarget);
+  fs.chmodSync(launcherTarget, 0o555);
+  fs.cpSync(path.join(root, 'remote/launcher/lib'), path.join(tempDir, 'lib'), {
+    recursive: true,
+  });
+  fs.cpSync(path.join(root, 'remote/launcher/templates'), path.join(tempDir, 'templates'), {
+    recursive: true,
+  });
+
+  if ((fs.statSync(launcherTarget).mode & 0o111) === 0) {
+    throw new Error(`generated launcher is not executable: ${launcherTarget}`);
+  }
+
+  return {
+    launcherSource,
+    launcherTarget,
+  };
 }
 
 function dockerPort(containerId, root) {
@@ -239,6 +276,7 @@ async function startMockSlaifWebApiServer({
   username,
 }) {
   const jobReports = [];
+  const payloadResults = [];
   const observabilityHandler = createObservabilityHttpHandler({
     metricsRegistry,
     readinessOptions,
@@ -492,6 +530,81 @@ async function startMockSlaifWebApiServer({
       return;
     }
 
+    if (url.pathname === `/api/connect/session/${encodeURIComponent(sessionId)}/payload-result`) {
+      const startedAt = Date.now();
+      audit('payloadResult.received', {sessionId, hpc, outcome: 'received'});
+      if (req.method !== 'POST') {
+        audit('payloadResult.rejected', {sessionId, hpc, outcome: 'rejected', reason: 'method_not_allowed'});
+        res.writeHead(405, {'Content-Type': 'application/json'});
+        res.end(JSON.stringify({error: 'method_not_allowed'}));
+        return;
+      }
+      const bearer = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
+      try {
+        tokenRegistry.validateToken(bearer, {
+          scope: TOKEN_SCOPES.JOB_REPORT,
+          sessionId,
+          hpc,
+          metadata: {payloadId},
+        });
+      } catch (_error) {
+        audit('payloadResult.rejected', {sessionId, hpc, outcome: 'rejected', reason: 'unauthorized'});
+        res.writeHead(401, {'Content-Type': 'application/json'});
+        res.end(JSON.stringify({error: 'unauthorized'}));
+        return;
+      }
+      let body = '';
+      req.setEncoding('utf8');
+      req.on('data', (chunk) => {
+        body += chunk;
+        if (body.length > 65536) {
+          req.destroy();
+        }
+      });
+      req.on('end', () => {
+        let payloadResult;
+        try {
+          payloadResult = validatePayloadResult(JSON.parse(body));
+          if (payloadResult.sessionId !== sessionId ||
+              payloadResult.hpc !== hpc ||
+              payloadResult.payloadId !== payloadId) {
+            throw new Error('payload result binding mismatch');
+          }
+        } catch (error) {
+          audit('payloadResult.rejected', {
+            sessionId,
+            hpc,
+            outcome: 'rejected',
+            reason: error.code || error.message || 'invalid_payload_result',
+          });
+          res.writeHead(400, {'Content-Type': 'application/json'});
+          res.end(JSON.stringify({error: error.code || 'invalid_payload_result'}));
+          return;
+        }
+        tokenRegistry.consumeToken(bearer, {
+          scope: TOKEN_SCOPES.JOB_REPORT,
+          sessionId,
+          hpc,
+          metadata: {payloadId},
+        });
+        payloadResults.push(payloadResult);
+        audit('payloadResult.accepted', {sessionId, hpc, outcome: 'accepted'});
+        metric('slaif_payload_results_total', {
+          route: 'payload_result',
+          outcome: 'accepted',
+          payloadId: payloadResult.payloadId,
+          status: payloadResult.status,
+        });
+        observe('slaif_payload_result_duration_seconds', {route: 'payload_result'}, (Date.now() - startedAt) / 1000);
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        });
+        res.end(JSON.stringify({ok: true}));
+      });
+      return;
+    }
+
     if (url.pathname === '/api/test/descriptor-replay') {
       const bearer = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
       try {
@@ -537,6 +650,15 @@ async function startMockSlaifWebApiServer({
       return;
     }
 
+    if (url.pathname === '/api/test/payload-results') {
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
+      });
+      res.end(JSON.stringify({payloadResults}));
+      return;
+    }
+
     res.writeHead(404, {'Content-Type': 'text/plain'});
     res.end('not found\n');
     }
@@ -557,6 +679,7 @@ async function startMockSlaifWebApiServer({
     apiBaseUrl: webOrigin,
     launcherUrl: `${webOrigin}/launcher.html`,
     jobReports,
+    payloadResults,
     auditEvents: auditLogger?.sink?.events,
     close: () => closeHttpServer(server),
   };
@@ -634,16 +757,7 @@ export async function startExtensionDevStack(options = {}) {
     const hostKey = path.join(tempDir, 'ssh_host_ed25519_key');
     const wrongHostKey = path.join(tempDir, 'wrong_ssh_host_ed25519_key');
     const clientKey = path.join(tempDir, 'unused_client_ed25519');
-    const launcherSource = path.join(root, 'remote/launcher/slaif-launch');
-    const launcherTarget = path.join(tempDir, 'slaif-launch');
-    fs.copyFileSync(launcherSource, launcherTarget);
-    fs.chmodSync(launcherTarget, 0o555);
-    fs.cpSync(path.join(root, 'remote/launcher/lib'), path.join(tempDir, 'lib'), {
-      recursive: true,
-    });
-    fs.cpSync(path.join(root, 'remote/launcher/templates'), path.join(tempDir, 'templates'), {
-      recursive: true,
-    });
+    prepareLauncherKeysDirectory({root, tempDir});
     fs.writeFileSync(
         path.join(tempDir, 'session-intent.json'),
         `${JSON.stringify(localIntentForPayload({sessionId, hpc, payloadId}), null, 2)}\n`,
@@ -655,11 +769,25 @@ export async function startExtensionDevStack(options = {}) {
     const fakeSbatch = path.join(tempDir, 'sbatch');
     fs.writeFileSync(fakeSbatch, [
       '#!/bin/sh',
+      'set -eu',
+      'out=""',
+      'script=""',
       'for arg in "$@"; do',
       '  case "$arg" in',
       "    *';'*|*'`'*|*'$('*|*'|'*|*'&'*) exit 64 ;;",
       '  esac',
       'done',
+      'while [ "$#" -gt 0 ]; do',
+      '  case "$1" in',
+      '    --output) out="$2"; shift 2 ;;',
+      '    --output=*) out="${1#--output=}"; shift ;;',
+      '    --*) shift 2 || true ;;',
+      '    *) script="$1"; shift ;;',
+      '  esac',
+      'done',
+      '[ -n "$out" ] || exit 65',
+      '[ -n "$script" ] || exit 66',
+      `SLAIF_SLURM_JOB_ID=${expectedJobId} SLURM_JOB_ID=${expectedJobId} /bin/sh "$script" > "$out"`,
       `printf 'Submitted batch job ${expectedJobId}\\n'`,
       '',
     ].join('\n'));
@@ -679,6 +807,23 @@ export async function startExtensionDevStack(options = {}) {
       '-e', `SLAIF_TEST_PASSWORD=${password}`,
       imageTag,
     ], {cwd: root}).stdout.trim();
+
+    try {
+      run('docker', [
+        'exec',
+        '--user',
+        'testuser',
+        containerId,
+        '/bin/sh',
+        '-c',
+        'test -x /keys/slaif-launch && /keys/slaif-launch --version >/dev/null',
+      ], {cwd: root});
+    } catch (error) {
+      throw new Error([
+        'local dev stack error: /keys/slaif-launch is not executable inside test sshd container',
+        error.message,
+      ].filter(Boolean).join('\n'));
+    }
 
     const sshdPort = dockerPort(containerId, root);
     await waitForPort(ssdPortOrThrow(sshdPort));
@@ -734,7 +879,7 @@ export async function startExtensionDevStack(options = {}) {
       sessionId,
       hpc,
       ttlMs: tokenTtlMs,
-      maxUses: 1,
+      maxUses: 2,
       metadata: {payloadId},
     });
 
@@ -839,7 +984,7 @@ export async function startExtensionDevStack(options = {}) {
           knownHosts: [knownHostsLine],
           remoteCommandTemplate: options.noSlurmJobOutput ?
             '/bin/sh -lc "printf \'SLAIF session ${SESSION_ID}\\n\'"' :
-            `PATH=/keys:$PATH /keys/slaif-launch --session ${'${SESSION_ID}'} --intent-file /keys/session-intent.json --profile-file /keys/slurm-profiles.json`,
+            `PATH=/keys:$PATH /keys/slaif-launch --session ${'${SESSION_ID}'} --intent-file /keys/session-intent.json --profile-file /keys/slurm-profiles.json --wait-result`,
           allowInteractiveTerminal: false,
           allowedPayloadIds: options.allowedPayloadIds || [payloadId],
           developmentOnly: true,

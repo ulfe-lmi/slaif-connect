@@ -1,0 +1,122 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lightweight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: git submodule update --init --recursive
+      - run: npm ci
+      - run: npm run upstream:init
+      - run: npm run vendor:libapps
+      - run: npm run plugin:install
+      - run: npm run plugin:verify
+      - run: npm run build:extension
+      - run: npm run policy:verify
+      - run: npm run test:policy
+      - run: npm run test:pilot
+      - run: npm run test:jobs
+      - run: npm run test:remote-launcher
+      - run: npm run test:launcher-intent
+      - run: npm run test:diagnostic-results
+      - run: npm run test:diagnostic-launcher
+      - run: npm run test:tokens
+      - run: npm run test:workloads
+      - run: npm run test:payload-catalog
+      - run: npm run test:maintainer-hpc
+      - run: npm run test:relay-hardening
+      - run: npm run test:deployment
+      - run: npm run test:observability
+      - run: npm run test:relay
+      - run: npm test
+      - run: git diff --check
+
+  redis-token-store:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      REDIS_URL: redis://127.0.0.1:6379
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:redis-token-store
+
+  relay-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:relay:e2e
+
+  browser-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run upstream:init
+      - run: npm run vendor:libapps
+      - run: npm run plugin:install
+      - run: npm run plugin:verify
+      - run: npm run build:extension
+      - run: |
+          git ls-files --stage remote/launcher/slaif-launch
+          ls -l remote/launcher/slaif-launch
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+      - run: npm run test:browser:launch-flow
+      - run: npm run test:browser:signed-policy
+      - run: npm run test:browser:job-reporting
+      - run: npm run test:browser:tokens
+      - run: npm run test:browser:observability
+      - run: npm run test:browser:diagnostic-results
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-artifacts
+          path: |
+            playwright-report/
+            test-results/

@@ -4,14 +4,15 @@
 
 This document covers server-side observability for the SLAIF API descriptor
 endpoint, WebSocket-to-TCP relay, token issuance/validation/consumption, job
-report endpoint, rate limiting, health/readiness, and deployment diagnostics.
+report and payload-result endpoints, rate limiting, health/readiness, and
+deployment diagnostics.
 
 This PR adds reference observability modules and tests. It does not by itself
 deploy a production monitoring stack.
 
 As the product moves from job-ID-only reporting to payload-driven Slurm
-workloads, observability must remain aggregate and safe. Future diagnostic
-  payload results and interactive GaMS worker events may add audit event types and
+workloads, observability must remain aggregate and safe. Diagnostic payload
+results and future interactive GaMS worker events may add audit event types and
 metrics, but they must not expose SSH credentials, workload tokens, raw prompts
 where policy forbids them, terminal transcripts, or high-cardinality metric
 labels. The workload roadmap is defined in
@@ -94,6 +95,9 @@ The reference implementation emits or supports these event names:
 - `jobReport.received`
 - `jobReport.accepted`
 - `jobReport.rejected`
+- `payloadResult.received`
+- `payloadResult.accepted`
+- `payloadResult.rejected`
 - `rateLimit.accepted`
 - `rateLimit.rejected`
 - `health.ready`

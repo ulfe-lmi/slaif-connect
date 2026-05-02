@@ -52,6 +52,7 @@ Copy the non-secret findings into the next issue, PR, or private maintainer repo
 - Slurm discovery summary
 - CPU diagnostic job ID and result JSON
 - GPU diagnostic job ID and result JSON, if run
+- cpu_payload_result.json / gpu_payload_result.json when completion waiting was enabled
 - launcher dry-run result
 - launcher payload-intent dry-run or explicit submit result
 - YOLO result only if intentionally run

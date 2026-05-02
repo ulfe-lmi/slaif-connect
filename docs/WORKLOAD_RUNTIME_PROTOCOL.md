@@ -10,8 +10,8 @@ relay still forwards encrypted SSH bytes only, and the remote launcher still
 runs from the login node under the authenticated HPC user before submitting a
 Slurm job.
 
-Fast diagnostics may complete through Slurm stdout and structured result
-reporting. Interactive workloads need a worker process inside the allocation to
+Fast diagnostics complete through Slurm stdout and structured
+`slaif.payloadResult` reporting. Interactive workloads need a worker process inside the allocation to
 connect outbound to SLAIF over WSS or HTTPS. The first interactive MVP payload
 is `gams_chat_v1`.
 

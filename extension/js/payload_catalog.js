@@ -234,7 +234,7 @@ export function buildDefaultPayloadCatalog() {
       requiresGpu: true,
       maxRuntimeSeconds: 300,
       maxOutputBytes: 65536,
-      resultSchema: 'slaif.gpuDiagnosticsResult.v1',
+      resultSchema: 'slaif.payloadResult.gpuDiagnostics.v1',
     },
     cpu_memory_diagnostics_v1: {
       type: 'fast_diagnostic',
@@ -242,7 +242,7 @@ export function buildDefaultPayloadCatalog() {
       requiresGpu: false,
       maxRuntimeSeconds: 300,
       maxOutputBytes: 65536,
-      resultSchema: 'slaif.cpuMemoryDiagnosticsResult.v1',
+      resultSchema: 'slaif.payloadResult.cpuMemoryDiagnostics.v1',
     },
     gams_chat_v1: {
       type: 'interactive_llm',

@@ -88,12 +88,19 @@ or a maintainer-provided directory that is still under the user account. The scr
 5. Slurm discovery.
 6. CPU diagnostic `sbatch`.
 7. GPU diagnostic `sbatch` if available.
-8. Remote launcher dry-run from the user home directory.
-9. Remote launcher payload-intent dry-run from the user home directory.
-10. Optional launcher payload-intent `sbatch`, only when the maintainer config explicitly enables it.
-11. Maintainer-only YOLO test, explicitly gated.
-12. Collect result bundle.
-13. Convert findings into pilot config, signed policy inputs, or future MVP payload profiles.
+8. Structured CPU/GPU payload result JSON when completion waiting is enabled.
+9. Remote launcher dry-run from the user home directory.
+10. Remote launcher payload-intent dry-run from the user home directory.
+11. Optional launcher payload-intent `sbatch`, only when the maintainer config explicitly enables it.
+12. Maintainer-only YOLO test, explicitly gated.
+13. Collect result bundle.
+14. Convert findings into pilot config, signed policy inputs, or future MVP payload profiles.
+
+The CPU/GPU phases emit `SLAIF_PAYLOAD_RESULT_BEGIN` /
+`SLAIF_PAYLOAD_RESULT_END` markers where practical and may collect
+`cpu_payload_result.json` or `gpu_payload_result.json` into the maintainer
+result bundle. Raw Slurm output remains a maintainer-owned local artifact and
+is not the normal SLAIF API payload.
 
 ## YOLO Mode Warning
 

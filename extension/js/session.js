@@ -16,7 +16,9 @@ import {
 import {SlaifRelay} from './slaif_relay.js';
 import {startBrowserSshSession} from './slaif_ssh_client.js';
 import {parseSchedulerJobSubmission} from './job_output_parser.js';
+import {PayloadResultError, parsePayloadResultFromOutput} from './payload_result_parser.js';
 import {postJobReport} from './slaif_job_reporter.js';
+import {postPayloadResult} from './slaif_payload_result_reporter.js';
 
 const statusEl = document.getElementById('status');
 const terminalEl = document.getElementById('terminal');
@@ -259,6 +261,52 @@ async function reportSchedulerJob({apiBaseUrl, descriptor, policy, allowLocalDev
   return {parseResult, report};
 }
 
+function payloadResultSummary(payloadResult) {
+  if (payloadResult.payloadId === 'cpu_memory_diagnostics_v1') {
+    return 'CPU diagnostics completed';
+  }
+  if (payloadResult.payloadId === 'gpu_diagnostics_v1') {
+    if (payloadResult.status === 'no_gpu_detected' || payloadResult.result?.gpuAvailable === false) {
+      return 'No GPU detected';
+    }
+    return 'GPU diagnostics completed';
+  }
+  return 'Payload diagnostics completed';
+}
+
+async function reportDiagnosticPayloadResult({apiBaseUrl, descriptor, policy, allowLocalDev, output}) {
+  if (!['cpu_memory_diagnostics_v1', 'gpu_diagnostics_v1'].includes(descriptor.payloadId)) {
+    return null;
+  }
+  setStatusState('parsing-payload-result', 'Parsing diagnostic payload result');
+  let parsed;
+  try {
+    parsed = parsePayloadResultFromOutput(output);
+  } catch (error) {
+    if (error instanceof PayloadResultError && error.code === 'missing_begin_marker') {
+      print('No structured diagnostic payload result was found');
+      return null;
+    }
+    throw error;
+  }
+  setStatusState('reporting-payload-result', 'Reporting diagnostic payload result to SLAIF');
+  await postPayloadResult({
+    apiBaseUrl,
+    sessionId: descriptor.sessionId,
+    hpc: descriptor.hpc,
+    jobReportToken: descriptor.jobReportToken,
+    jobReportTokenExpiresAt: descriptor.jobReportTokenExpiresAt,
+    policy,
+    allowLocalDev,
+    payloadResult: parsed.result,
+  });
+  const summary = payloadResultSummary(parsed.result);
+  print(summary);
+  print('Payload result sent');
+  setStatusState('completed', summary);
+  return parsed.result;
+}
+
 async function startDevelopmentSession(runtimeConfig) {
   setStatusState('loading-config', 'Loading signed local development SSH policy...');
   const {policy} = await loadPolicyForContext({allowLocalDev: true});
@@ -374,6 +422,13 @@ async function main() {
     allowLocalDev: Boolean(devRuntimeConfig),
     output: sshResult.output || capturedOutputEl.textContent,
     exitCode: sshResult.exitCode,
+  });
+  await reportDiagnosticPayloadResult({
+    apiBaseUrl,
+    descriptor,
+    policy,
+    allowLocalDev: Boolean(devRuntimeConfig),
+    output: sshResult.output || capturedOutputEl.textContent,
   });
 }
 

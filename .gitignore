@@ -37,3 +37,5 @@ hpc-test-results/
 *.launcher-intent.local.json
 session-intent.local.json
 slurm-profiles.local.json
+*_payload_result.json
+diagnostic-results/

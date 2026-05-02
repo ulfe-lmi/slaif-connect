@@ -226,6 +226,11 @@ profiles carry site-approved resource settings only; repository-owned templates
 provide the executable diagnostic/scaffold code. Intent and profile files must
 not carry commands, scripts, SSH credentials, tokens, or host overrides.
 
+Fast diagnostic payload results are structured `slaif.payloadResult` JSON
+objects framed in launcher stdout. The extension validates and reports only the
+framed result object; raw stdout, stderr, transcripts, tokens, credentials, and
+command/script fields are forbidden in payload-result reports.
+
 Maintainer-only YOLO test tooling is separate from normal mode. It intentionally
 runs arbitrary code under the maintainer's own authenticated HPC account for
 manual diagnostics and requires explicit local/config/environment gates. It must
