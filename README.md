@@ -226,3 +226,24 @@ by CI.
 SLAIF Connect is not production-ready yet. Local validation now covers real SSH traffic through the relay, browser-side OpenSSH/WASM startup, strict host-key negative cases, and the product-shaped web launch/session descriptor flow. That is still not the same as deployment against real HPC infrastructure.
 
 The next major product milestone is the normal payload-driven workload path described in [SLAIF_WORKLOAD_MVP.md](SLAIF_WORKLOAD_MVP.md): remote launcher payload intent, fast diagnostics, structured results, and the workload registry/broker. Real HPC pilots still require independently verified host-key or host-CA data and a site-approved installed launcher command. Production SLAIF trust roots, Redis/secret/audit/metrics operations, authentication UX, API/relay deployment, and release packaging remain pending.
+
+## Maintainer
+
+Janez Perš  
+Faculty of Electrical Engineering, University of Ljubljana  
+Laboratory for Machine Intelligence (LMI)  
+Email: janez.pers@fe.uni-lj.si  
+
+- Profile: https://lmi.fe.uni-lj.si/en/janez-pers-2/
+- Laboratory: https://lmi.fe.uni-lj.si/en
+
+## Security Contact
+
+For responsible disclosure of vulnerabilities, please contact:  
+janez.pers@fe.uni-lj.si
+
+## Acknowledgement
+
+We acknowledge the support of the EC/EuroHPC JU and the Slovenian Ministry of HESI via the project SLAIF (grant number 101254461).
+
+Project website: https://www.slaif.si
