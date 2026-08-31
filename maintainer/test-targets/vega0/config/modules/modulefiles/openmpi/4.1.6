@@ -1,0 +1,11 @@
+#%Module1.0
+proc ModulesHelp { } {
+    puts stderr "Open MPI 4.1.6"
+}
+module-whatis "Open MPI 4.1.6"
+set root /usr/lib/aarch64-linux-gnu/openmpi
+prepend-path PATH /usr/lib/aarch64-linux-gnu/openmpi/bin
+prepend-path LD_LIBRARY_PATH /usr/lib/aarch64-linux-gnu
+prepend-path CPATH $root/include
+setenv MPI_HOME $root
+setenv MPI_VERSION 4.1.6

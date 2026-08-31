@@ -1,0 +1,76 @@
+#!/bin/bash
+set -eo pipefail
+
+mode=$1
+login_host=192.168.1.200
+worker_host=192.168.1.162
+login_user=user
+host_key_alias=vega0-lab
+
+[ -z "$VEGA0_LOGIN_HOST" ] || login_host=$VEGA0_LOGIN_HOST
+[ -z "$VEGA0_WORKER_HOST" ] || worker_host=$VEGA0_WORKER_HOST
+[ -z "$VEGA0_LOGIN_USER" ] || login_user=$VEGA0_LOGIN_USER
+[ -z "$VEGA0_HOST_KEY_ALIAS" ] || host_key_alias=$VEGA0_HOST_KEY_ALIAS
+
+required='VEGA0_ADMIN_USER VEGA0_ADMIN_PASSWORD VEGA0_USER_PASSWORD VEGA0_USER_KEY VEGA0_TOTP_SEED_FILE VEGA0_KNOWN_HOSTS'
+for name in $required; do
+  value=$(printenv "$name" || true)
+  if [ -z "$value" ]; then
+    echo "$name is required" >&2
+    exit 2
+  fi
+done
+
+case "$mode" in
+  cpu)
+    remote_command="srun --account=demo-users --partition=cpu --wait=45 -N1 -n1 --job-name=vega-smoke bash -lc 'id; hostname; printf \"HOME=%s\\n\" \"\$HOME\"; printf \"WORKDIR=%s\\n\" \"\$WORKDIR\"; test -d \"\$WORKDIR\"; touch \"\$WORKDIR/probe\"; stat -c \"%u:%g %n\" \"\$WORKDIR/probe\"'"
+    ;;
+  dev)
+    remote_command="srun --account=demo-users --partition=dev --wait=45 -N1 -n1 --job-name=vega-dev bash -lc 'id; test \"\$(hostname -s)\" = vega0-login'"
+    ;;
+  cgroup)
+    remote_command="srun --account=demo-users --partition=cpu --mem=128M --wait=45 -N1 -n1 --job-name=vega-cgroup bash -lc 'cg=\$(cut -d: -f3 /proc/self/cgroup); p=/sys/fs/cgroup\$cg; while [ \"\$p\" != /sys/fs/cgroup ]; do value=\$(cat \"\$p/memory.max\"); if [ \"\$value\" != max ]; then echo MEMORY_LIMIT=\$value; test \"\$value\" -le 134217728; exit; fi; p=\$(dirname \"\$p\"); done; exit 1'"
+    ;;
+  mpi)
+    remote_command="bash -lc 'source /etc/profile.d/vega-modules.sh; module load gnu/13.3.0 openmpi/4.1.6; mpicc /ceph/hpc/project/demo-users/mpi_hello.c -o /ceph/hpc/project/demo-users/mpi_hello; srun --mpi=pmix_v5 --account=demo-users --partition=all --wait=60 -N2 -n2 --ntasks-per-node=1 /ceph/hpc/project/demo-users/mpi_hello'"
+    ;;
+  *)
+    echo "usage: $0 {cpu|dev|cgroup|mpi}" >&2
+    exit 2
+    ;;
+esac
+
+for host in "$login_host" "$worker_host"; do
+  temp_mC=$(SSHPASS=$VEGA0_ADMIN_PASSWORD sshpass -e ssh \
+    -o StrictHostKeyChecking=yes \
+    -o UserKnownHostsFile="$VEGA0_KNOWN_HOSTS" \
+    -o ConnectTimeout=5 \
+    "$VEGA0_ADMIN_USER@$host" \
+    'cat /sys/class/thermal/thermal_zone0/temp')
+  if (( temp_mC >= 75000 )); then
+    echo "$host is too hot: $((temp_mC / 1000))C" >&2
+    exit 75
+  fi
+done
+unset VEGA0_ADMIN_PASSWORD
+
+script_dir=$(cd "$(dirname "$0")" && pwd)
+old_code=$("$script_dir/generate-totp-code.py" "$VEGA0_TOTP_SEED_FILE")
+for _ in $(seq 1 35); do
+  totp_code=$("$script_dir/generate-totp-code.py" "$VEGA0_TOTP_SEED_FILE")
+  [ "$totp_code" = "$old_code" ] || break
+  sleep 1
+done
+
+if [ "$totp_code" = "$old_code" ]; then
+  echo "TOTP interval did not advance" >&2
+  exit 75
+fi
+
+export VEGA0_LOGIN_HOST=$login_host
+export VEGA0_LOGIN_USER=$login_user
+export VEGA0_HOST_KEY_ALIAS=$host_key_alias
+export VEGA0_TOTP_CODE=$totp_code
+export VEGA0_REMOTE_COMMAND=$remote_command
+
+exec "$script_dir/run-user-command.exp"

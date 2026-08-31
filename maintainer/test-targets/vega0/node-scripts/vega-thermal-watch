@@ -1,0 +1,43 @@
+#!/bin/bash
+set -euo pipefail
+
+warn_mC=70000
+critical_mC=75000
+interval=15
+last_state='cool'
+
+while :; do
+  max_mC=0
+  max_zone=''
+  for thermal_file in /sys/class/thermal/thermal_zone*/temp; do
+    [ -r "$thermal_file" ] || continue
+    value=$(<"$thermal_file")
+    case "$value" in
+      ''|*[!0-9]*) continue ;;
+    esac
+    if (( value > max_mC )); then
+      max_mC=$value
+      max_zone=$(basename "$thermal_file")
+    fi
+  done
+
+  if (( max_mC >= critical_mC )); then
+    state='critical'
+    priority='daemon.err'
+  elif (( max_mC >= warn_mC )); then
+    state='warning'
+    priority='daemon.warning'
+  else
+    state='cool'
+    priority='daemon.notice'
+  fi
+
+  if [[ "$state" != "$last_state" ]]; then
+    zone=$max_zone
+    [ -n "$zone" ] || zone=unknown
+    logger -t vega-thermal-watch -p "$priority" "CPU thermal state=$state zone=$zone temperature=$((max_mC / 1000))C"
+    last_state=$state
+  fi
+
+  sleep "$interval"
+done

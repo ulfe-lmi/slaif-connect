@@ -1,0 +1,3 @@
+# Append this line to the worker's existing /etc/fstab. Do not replace its
+# root or boot filesystem entries.
+10.10.0.1:/ /ceph/hpc nfs4 _netdev,vers=4.2,sec=sys,x-systemd.automount,x-systemd.idle-timeout=600 0 0

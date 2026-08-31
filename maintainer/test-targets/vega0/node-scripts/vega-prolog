@@ -1,0 +1,12 @@
+#!/bin/bash
+set -euo pipefail
+
+: "$SLURM_JOB_ID" "$SLURM_JOB_USER"
+/usr/local/sbin/vega-thermal-guard
+
+job_dir="/scratch/$SLURM_JOB_ID"
+uid="$(id -u "$SLURM_JOB_USER")"
+gid="$(id -g "$SLURM_JOB_USER")"
+
+install -d -m 0700 "$job_dir"
+chown "$uid:$gid" "$job_dir"

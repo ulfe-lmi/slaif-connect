@@ -1,0 +1,25 @@
+#!/bin/bash
+set -euo pipefail
+
+thermal_max_mC=75000
+hottest_mC=0
+hottest_zone=''
+
+for thermal_file in /sys/class/thermal/thermal_zone*/temp; do
+  [ -r "$thermal_file" ] || continue
+  value=$(<"$thermal_file")
+  case "$value" in
+    ''|*[!0-9]*) continue ;;
+  esac
+  if (( value > hottest_mC )); then
+    hottest_mC=$value
+    hottest_zone=$(basename "$thermal_file")
+  fi
+done
+
+if (( hottest_mC >= thermal_max_mC )); then
+  zone=$hottest_zone
+  [ -n "$zone" ] || zone=thermal-zone
+  logger -t vega-thermal-guard -p daemon.warning "rejecting Slurm job: $zone is $((hottest_mC / 1000))C (limit $((thermal_max_mC / 1000))C)"
+  exit 1
+fi

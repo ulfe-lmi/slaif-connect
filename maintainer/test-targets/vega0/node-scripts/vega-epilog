@@ -1,0 +1,13 @@
+#!/bin/bash
+set -eo pipefail
+
+job_dir="/scratch/$SLURM_JOB_ID"
+case "$job_dir" in
+  /scratch/[0-9]*) ;;
+  *) exit 0 ;;
+esac
+
+if [ -d "$job_dir" ]; then
+  find "$job_dir" -xdev -mindepth 1 -delete
+  rmdir "$job_dir"
+fi

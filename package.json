@@ -40,7 +40,7 @@
     "test:tokens": "node tests/tokens/token-registry.test.mjs && node tests/tokens/audit-log.test.mjs",
     "test:workloads": "node tests/workloads/workload-protocol.test.mjs && node tests/workloads/workload-token.test.mjs",
     "test:payload-catalog": "node tests/workloads/payload-catalog.test.mjs",
-    "test:maintainer-hpc": "node tests/maintainer-hpc/config-validation.test.mjs && node tests/maintainer-hpc/yolo-gating.test.mjs && node tests/maintainer-hpc/remote-script-static.test.mjs && node tests/maintainer-hpc/result-bundle.test.mjs",
+    "test:maintainer-hpc": "node tests/maintainer-hpc/config-validation.test.mjs && node tests/maintainer-hpc/yolo-gating.test.mjs && node tests/maintainer-hpc/remote-script-static.test.mjs && node tests/maintainer-hpc/result-bundle.test.mjs && node tests/maintainer-hpc/vega0-target-static.test.mjs",
     "test:deployment": "node tests/deployment/deployment-config.test.mjs && node tests/deployment/token-store-contract.test.mjs && node tests/deployment/rate-limiter.test.mjs && node tests/deployment/health-checks.test.mjs",
     "test:observability": "node tests/observability/audit-sink.test.mjs && node tests/observability/metrics-registry.test.mjs && node tests/observability/observability-http.test.mjs && node tests/observability/observability-integration.test.mjs",
     "test:redis-token-store": "node tests/deployment/redis-token-store.test.mjs",

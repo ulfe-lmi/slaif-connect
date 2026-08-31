@@ -1,0 +1,2 @@
+# Vega-style shared namespace over the isolated private cluster fabric.
+/ceph/hpc 10.10.0.2(rw,sync,root_squash,no_subtree_check,fsid=0,crossmnt,sec=sys)

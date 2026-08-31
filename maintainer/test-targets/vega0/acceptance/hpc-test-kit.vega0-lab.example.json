@@ -1,0 +1,40 @@
+{
+  "type": "slaif.maintainerHpcTestConfig",
+  "version": 1,
+  "system": "custom",
+  "loginHostCandidates": [
+    "192.168.1.200"
+  ],
+  "selectedLoginHost": "192.168.1.200",
+  "username": "user",
+  "sshKeyPath": "~/.ssh/vega0_lab_ed25519",
+  "hostKeyAlias": "vega0-lab",
+  "verifiedKnownHostsFile": "~/.slaif-connect/vega0-lab.verified-known-hosts",
+  "remoteBaseDir": "~/.slaif-connect/hpc-tests",
+  "slurm": {
+    "account": "demo-users",
+    "cpuPartition": "cpu",
+    "gpuPartition": "",
+    "qos": "",
+    "timeLimit": "00:05:00",
+    "memory": "512M",
+    "cpusPerTask": 1,
+    "gpus": 0,
+    "gpuGres": ""
+  },
+  "tests": {
+    "runCpuDiagnostics": true,
+    "runGpuDiagnostics": false,
+    "runLauncherDryRun": true,
+    "runLauncherIntentDryRun": true,
+    "runLauncherIntentSubmit": false,
+    "launcherIntentPayloadId": "cpu_memory_diagnostics_v1",
+    "runYolo": false,
+    "waitForCompletion": true
+  },
+  "yolo": {
+    "command": "",
+    "allowYolo": false,
+    "iUnderstandThisRunsArbitraryCode": false
+  }
+}

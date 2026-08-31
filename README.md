@@ -31,7 +31,7 @@ Short version:
 - browser-side OpenSSH/WASM through the relay is validated locally with Playwright/Chromium;
 - the product-shaped SLAIF web launch and session descriptor flow is validated locally;
 - signed HPC policy verification and host-key rotation foundations are present;
-- real-HPC pilot onboarding tooling and docs are present, but no real HPC target is validated yet;
+- real-HPC pilot onboarding tooling and docs are present; a two-node Vega-style Raspberry Pi lab target is manually validated, but no production HPC site is validated yet;
 - fixed-command SLURM job metadata reporting is locally validated through browser-side output parsing and a session-bound API report token;
 - the remote launcher contract and a safe local/test reference launcher are present;
 - token lifecycle and relay hardening foundations are present for short-lived scoped tokens, replay rejection, relay timeouts, and audit-safe logging;
@@ -192,6 +192,13 @@ Maintainer-owned Vega/Arnes/NSC discovery and diagnostic commands live in
 manual tests require real accounts and verified known-host data and are not run
 by CI.
 
+A reproducible, deliberately non-production Vega-style test target for two
+Raspberry Pi 4 nodes lives in
+[maintainer/test-targets/vega0/](maintainer/test-targets/vega0/README.md). It
+documents central identity, key-plus-TOTP login, login-only SSH, Slurm control
+and accounting, shared storage, MPI, modules, containers, thermal limits, and
+reboot recovery without committing its disposable credentials.
+
 ## Important Docs
 
 - [STATUS.md](STATUS.md): current progress, validation evidence, limitations, and roadmap.
@@ -205,6 +212,7 @@ by CI.
 - [docs/PAYLOAD_CATALOG.md](docs/PAYLOAD_CATALOG.md): signed-policy allowed payload catalog and host-level payload restrictions.
 - [docs/REMOTE_LAUNCHER_PAYLOAD_INTENT.md](docs/REMOTE_LAUNCHER_PAYLOAD_INTENT.md): session intent, Slurm profile, and repository-owned template launcher contract.
 - [docs/MAINTAINER_HPC_TESTING.md](docs/MAINTAINER_HPC_TESTING.md): maintainer-owned real-HPC discovery, host-key verification, diagnostics, and result bundle flow.
+- [maintainer/test-targets/vega0/](maintainer/test-targets/vega0/README.md): manually validated two-node Vega-style SLAIF Connect lab target and preparation package.
 - [docs/HOST_KEY_ROTATION.md](docs/HOST_KEY_ROTATION.md): host-key and host-CA rotation foundation.
 - [docs/REAL_HPC_PILOT.md](docs/REAL_HPC_PILOT.md): manual real-HPC pilot onboarding flow.
 - [docs/JOB_REPORTING.md](docs/JOB_REPORTING.md): fixed-command scheduler metadata reporting.
