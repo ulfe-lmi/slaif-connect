@@ -1,0 +1,11 @@
+#!/bin/bash
+set -euo pipefail
+
+: "$SLURM_JOB_ID"
+set +u
+module_path=$MODULEPATH
+set -u
+job_dir="/scratch/$SLURM_JOB_ID"
+printf 'export WORKDIR=%s\n' "$job_dir"
+printf 'export TMPDIR=%s\n' "$job_dir"
+printf 'export MODULEPATH=/ceph/hpc/software/modulefiles:%s\n' "$module_path"

@@ -1,0 +1,17 @@
+[Unit]
+Description=FreeIPA server container for the Vega0 test target
+Wants=network-online.target
+After=network-online.target
+RequiresMountsFor=/run/containers/storage /var/lib/freeipa
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+TimeoutStopSec=70
+CPUQuota=150%
+ExecStart=/usr/bin/podman start -a fido-ipa
+ExecStop=/usr/bin/podman stop -t 30 fido-ipa
+
+[Install]
+WantedBy=multi-user.target

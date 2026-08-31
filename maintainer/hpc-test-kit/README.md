@@ -2,6 +2,11 @@
 
 This directory contains maintainer-owned manual tooling for collecting real HPC evidence before SLAIF Connect policy/profile changes are made. It is not CI, not product runtime, and not a substitute for browser-side SSH validation.
 
+For a reproducible non-production cluster on two Raspberry Pi 4 systems, see
+[../test-targets/vega0/](../test-targets/vega0/README.md). That package builds
+the target itself; this test kit then performs homedir-scoped SLAIF discovery,
+diagnostic, and launcher tests against it.
+
 The scripts use your local system `ssh` and `scp` clients. They require verified known-host data and never write passwords, OTPs, private keys, or token values into config files.
 
 ## Vega

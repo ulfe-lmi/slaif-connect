@@ -1,0 +1,14 @@
+[Unit]
+Description=Use FreeIPA DNS for the private Vega test domain
+Wants=network-online.target
+After=systemd-resolved.service network-online.target
+Before=sssd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/resolvectl dns eth0 10.10.0.1
+ExecStart=/usr/bin/resolvectl domain eth0 ~vega0.test
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

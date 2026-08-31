@@ -1,0 +1,10 @@
+# Optional experiment only. The validated operational mount uses sec=sys.
+# Do not install this and advertise krb5p until unattended batch tickets and
+# reboot recovery have been proven.
+[gssd]
+use-machine-creds=1
+use-gss-proxy=0
+keytab-file=/etc/krb5.keytab
+
+[svcgssd]
+principal=nfs/vega0-login.vega0.test

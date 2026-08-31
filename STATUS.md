@@ -321,7 +321,10 @@ Validation:
 npm run test:pilot
 ```
 
-This is onboarding support only. No real HPC host has been validated in this repository, and no real credentials or unverified host keys should be committed.
+This is onboarding support only. No production HPC host has been validated in
+this repository. A separate two-node Vega-style Raspberry Pi lab target is
+manually validated and documented under maintainer/test-targets/vega0. No real
+credentials or unverified host keys should be committed.
 
 ### 14. Fixed-command SLURM job metadata reporting
 
@@ -548,8 +551,9 @@ debugging. That YOLO path is not part of normal product mode, is not in signed
 payload catalog, and is not wired into the extension launch flow or session
 descriptor. Normal MVP execution remains `payloadId`-based.
 
-This is tooling/docs only. No real-HPC validation has been completed in this
-repository.
+This remains tooling/docs for production sites. No Vega, Arnes, or NSC
+production account has been validated. A separate Vega-style lab target is
+manually validated for repeatable integration testing.
 
 Main files and docs:
 
@@ -603,6 +607,44 @@ Validation:
 npm run test:launcher-intent
 ```
 
+### 24. Vega-style two-node SLAIF Connect lab target
+
+The repository now includes a reproducible preparation and operations package
+for a two-node Raspberry Pi 4 cluster that mirrors the integration complexity
+SLAIF Connect expects from a Vega-like HPC target. The package covers a
+login/control node and compute worker, private cluster fabric, FreeIPA/SSSD,
+key-plus-TOTP login, login-only SSH HBAC, MUNGE, Slurm partitions and accounts,
+MariaDB/slurmdbd accounting, NFS shared storage, per-job scratch, Lmod,
+OpenMPI/PMIx, SingularityCE/Apptainer compatibility, firewall boundaries,
+thermal protection, reboot recovery, and positive/negative acceptance tests.
+
+This is not a claim of production Vega validation. NFS emulates a shared POSIX
+namespace rather than CephFS, the target has one CPU worker and no GPU, and the
+FreeIPA server is containerized on the login Pi. The value is a target that
+exercises authentication, scheduler, storage, network, failure, and recovery
+boundaries without requiring production-site access.
+
+Manual validation completed on the reference hardware included independent
+node reboots, NFS client recovery after login-node reboot, central identity on
+both nodes, worker SSH denial, cpu/dev/all jobs, two-node PMIx MPI, cgroup-v2
+memory enforcement, accounting records, scratch cleanup, and a 75 C Slurm
+admission guard. Disposable credentials were intentionally excluded from Git.
+
+Main files and docs:
+
+- [maintainer/test-targets/vega0/README.md](maintainer/test-targets/vega0/README.md)
+- [maintainer/test-targets/vega0/PREPARATION.md](maintainer/test-targets/vega0/PREPARATION.md)
+- [maintainer/test-targets/vega0/SLAIF_CONNECT_INTEGRATION.md](maintainer/test-targets/vega0/SLAIF_CONNECT_INTEGRATION.md)
+- [maintainer/test-targets/vega0/ACCEPTANCE.md](maintainer/test-targets/vega0/ACCEPTANCE.md)
+- [tests/maintainer-hpc/vega0-target-static.test.mjs](tests/maintainer-hpc/vega0-target-static.test.mjs)
+
+Validation:
+
+```bash
+npm run test:maintainer-hpc
+npm test
+```
+
 ## What Is Validated
 
 | Capability | Status | Evidence / command |
@@ -617,6 +659,7 @@ npm run test:launcher-intent
 | Workload token scope and runtime protocol | Working locally at reference/protocol level | `npm run test:workloads` |
 | Signed-policy payload catalog | Working locally | `npm run test:payload-catalog`, `npm run test:policy` |
 | Maintainer real-HPC test kit | Scaffolded and locally validated as tooling | `npm run test:maintainer-hpc`; real runs require maintainer credentials and verified host data |
+| Vega-style two-node lab target | Manually validated on Raspberry Pi 4 hardware | target package acceptance evidence; `npm run test:maintainer-hpc` checks committed safety invariants |
 | Remote launcher payload-intent contract | Working locally | `npm run test:launcher-intent`; maintainer kit includes `launcher-intent` dry-run phase |
 | Fast diagnostics payloads | Pending | `gpu_diagnostics_v1` and `cpu_memory_diagnostics_v1` profiles/tests not implemented yet |
 | Interactive GaMS chat payload | Pending | `gams_chat_v1`, workload registry/broker, and worker agent not implemented yet |
@@ -671,7 +714,7 @@ These rules are non-negotiable unless the project owner explicitly changes the a
 ## Current Known Limitations
 
 - SLAIF Connect is not production-ready.
-- Real HPC hosts are not integrated or validated yet; pilot tooling exists for an operator-supplied verified host key or host CA.
+- Production HPC hosts are not integrated or validated yet; pilot tooling exists for an operator-supplied verified host key or host CA. The validated Vega-style Raspberry Pi target is a lab approximation, not production-site evidence.
 - Maintainer-owned real-HPC test kit scripts exist for Vega, Arnes HPC, and NSC, but the repository has not run them against real systems. Credentials, verified host keys, and user-specific Slurm/account config are still required.
 - The remote launcher contract and reference implementation exist, but no real HPC site has installed or validated `/opt/slaif/bin/slaif-launch`.
 - Signed policy verification exists, but production trust-root operations are not deployed.
@@ -752,6 +795,7 @@ Merged PRs visible from GitHub at the time of this update:
 - [docs/HOST_KEY_ROTATION.md](docs/HOST_KEY_ROTATION.md): host-key and host-CA rotation foundation.
 - [docs/REAL_HPC_PILOT.md](docs/REAL_HPC_PILOT.md): manual real-HPC pilot onboarding.
 - [docs/MAINTAINER_HPC_TESTING.md](docs/MAINTAINER_HPC_TESTING.md): maintainer-owned Vega/Arnes/NSC discovery and diagnostic test kit.
+- [maintainer/test-targets/vega0/README.md](maintainer/test-targets/vega0/README.md): two-node Vega-style lab target architecture, preparation, integration, acceptance, and recovery package.
 - [docs/REMOTE_LAUNCHER_CONTRACT.md](docs/REMOTE_LAUNCHER_CONTRACT.md): HPC-side launcher contract.
 - [docs/TOKEN_LIFECYCLE.md](docs/TOKEN_LIFECYCLE.md): token scopes, expiry, replay, and logging.
 - [docs/RELAY_HARDENING.md](docs/RELAY_HARDENING.md): relay timeout, allowlist, token, and audit controls.

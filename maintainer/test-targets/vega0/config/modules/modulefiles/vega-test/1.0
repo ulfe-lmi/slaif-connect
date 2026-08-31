@@ -1,0 +1,7 @@
+#%Module1.0
+proc ModulesHelp { } {
+    puts stderr "Vega-compatible test environment"
+}
+module-whatis "Vega-compatible test environment"
+setenv VEGA_TEST_MODULE 1
+setenv VEGA_CLUSTER vega0

@@ -1,0 +1,17 @@
+[Unit]
+Description=Vega0 CPU thermal monitor
+After=local-fs.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/vega-thermal-watch
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadOnlyPaths=/sys/class/thermal
+
+[Install]
+WantedBy=multi-user.target

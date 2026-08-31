@@ -17,6 +17,12 @@ The path supports:
 
 This is not CI, not production deployment, and not normal SLAIF Connect product behavior. The agent should not run these tests without real credentials, verified host keys, and user/account-specific Slurm configuration.
 
+For testing without a production-site account, the repository also contains a
+manually validated two-node Vega-style lab target under
+[../maintainer/test-targets/vega0/](../maintainer/test-targets/vega0/README.md).
+It exercises comparable login, MFA, central identity, Slurm, shared storage,
+MPI, and recovery boundaries, but it is not evidence about production Vega.
+
 ## Systems And Known Login Nodes
 
 | System | Known login nodes | Notes |

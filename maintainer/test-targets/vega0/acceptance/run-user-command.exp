@@ -1,0 +1,40 @@
+#!/usr/bin/expect -f
+set timeout 120
+log_user 1
+
+set login_host $env(VEGA0_LOGIN_HOST)
+set login_user $env(VEGA0_LOGIN_USER)
+set user_key $env(VEGA0_USER_KEY)
+set user_password $env(VEGA0_USER_PASSWORD)
+set totp_code $env(VEGA0_TOTP_CODE)
+set remote_command $env(VEGA0_REMOTE_COMMAND)
+set prompt_count 0
+
+spawn ssh -tt \
+    -o ConnectTimeout=10 \
+    -o StrictHostKeyChecking=yes \
+    -o UserKnownHostsFile=$env(VEGA0_KNOWN_HOSTS) \
+    -o HostKeyAlias=$env(VEGA0_HOST_KEY_ALIAS) \
+    -i $user_key \
+    -o IdentitiesOnly=yes \
+    -o PreferredAuthentications=publickey,keyboard-interactive \
+    -o PasswordAuthentication=no \
+    $login_user@$login_host \
+    $remote_command
+
+expect {
+    -re {[Pp]assword:} {
+        incr prompt_count
+        if {$prompt_count > 1} {
+            puts stderr "authentication factor rejected; wait for a fresh TOTP"
+            exit 75
+        }
+        send -- "$user_password$totp_code\r"
+        exp_continue
+    }
+    timeout { exit 124 }
+    eof
+}
+
+catch wait result
+exit [lindex $result 3]

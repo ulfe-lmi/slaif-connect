@@ -1,0 +1,10 @@
+#%Module1.0
+proc ModulesHelp { } {
+    puts stderr "GNU compiler toolchain 13.3.0"
+}
+module-whatis "GNU compiler toolchain 13.3.0"
+setenv CC gcc
+setenv CXX g++
+setenv FC gfortran
+setenv F77 gfortran
+setenv GNU_VERSION 13.3.0
