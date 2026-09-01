@@ -1,6 +1,8 @@
 # Reference File Deployment Map
 
 Review every file before installation. Paths are relative to this directory.
+The exact identity/HBAC commands are in
+[IDENTITY_AND_CREDENTIALS.md](IDENTITY_AND_CREDENTIALS.md).
 
 | Source | Target | Nodes | Owner/mode |
 | --- | --- | --- | --- |
