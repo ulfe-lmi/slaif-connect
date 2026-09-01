@@ -34,10 +34,13 @@ experiment. The built-in `eth0` interfaces form the private cluster fabric.
 2. [ARCHITECTURE.md](ARCHITECTURE.md)
 3. [SOFTWARE.md](SOFTWARE.md)
 4. [PREPARATION.md](PREPARATION.md)
-5. [DEPLOYMENT_MAP.md](DEPLOYMENT_MAP.md)
-6. [SLAIF_CONNECT_INTEGRATION.md](SLAIF_CONNECT_INTEGRATION.md)
-7. [ACCEPTANCE.md](ACCEPTANCE.md)
-8. [OPERATIONS_AND_RECOVERY.md](OPERATIONS_AND_RECOVERY.md)
+5. [IDENTITY_AND_CREDENTIALS.md](IDENTITY_AND_CREDENTIALS.md)
+6. [DEPLOYMENT_MAP.md](DEPLOYMENT_MAP.md)
+7. [BUILD_CHECKLIST.md](BUILD_CHECKLIST.md)
+8. [SLAIF_CONNECT_INTEGRATION.md](SLAIF_CONNECT_INTEGRATION.md)
+9. [ACCEPTANCE.md](ACCEPTANCE.md)
+10. [OPERATIONS_AND_RECOVERY.md](OPERATIONS_AND_RECOVERY.md)
+11. [SOURCES.md](SOURCES.md)
 
 Reference configuration lives under [config/](config/), node-side helper
 programs under [node-scripts/](node-scripts/), and local acceptance helpers
@@ -52,6 +55,10 @@ local environment variables. Test credentials may be intentionally disposable,
 but they are still credentials.
 
 ## Proven Reference Behavior
+
+Reference validation completed on 2026-08-31. With the Slurm queue empty, the
+worker and then the login node were cleanly powered off and confirmed offline
+after the final acceptance run.
 
 The lab target passed all of the following before it was powered off:
 

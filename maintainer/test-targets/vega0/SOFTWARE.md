@@ -32,6 +32,16 @@ Install from Ubuntu 24.04 repositories after enabling `noble-updates` and
 
 ### Both nodes
 
+Install:
+
+    sudo apt-get update
+    sudo apt-get install \
+      chrony munge slurm-client slurmd \
+      freeipa-client sssd sssd-tools nfs-common \
+      lmod singularity-container \
+      gcc g++ gfortran openmpi-bin libopenmpi-dev \
+      ufw dnsutils
+
 ```text
 chrony
 munge
@@ -54,6 +64,11 @@ dnsutils
 
 ### Login node only
 
+Install:
+
+    sudo apt-get install \
+      slurmctld slurmdbd mariadb-server nfs-kernel-server podman
+
 ```text
 slurmctld
 slurmdbd
@@ -64,6 +79,10 @@ podman
 
 Package names can vary across Ubuntu updates. Confirm ARM64 availability with
 `apt-cache policy` before changing the procedure.
+
+On the local operator workstation, the optional automated acceptance wrapper
+also requires OpenSSH, Python 3, Expect, and sshpass. Those tools are not part
+of SLAIF Connect product runtime.
 
 ## Version Evidence To Capture
 

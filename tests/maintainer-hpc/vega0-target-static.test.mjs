@@ -14,9 +14,13 @@ const requiredFiles = [
   'ARCHITECTURE.md',
   'SOFTWARE.md',
   'PREPARATION.md',
+  'IDENTITY_AND_CREDENTIALS.md',
+  'DEPLOYMENT_MAP.md',
+  'BUILD_CHECKLIST.md',
   'SLAIF_CONNECT_INTEGRATION.md',
   'ACCEPTANCE.md',
   'OPERATIONS_AND_RECOVERY.md',
+  'SOURCES.md',
   'config/slurm/slurm.conf',
   'config/slurm/cgroup.conf',
   'config/slurm/slurmdbd.conf.example',
@@ -63,6 +67,25 @@ const sshConfig = fs.readFileSync(
 assert.match(sshConfig, /AuthenticationMethods publickey,keyboard-interactive:pam/);
 assert.match(sshConfig, /AuthorizedKeysCommand \/usr\/bin\/sss_ssh_authorizedkeys/);
 assert.match(sshConfig, /AllowTcpForwarding no/);
+
+const identityRecipe = fs.readFileSync(
+    path.join(targetDir, 'IDENTITY_AND_CREDENTIALS.md'),
+    'utf8',
+);
+assert.match(identityRecipe, /--user-auth-type=otp/);
+assert.match(identityRecipe, /ipa otptoken-add user-test/);
+assert.match(identityRecipe, /ipa hbacrule-add-service hpc-users-login --hbacsvcs=sshd/);
+assert.match(identityRecipe, /ipa hbacrule-disable allow_all/);
+assert.match(identityRecipe, /worker: Access granted: False/);
+assert.match(identityRecipe, /Never copy the private key/);
+
+const buildChecklist = fs.readFileSync(
+    path.join(targetDir, 'BUILD_CHECKLIST.md'),
+    'utf8',
+);
+assert.match(buildChecklist, /pre-existing administrative account remains unchanged and usable/);
+assert.match(buildChecklist, /Existing worker NFS mount recovers after login reboot/);
+assert.match(buildChecklist, /No password, OTP seed\/value, private key, ticket, or token is committed/);
 
 const thermalGuard = fs.readFileSync(
     path.join(targetDir, 'node-scripts/vega-thermal-guard'),

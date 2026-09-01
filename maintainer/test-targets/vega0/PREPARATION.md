@@ -353,6 +353,10 @@ getent hosts fido.vega0.test
 
 ## 10. Create The Central Test User And Login-Only HBAC Rule
 
+Follow [IDENTITY_AND_CREDENTIALS.md](IDENTITY_AND_CREDENTIALS.md) for the exact
+credential generation, IPA CLI, HBAC test, SSH Match, and Slurm-association
+commands. The summary below is the phase gate.
+
 In IPA:
 
 1. create group hpc-users;
@@ -395,13 +399,16 @@ On login:
 
 ~~~bash
 sudo install -d -m 0755 /ceph/hpc/home /ceph/hpc/project /ceph/hpc/software
-sudo install -d -m 0700 -o TEST_UID -g TEST_GID /ceph/hpc/home/user
-sudo install -d -m 2770 -o TEST_UID -g TEST_GID /ceph/hpc/project/demo-users
+TEST_UID=$(id -u user)
+TEST_GID=$(id -g user)
+sudo install -d -m 0700 -o "$TEST_UID" -g "$TEST_GID" /ceph/hpc/home/user
+sudo install -d -m 2770 -o "$TEST_UID" -g "$TEST_GID" /ceph/hpc/project/demo-users
+unset TEST_UID TEST_GID
 ~~~
 
-Install config/nfs/exports on login and export it. Install
-config/nfs/fstab.worker on the worker, replacing or appending only the
-/ceph/hpc line.
+Install config/nfs/exports on login and export it. Append the NFS line from
+config/nfs/fstab.worker.fragment to the worker's existing /etc/fstab. Never
+replace the worker's root or boot filesystem entries.
 
 The reference mount is NFSv4.2, hard, sec=sys, and systemd-automounted.
 
@@ -409,6 +416,7 @@ Verify:
 
 ~~~bash
 sudo exportfs -v
+sudo exportfs -ra
 stat /ceph/hpc/home/user
 findmnt /ceph/hpc
 ~~~

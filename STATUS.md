@@ -634,8 +634,11 @@ Main files and docs:
 
 - [maintainer/test-targets/vega0/README.md](maintainer/test-targets/vega0/README.md)
 - [maintainer/test-targets/vega0/PREPARATION.md](maintainer/test-targets/vega0/PREPARATION.md)
+- [maintainer/test-targets/vega0/IDENTITY_AND_CREDENTIALS.md](maintainer/test-targets/vega0/IDENTITY_AND_CREDENTIALS.md)
+- [maintainer/test-targets/vega0/BUILD_CHECKLIST.md](maintainer/test-targets/vega0/BUILD_CHECKLIST.md)
 - [maintainer/test-targets/vega0/SLAIF_CONNECT_INTEGRATION.md](maintainer/test-targets/vega0/SLAIF_CONNECT_INTEGRATION.md)
 - [maintainer/test-targets/vega0/ACCEPTANCE.md](maintainer/test-targets/vega0/ACCEPTANCE.md)
+- [maintainer/test-targets/vega0/SOURCES.md](maintainer/test-targets/vega0/SOURCES.md)
 - [tests/maintainer-hpc/vega0-target-static.test.mjs](tests/maintainer-hpc/vega0-target-static.test.mjs)
 
 Validation:
